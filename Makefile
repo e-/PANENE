@@ -1,6 +1,6 @@
 CC=g++-6
 CFLAGS=-c -Wall -std=c++11 -O2 -fopenmp
-LDFLAGS=-I ../flann/src/cpp/flann -lflann -lhdf5 -fopenmp
+LDFLAGS=-I ../flann/src/cpp/flann -lflann -fopenmp
 SOURCES=main.cpp timer.cpp # hello.cpp factorial.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=main

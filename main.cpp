@@ -1,5 +1,4 @@
 #include <flann/flann.hpp>
-#include <flann/io/hdf5.h>
 
 #include <iostream>
 #include <string>
@@ -41,11 +40,12 @@ void getCorrectAnswers(Matrix<float> &dataset, int rows, Matrix<float> &queryset
 
     int n = answers.cols;
 
-    int* match = new int[n];
-    DistanceType* dists = new DistanceType[n];
 
 #pragma omp parallel for
     for(int q = 0; q < queryset.rows; q++) {
+        int* match = new int[n];
+        DistanceType* dists = new DistanceType[n];
+
         float * query = queryset[q];
 
         dists[0] = distance(dataset[0], query, dataset.cols);
@@ -76,23 +76,28 @@ void getCorrectAnswers(Matrix<float> &dataset, int rows, Matrix<float> &queryset
         for (size_t i=0; i<n; ++i) {
             answers[q][i] = match[i];
         }
-    }
 
-    delete[] match;
-    delete[] dists;
+        delete[] match;
+        delete[] dists;
+    }
 }
 
 int main(int argc, char** argv)
 {
     srand(time(NULL));
     int chunkSize = 1000;
-    int chunkN = 20;
-    int querySize = 1000;
+    int chunkN = 40;
+    int querySize = 10000;
     int dim = 100;
     int nn = 10;
+    int repeat = 5;
+    vector<IndexParams> parameters;
+
     Timer timer;
 
     float *rawDataset = new float[(chunkSize * chunkN + querySize) * dim];
+    
+    parameters.push_back(KMeansIndexParams());
     
     readData("data/glove.txt", chunkSize * chunkN + querySize, dim, rawDataset);
 
@@ -109,7 +114,8 @@ int main(int argc, char** argv)
             chunks.push_back(Matrix<float>(dataset + querySize * dim + i * chunkSize * dim, chunkSize, dim));
         }
         
-        Index<L2<float>> index(chunks[0], KDTreeIndexParams(4));
+        Index<L2<float>> index(chunks[0], KMeansIndexParams()); //KDTreeIndexParams(16)); // AutotunedIndexParams(0.95)); //
+        //cout << index.getParameters() << endl;
 
         for(int i = 0; i < chunkN; ++i) {
             // calculate correct answers
@@ -119,6 +125,7 @@ int main(int argc, char** argv)
             getCorrectAnswers(aggregatedDataset, (i + 1) * chunkSize, query, answers);
             double correctAnswerTime = timer.end();
 
+            // add a new chunk
             timer.begin();
             if(i > 0) {
                 index.addPoints(chunks[i]);
@@ -126,16 +133,15 @@ int main(int argc, char** argv)
             else {  
                 index.buildIndex();
             }
-            
             double buildTime = timer.end();
 
+            // do search
             timer.begin();
-            index.knnSearch(query, indices, dists, nn, flann::SearchParams(128));
+            index.knnSearch(query, indices, dists, nn, SearchParams(128));
             double queryTime = timer.end() / querySize;
             double QPS = 1 / queryTime;
 
             // calculate accuracy
-
             timer.begin();
             set<int> s;
             int correct = 0;
