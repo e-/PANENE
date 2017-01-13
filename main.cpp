@@ -7,8 +7,10 @@
 #include <ctime>
 #include <vector>
 #include <memory>
-#include "timer.h"
 #include <set>
+
+#include "timer.h"
+#include "param.h"
 
 using namespace std;
 using namespace flann;
@@ -42,7 +44,7 @@ void getCorrectAnswers(Matrix<float> &dataset, int rows, Matrix<float> &queryset
 
 
 #pragma omp parallel for
-    for(int q = 0; q < queryset.rows; q++) {
+    for(unsigned int q = 0; q < queryset.rows; q++) {
         int* match = new int[n];
         DistanceType* dists = new DistanceType[n];
 
@@ -52,7 +54,7 @@ void getCorrectAnswers(Matrix<float> &dataset, int rows, Matrix<float> &queryset
         match[0] = 0;
         int dcnt = 1;
 
-        for (size_t i=1; i<rows; ++i) {
+        for (int i=1; i<rows; ++i) {
             DistanceType tmp = distance(dataset[i], query, dataset.cols);
 
             if (dcnt<n) {
@@ -73,7 +75,7 @@ void getCorrectAnswers(Matrix<float> &dataset, int rows, Matrix<float> &queryset
             }
         }
 
-        for (size_t i=0; i<n; ++i) {
+        for (int i=0; i<n; ++i) {
             answers[q][i] = match[i];
         }
 
@@ -86,111 +88,102 @@ int main(int argc, char** argv)
 {
     srand(time(NULL));
     int chunkSize = 1000;
-    int chunkN = 40;
-    int querySize = 10000;
+    int chunkN = 70;
+    int querySize = 1000;
     int dim = 100;
     int nn = 10;
-    int repeat = 5;
-    vector<IndexParams> parameters;
-
+    int repeat = 10;
     Timer timer;
-
     float *rawDataset = new float[(chunkSize * chunkN + querySize) * dim];
-    
-    parameters.push_back(KMeansIndexParams());
+    vector<Param> params;
+    SearchParams searchParam(128);
+    searchParam.cores = 1;
+
+    params.push_back(Param(KDTreeIndexParams(1)));
+    params.push_back(Param(KDTreeIndexParams(2)));
+    params.push_back(Param(KDTreeIndexParams(4)));
+    params.push_back(Param(KDTreeIndexParams(8)));
+    params.push_back(Param(KDTreeIndexParams(16)));
+    params.push_back(Param(KDTreeIndexParams(32)));
+
+    params.push_back(Param(KMeansIndexParams(8)));
+    params.push_back(Param(KMeansIndexParams(16)));
+    params.push_back(Param(KMeansIndexParams(32)));
+    params.push_back(Param(KMeansIndexParams(64)));
+    params.push_back(Param(KMeansIndexParams(128)));
+
     
     readData("data/glove.txt", chunkSize * chunkN + querySize, dim, rawDataset);
 
-    {
-        float *dataset = shuffle(rawDataset, chunkSize * chunkN + querySize, dim);
+    cout << "Algorithm\tRepeat\tRows\tBuild Time\tQPS\tAccuracy\t" << endl;
+  
+    for(Param& param : params) {
+        for(int r = 0; r < repeat; r++) {
+            float *dataset = shuffle(rawDataset, chunkSize * chunkN + querySize, dim);
 
-        Matrix<float> query(dataset, querySize, dim);
-        vector<Matrix<float>> chunks;
-        Matrix<int> indices(new int[query.rows * nn], query.rows, nn);
-        Matrix<float> dists(new float[query.rows * nn], query.rows, nn);
-        Matrix<int> answers(new int[query.rows * nn], query.rows, nn);
+            Matrix<float> query(dataset, querySize, dim);
+            vector<Matrix<float>> chunks;
+            Matrix<int> indices(new int[query.rows * nn], query.rows, nn);
+            Matrix<float> dists(new float[query.rows * nn], query.rows, nn);
+            Matrix<int> answers(new int[query.rows * nn], query.rows, nn);
 
-        for(int i = 0; i < chunkN; ++i) {
-            chunks.push_back(Matrix<float>(dataset + querySize * dim + i * chunkSize * dim, chunkSize, dim));
-        }
-        
-        Index<L2<float>> index(chunks[0], KMeansIndexParams()); //KDTreeIndexParams(16)); // AutotunedIndexParams(0.95)); //
-        //cout << index.getParameters() << endl;
-
-        for(int i = 0; i < chunkN; ++i) {
-            // calculate correct answers
-            Matrix<float> aggregatedDataset(dataset + querySize * dim, (i + 1) * chunkSize, dim);
-
-            timer.begin();
-            getCorrectAnswers(aggregatedDataset, (i + 1) * chunkSize, query, answers);
-            double correctAnswerTime = timer.end();
-
-            // add a new chunk
-            timer.begin();
-            if(i > 0) {
-                index.addPoints(chunks[i]);
+            for(int i = 0; i < chunkN; ++i) {
+                chunks.push_back(Matrix<float>(dataset + querySize * dim + i * chunkSize * dim, chunkSize, dim));
             }
-            else {  
-                index.buildIndex();
-            }
-            double buildTime = timer.end();
 
-            // do search
-            timer.begin();
-            index.knnSearch(query, indices, dists, nn, SearchParams(128));
-            double queryTime = timer.end() / querySize;
-            double QPS = 1 / queryTime;
+            Index<L2<float>> index(chunks[0], param.getIndexParam());  
 
-            // calculate accuracy
-            timer.begin();
-            set<int> s;
-            int correct = 0;
-            for(int j = 0; j < query.rows; ++j) {
-                s.clear();
-                for(int k = 0; k < nn; ++k) {
-                    s.insert(answers[j][k]);
+            for(int i = 0; i < chunkN; ++i) {
+                // calculate correct answers
+                Matrix<float> aggregatedDataset(dataset + querySize * dim, (i + 1) * chunkSize, dim);
+
+                timer.begin();
+                getCorrectAnswers(aggregatedDataset, (i + 1) * chunkSize, query, answers);
+                double correctAnswerTime = timer.end();
+
+                // add a new chunk
+                timer.begin();
+                if(i > 0) {
+                    index.addPoints(chunks[i]);
                 }
-
-                for(int k = 0; k < nn; ++k) {
-                    if(s.find(indices[j][k]) != s.end())
-                        correct++;
+                else {  
+                    index.buildIndex();
                 }
+                double buildTime = timer.end();
+
+                // do search
+                timer.begin();
+                
+                index.knnSearch(query, indices, dists, nn, searchParam);
+                double queryTime = timer.end() / querySize;
+                double QPS = 1 / queryTime;
+
+                // calculate accuracy
+                timer.begin();
+                set<int> s;
+                int correct = 0;
+                for(unsigned int j = 0; j < query.rows; ++j) {
+                    s.clear();
+                    for(int k = 0; k < nn; ++k) {
+                        s.insert(answers[j][k]);
+                    }
+
+                    for(int k = 0; k < nn; ++k) {
+                        if(s.find(indices[j][k]) != s.end())
+                            correct++;
+                    }
+                }
+                double checkTime = timer.end();           
+                double accuracy = (double)correct / querySize / nn;
+
+                cout << param.format() << '\t' << r << '\t' << (i + 1) * chunkSize << '\t' << buildTime << '\t' << QPS << '\t' << accuracy << endl;
             }
-            double checkTime = timer.end();           
-            double accuracy = (double)correct / querySize / nn;
 
-            cout << buildTime << " " << QPS << " " << checkTime << " " << correctAnswerTime <<  " " << accuracy << endl;
+            delete[] dataset;
+            delete[] indices.ptr();
+            delete[] dists.ptr();
+            delete[] answers.ptr();
         }
-
-        delete[] dataset;
-        delete[] indices.ptr();
-        delete[] dists.ptr();
-        delete[] answers.ptr();
     }
-    //Matrix<float> dataset;
-    //Matrix<float> query;
-
-
-    /*int nn = 3;
-    load_from_file(dataset, "dataset.hdf5","dataset");
-    load_from_file(query, "dataset.hdf5","query");
-
-    Matrix<int> indices(new int[query.rows*nn], query.rows, nn);
-    Matrix<float> dists(new float[query.rows*nn], query.rows, nn);
-
-    // construct an randomized kd-tree index using 4 kd-trees
-    Index<L2<float> > index(dataset, flann::KDTreeIndexParams(4));
-    index.buildIndex();                                                                                               
-
-    // do a knn search, using 128 checks
-    index.knnSearch(query, indices, dists, nn, flann::SearchParams(128));
-
-    flann::save_to_file(indices,"result.hdf5","result");
-
-    delete[] dataset.ptr();
-    delete[] query.ptr();
-    delete[] indices.ptr();
-    delete[] dists.ptr();
-    */
     return 0;
 }
