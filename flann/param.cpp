@@ -21,4 +21,23 @@ string Param::format() {
     return result;
 }
 
+string Param::algorithm() {
+    IndexParams& ip = this -> indexParam;
+    flann_algorithm_t alg = get_param<flann_algorithm_t>(ip, "algorithm");
+    stringstream ss;
+    string result;
+    if(alg == FLANN_INDEX_KDTREE) {
+        ss << "KDTree";
+    }
+    else if(alg == FLANN_INDEX_KMEANS) {
+        ss << "Kmeans";
+    }
+    else {
+        ss << "Unspecified Parameters";
+    }
+
+    getline(ss, result);
+    return result;
+}
+
 IndexParams& Param::getIndexParam() {return this -> indexParam;}

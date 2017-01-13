@@ -11,6 +11,7 @@ class Param
 public:
     Param(IndexParams indexParam_) : indexParam(indexParam_) {};
     string format();
+    string algorithm();
     IndexParams& getIndexParam();
 
 protected:

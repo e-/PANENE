@@ -115,7 +115,7 @@ int main(int argc, char** argv)
     
     readData("data/glove.txt", chunkSize * chunkN + querySize, dim, rawDataset);
 
-    cout << "Algorithm\tRepeat\tRows\tBuild Time\tQPS\tAccuracy\t" << endl;
+    cout << "Algorithm\tParameter\tRepeat\tRows\tBuild Time\tQPS\tAccuracy\t" << endl;
   
     for(Param& param : params) {
         for(int r = 0; r < repeat; r++) {
@@ -176,7 +176,7 @@ int main(int argc, char** argv)
                 double checkTime = timer.end();           
                 double accuracy = (double)correct / querySize / nn;
 
-                cout << param.format() << '\t' << r << '\t' << (i + 1) * chunkSize << '\t' << buildTime << '\t' << QPS << '\t' << accuracy << endl;
+                cout << param.algorithm() << '\t' << param.format() << '\t' << r << '\t' << (i + 1) * chunkSize << '\t' << buildTime << '\t' << QPS << '\t' << accuracy << endl;
             }
 
             delete[] dataset;
