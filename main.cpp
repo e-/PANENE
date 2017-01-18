@@ -94,7 +94,7 @@ int main(int argc, char** argv)
     int querySize = 1000;
     int dim = 100;
     int nn = 10;
-    int flannRepeat = 10;
+    int flannRepeat = 5;
     int annoyRepeat = 10;
 
     Timer timer;
@@ -107,10 +107,15 @@ int main(int argc, char** argv)
     SearchParams searchParam(128);
     searchParam.cores = 1;
 
-    params.push_back(Param(KDTreeIndexParams(1)));
-    params.push_back(Param(KDTreeIndexParams(2)));
-    params.push_back(Param(KDTreeIndexParams(4)));
+    params.push_back(Param(KDTreeBalancedIndexParams(8, 1.1f)));
+    params.push_back(Param(KDTreeBalancedIndexParams(8, 1.1f, FLANN_MEDIAN)));
+    params.push_back(Param(KDTreeBalancedIndexParams(8, 100)));
     params.push_back(Param(KDTreeIndexParams(8)));
+
+//    params.push_back(Param(KDTreeIndexParams(1)));
+//    params.push_back(Param(KDTreeIndexParams(2)));
+//    params.push_back(Param(KDTreeIndexParams(4)));
+/*    params.push_back(Param(KDTreeIndexParams(8)));
     params.push_back(Param(KDTreeIndexParams(16)));
     params.push_back(Param(KDTreeIndexParams(32)));
 
@@ -119,10 +124,11 @@ int main(int argc, char** argv)
     params.push_back(Param(KMeansIndexParams(32)));
     params.push_back(Param(KMeansIndexParams(64)));
     params.push_back(Param(KMeansIndexParams(128)));
-
+*/
     readData("data/glove.txt", chunkSize * chunkN + querySize, dim, rawDataset);
 
     for(auto &trees : annoyTrees) {
+        break;
         for(int r = 0; r < annoyRepeat; r++) {
             float *dataset = shuffle(rawDataset, chunkSize * chunkN + querySize, dim);
             AnnoyIndex<int, float, Euclidean, RandRandom> annoyIndex = AnnoyIndex<int, float, Euclidean, RandRandom>(dim);
@@ -189,9 +195,7 @@ int main(int argc, char** argv)
         }
     }
 
-    return 0;
-    
-    cout << "Algorithm\tParameter\tRepeat\tRows\tBuild Time\tQPS\tAccuracy\t" << endl;
+    cout << "Algorithm\tParameter\tRepeat\tRows\tBuild Time\tQPS\tAccuracy" << endl;
   
     for(Param& param : params) {
         for(int r = 0; r < flannRepeat; r++) {
@@ -229,7 +233,6 @@ int main(int argc, char** argv)
 
                 // do search
                 timer.begin();
-                
                 index.knnSearch(query, indices, dists, nn, searchParam);
                 double queryTime = timer.end() / querySize;
                 double QPS = 1 / queryTime;

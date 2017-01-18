@@ -10,6 +10,9 @@ string Param::format() {
     if(alg == FLANN_INDEX_KDTREE) {
         ss << "KDTree(trees=" << get_param<int>(ip, "trees") << ")";
     }
+    else if(alg == FLANN_INDEX_KDTREE_BALANCED) {
+        ss << "KDBalancedTree(trees=" << get_param<int>(ip, "trees") << ',' << get_param<float>(ip, "rebalance_threshold") << ',' << get_param<int>(ip, "split_criteria") << ")";
+    }
     else if(alg == FLANN_INDEX_KMEANS) {
         ss << "Kmeans(branch=" << get_param<int>(ip, "branching") << ")";
     }
@@ -28,6 +31,9 @@ string Param::algorithm() {
     string result;
     if(alg == FLANN_INDEX_KDTREE) {
         ss << "KDTree";
+    }
+    else if(alg == FLANN_INDEX_KDTREE_BALANCED) {
+        ss << "KDBalancedTree";
     }
     else if(alg == FLANN_INDEX_KMEANS) {
         ss << "Kmeans";
