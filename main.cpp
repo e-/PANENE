@@ -85,39 +85,76 @@ void getCorrectAnswers(Matrix<float> &dataset, int rows, Matrix<float> &queryset
     }
 }
 
-#define GLOVE_INITIAL_SIZE 0
+#define GLOVE_INITIAL_SIZE 1000
 #define GLOVE_CHUNK_SIZE 1000
-#define GLOVE_CHUNK_N 10
+#define GLOVE_CHUNK_N 100
+#define GLOVE_QUERY_SIZE 1000
 
-#define GLOVE_ORI Dataset("data/glove.trim.txt", GLOVE_INITIAL_SIZE, GLOVE_CHUNK_SIZE, GLOVE_CHUNK_N, 100)
-#define GLOVE_SORTED Dataset("data/glove.sorted.txt", GLOVE_INITIAL_SIZE, GLOVE_CHUNK_SIZE, GLOVE_CHUNK_N, 100)
-#define GLOVE_HALF_SORTED Dataset("data/glove.halfsorted.txt", GLOVE_INITIAL_SIZE, GLOVE_CHUNK_SIZE, GLOVE_CHUNK_N, 100)
+#define GLOVE_ORI Dataset("glove.original", "data/glove.trim.txt", "data/glove.query.txt", GLOVE_INITIAL_SIZE, GLOVE_CHUNK_SIZE, GLOVE_CHUNK_N, GLOVE_QUERY_SIZE, 100)
+#define GLOVE_SORTED Dataset("glove.sorted", "data/glove.sorted.txt", "data/glove.query.txt", GLOVE_INITIAL_SIZE, GLOVE_CHUNK_SIZE, GLOVE_CHUNK_N, GLOVE_QUERY_SIZE, 100)
+#define GLOVE_HALF_SORTED Dataset("glove.halfsorted", "data/glove.halfsorted.txt", "data/glove.query.txt", GLOVE_INITIAL_SIZE, GLOVE_CHUNK_SIZE, GLOVE_CHUNK_N, GLOVE_QUERY_SIZE, 100)
+
+
+#define SIFT_INITIAL_SIZE 1000
+#define SIFT_CHUNK_SIZE 1000
+#define SIFT_CHUNK_N 100
+#define SIFT_QUERY_SIZE 1000
+
+#define SIFT_ORI Dataset("sift.original", "data/sift.trim.txt", "data/sift.query.txt", SIFT_INITIAL_SIZE, SIFT_CHUNK_SIZE, SIFT_CHUNK_N, SIFT_QUERY_SIZE, 128)
+#define SIFT_SORTED Dataset("sift.sorted", "data/sift.sorted.txt", "data/sift.query.txt", SIFT_INITIAL_SIZE, SIFT_CHUNK_SIZE, SIFT_CHUNK_N, SIFT_QUERY_SIZE, 128)
+#define SIFT_HALF_SORTED Dataset("sift.halfsorted", "data/sift.halfsorted.txt", "data/sift.query.txt", SIFT_INITIAL_SIZE, SIFT_CHUNK_SIZE, SIFT_CHUNK_N, SIFT_QUERY_SIZE, 128)
 
 int main(int argc, char** argv)
 {
     srand(time(NULL));
-    int chunkSize = 1000;
-    int chunkN = 5;
-    int querySize = 1000;
-    int dim = 100;
     int nn = 20;
-    int flannRepeat = 1;
+    int flannRepeat = 3;
     int annoyRepeat = 10;
 
     Timer timer;
-    float *rawDataset;
+    float *rawDataset, *queryDataset;
     
     int annoySearchParam = 128;
     vector<int> annoyTrees{10, 20, 40, 80, 160};
+    int trees = 8;
 
     vector<FLANNParam> params;
-    SearchParams searchParam(128);
+    SearchParams searchParam(512);
     searchParam.cores = 1;
 
-    params.push_back(FLANNParam(KDTreeIndexParams(8), searchParam, GLOVE_ORI));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(8, 1.1f), searchParam, GLOVE_ORI));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(8, 1.1f, FLANN_MEDIAN), searchParam, GLOVE_ORI));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(8, 100), searchParam, GLOVE_ORI));
+//    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_ORI));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.00001f), searchParam, GLOVE_ORI));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, GLOVE_ORI));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, GLOVE_ORI));
+
+//    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.00001f), searchParam, GLOVE_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, GLOVE_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, GLOVE_SORTED));
+
+//    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_HALF_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.00001f), searchParam, GLOVE_HALF_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, GLOVE_HALF_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, GLOVE_HALF_SORTED));
+
+//    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, SIFT_ORI));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.00001f), searchParam, SIFT_ORI));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, SIFT_ORI));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, SIFT_ORI));
+
+//    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, SIFT_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.00001f), searchParam, SIFT_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, SIFT_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, SIFT_SORTED));
+
+//    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, SIFT_HALF_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.00001f), searchParam, SIFT_HALF_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, SIFT_HALF_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, SIFT_HALF_SORTED));
+ 
+ 
+    
+    //params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f, FLANN_MEDIAN), searchParam, GLOVE_ORI));
 
 //    params.push_back(Param(KDTreeIndexParams(1)));
 //    params.push_back(Param(KDTreeIndexParams(2)));
@@ -132,44 +169,59 @@ int main(int argc, char** argv)
     params.push_back(Param(KMeansIndexParams(64)));
     params.push_back(Param(KMeansIndexParams(128)));
 */
-    cout << "Algorithm\tParameter\tRepeat\tRows\tBuild Time\tQPS\tAccuracy" << endl;
-    for(FLANNParam& param : params) {
-        Dataset& ds = pararm.getDataset();
+    for(int i = 0; i < trees; ++i) 
+      cout << "M" << i << '\t';
 
-        rawDataset = new float[(ds.initialSize + ds.chunkSize * ds.chunkN + querySize) * ds.dim];
-        readData(ds.path, ds.initialSize + ds.chunkSize * ds.chunkN + querySize, ds.dim, rawDataset);
+    cout << "Dataset\tAlgorithm\tParameter\tRepeat\tRows\tBuild Time\tQPS\tAccuracy" << endl;
+    for(FLANNParam& param : params) {
+        Dataset& ds = param.getDataset();
+        int chunkSize = ds.chunkSize;
+        int dim = ds.dim;
+        int chunkN = ds.chunkN;
+        int initialSize = ds.initialSize;
+        int querySize = ds.querySize;
+        
+        rawDataset = new float[(initialSize + chunkSize * chunkN) * dim];
+        readData(ds.path, initialSize + chunkSize * chunkN, dim, rawDataset);
+        
+        queryDataset = new float[querySize * dim];
+        readData(ds.queryPath, querySize, dim, queryDataset);
 
         for(int r = 0; r < flannRepeat; r++) {
             float *dataset = rawDataset; //shuffle(rawDataset, chunkSize * chunkN + querySize, dim);
 
-            Matrix<float> query(dataset, querySize, dim);
+            Matrix<float> query(queryDataset, querySize, dim);
+            Matrix<float> initial(dataset, initialSize, dim);
             vector<Matrix<float>> chunks;
             Matrix<int> indices(new int[query.rows * nn], query.rows, nn);
             Matrix<float> dists(new float[query.rows * nn], query.rows, nn);
             Matrix<int> answers(new int[query.rows * nn], query.rows, nn);
 
             for(int i = 0; i < chunkN; ++i) {
-                chunks.push_back(Matrix<float>(dataset + querySize * dim + i * chunkSize * dim, chunkSize, dim));
+                chunks.push_back(Matrix<float>(dataset + initialSize * dim + i * chunkSize * dim, chunkSize, dim));
             }
 
-            Index<L2<float>> index(chunks[0], param.getIndexParams());  
+            Index<L2<float>> index(initial, param.getIndexParams());  
+//            index.buildIndex();
 
-            for(int i = 0; i < chunkN; ++i) {
+            for(int i = 0; i <= chunkN; ++i) {
                 // calculate correct answers
-                Matrix<float> aggregatedDataset(dataset + querySize * dim, (i + 1) * chunkSize, dim);
+                Matrix<float> aggregatedDataset(dataset, initialSize + i * chunkSize, dim);
 
                 timer.begin();
-                getCorrectAnswers(aggregatedDataset, (i + 1) * chunkSize, query, answers);
+                getCorrectAnswers(aggregatedDataset, initialSize + i * chunkSize, query, answers);
                 double correctAnswerTime = timer.end();
 
+                if(param.algorithm() != "KDBalancedTree")
+                    for(int j = 0; j < trees; ++j)
+                        cout << "0\t";
                 // add a new chunk
                 timer.begin();
                 if(i > 0) {
-                    index.addPoints(chunks[i]);
+                    index.addPoints(chunks[i-1]); 
                 }
-                else {  
+                else
                     index.buildIndex();
-                }
                 double buildTime = timer.end();
 
                 // do search
@@ -196,17 +248,22 @@ int main(int argc, char** argv)
                 double checkTime = timer.end();           
                 double accuracy = (double)correct / querySize / nn;
 
-                cout << param.algorithm() << '\t' << param.format() << '\t' << r << '\t' << (i + 1) * chunkSize << '\t' << buildTime << '\t' << QPS << '\t' << accuracy << endl;
+                cout << ds.name << '\t' << param.algorithm() << '\t' << param.format() << '\t' << r << '\t' << initialSize + i * chunkSize << '\t' << buildTime << '\t' << QPS << '\t' << accuracy << endl;
             }
 
-            delete[] dataset;
             delete[] indices.ptr();
             delete[] dists.ptr();
             delete[] answers.ptr();
         }
 
         delete[] rawDataset;
+        delete[] queryDataset;
     }
+
+    int chunkSize = 1000;
+    int chunkN = 5;
+    int querySize = 1000;
+    int dim = 100;
 
     for(auto &trees : annoyTrees) {
         break;

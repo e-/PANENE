@@ -8,15 +8,19 @@ using namespace std;
 using namespace flann;
 
 struct Dataset {
-    Dataset(string path_, string queryPath_, int initialSize_, int chunkSize_, int chunkN_, int dim_): path(path_), initialSize(initialSize_), chunkSize(chunkSize_), chunkN(chunkN_), dim(dim_), queryPath(queryPath_) {
+    Dataset(string name_, string path_, string queryPath_, int initialSize_, int chunkSize_, int chunkN_, int querySize_, int dim_): 
+      name(name_),
+      path(path_), queryPath(queryPath_), initialSize(initialSize_), chunkSize(chunkSize_), chunkN(chunkN_), querySize(querySize_), dim(dim_) {
         
     }
 
+    string name;
     string path;
     string queryPath;
     int initialSize;
     int chunkSize;
     int chunkN;
+    int querySize;
     int dim;
 };
 
