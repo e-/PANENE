@@ -90,11 +90,11 @@ int main(int argc, char** argv)
 {
     srand(time(NULL));
     int chunkSize = 1000;
-    int chunkN = 70;
+    int chunkN = 5;
     int querySize = 1000;
     int dim = 100;
-    int nn = 10;
-    int flannRepeat = 5;
+    int nn = 20;
+    int flannRepeat = 1;
     int annoyRepeat = 10;
 
     Timer timer;
@@ -107,10 +107,10 @@ int main(int argc, char** argv)
     SearchParams searchParam(128);
     searchParam.cores = 1;
 
+    params.push_back(Param(KDTreeIndexParams(8)));
     params.push_back(Param(KDTreeBalancedIndexParams(8, 1.1f)));
     params.push_back(Param(KDTreeBalancedIndexParams(8, 1.1f, FLANN_MEDIAN)));
     params.push_back(Param(KDTreeBalancedIndexParams(8, 100)));
-    params.push_back(Param(KDTreeIndexParams(8)));
 
 //    params.push_back(Param(KDTreeIndexParams(1)));
 //    params.push_back(Param(KDTreeIndexParams(2)));
@@ -126,74 +126,6 @@ int main(int argc, char** argv)
     params.push_back(Param(KMeansIndexParams(128)));
 */
     readData("data/glove.txt", chunkSize * chunkN + querySize, dim, rawDataset);
-
-    for(auto &trees : annoyTrees) {
-        break;
-        for(int r = 0; r < annoyRepeat; r++) {
-            float *dataset = shuffle(rawDataset, chunkSize * chunkN + querySize, dim);
-            AnnoyIndex<int, float, Euclidean, RandRandom> annoyIndex = AnnoyIndex<int, float, Euclidean, RandRandom>(dim);
-            Matrix<float> query(dataset, querySize, dim);
-            Matrix<int> answers(new int[query.rows * nn], query.rows, nn);
-
-            for(int i = 0; i < chunkN; ++i) {
-                // calculate correct answers
-                Matrix<float> aggregatedDataset(dataset + querySize * dim, (i + 1) * chunkSize, dim);
-
-                timer.begin();
-                getCorrectAnswers(aggregatedDataset, (i + 1) * chunkSize, query, answers);
-                double correctAnswerTime = timer.end();
-
-                // add a new chunk
-                for(int j = 0; j < chunkSize; ++j ){
-                    annoyIndex.add_item(i * chunkSize + j, aggregatedDataset[i * chunkSize + j]); 
-                }
-
-                timer.begin();
-                //if(((i + 1) & i) == 0) {
-                annoyIndex.unbuild();
-                annoyIndex.build(trees);
-                //}
-                double buildTime = timer.end();
-
-                vector<vector<int>> indices(querySize);
-                for(int j = 0; j < querySize; ++j) {
-                    indices.push_back(vector<int>(nn));
-                }
-
-                // do search
-                timer.begin();
-                
-                for(unsigned int j = 0; j < query.rows; ++j) {
-                    annoyIndex.get_nns_by_vector(query[j], nn, annoySearchParam, &indices[j], nullptr);
-                }
-                double queryTime = timer.end() / querySize;
-                double QPS = 1 / queryTime;
-
-                // calculate accuracy
-                timer.begin();
-                set<int> s;
-                int correct = 0;
-                for(unsigned int j = 0; j < query.rows; ++j) {
-                    s.clear();
-                    for(int k = 0; k < nn; ++k) {
-                        s.insert(answers[j][k]);
-                    }
-
-                    for(int k = 0; k < nn; ++k) {
-                        if(s.find(indices[j][k]) != s.end())
-                            correct++;
-                    }
-                }
-                double checkTime = timer.end();           
-                double accuracy = (double)correct / querySize / nn;
-
-                cout << "Annoy" << '\t' << "Annoy(" << trees << ")" << '\t' << r << '\t' << (i + 1) * chunkSize << '\t' << buildTime << '\t' << QPS << '\t' << accuracy << endl;
-            }
-
-            delete[] dataset;
-            delete[] answers.ptr();
-        }
-    }
 
     cout << "Algorithm\tParameter\tRepeat\tRows\tBuild Time\tQPS\tAccuracy" << endl;
   
@@ -264,5 +196,74 @@ int main(int argc, char** argv)
             delete[] answers.ptr();
         }
     }
+
+    for(auto &trees : annoyTrees) {
+        break;
+        for(int r = 0; r < annoyRepeat; r++) {
+            float *dataset = shuffle(rawDataset, chunkSize * chunkN + querySize, dim);
+            AnnoyIndex<int, float, Euclidean, RandRandom> annoyIndex = AnnoyIndex<int, float, Euclidean, RandRandom>(dim);
+            Matrix<float> query(dataset, querySize, dim);
+            Matrix<int> answers(new int[query.rows * nn], query.rows, nn);
+
+            for(int i = 0; i < chunkN; ++i) {
+                // calculate correct answers
+                Matrix<float> aggregatedDataset(dataset + querySize * dim, (i + 1) * chunkSize, dim);
+
+                timer.begin();
+                getCorrectAnswers(aggregatedDataset, (i + 1) * chunkSize, query, answers);
+                double correctAnswerTime = timer.end();
+
+                // add a new chunk
+                for(int j = 0; j < chunkSize; ++j ){
+                    annoyIndex.add_item(i * chunkSize + j, aggregatedDataset[i * chunkSize + j]); 
+                }
+
+                timer.begin();
+                //if(((i + 1) & i) == 0) {
+                annoyIndex.unbuild();
+                annoyIndex.build(trees);
+                //}
+                double buildTime = timer.end();
+
+                vector<vector<int>> indices(querySize);
+                for(int j = 0; j < querySize; ++j) {
+                    indices.push_back(vector<int>(nn));
+                }
+
+                // do search
+                timer.begin();
+                
+                for(unsigned int j = 0; j < query.rows; ++j) {
+                    annoyIndex.get_nns_by_vector(query[j], nn, annoySearchParam, &indices[j], nullptr);
+                }
+                double queryTime = timer.end() / querySize;
+                double QPS = 1 / queryTime;
+
+                // calculate accuracy
+                timer.begin();
+                set<int> s;
+                int correct = 0;
+                for(unsigned int j = 0; j < query.rows; ++j) {
+                    s.clear();
+                    for(int k = 0; k < nn; ++k) {
+                        s.insert(answers[j][k]);
+                    }
+
+                    for(int k = 0; k < nn; ++k) {
+                        if(s.find(indices[j][k]) != s.end())
+                            correct++;
+                    }
+                }
+                double checkTime = timer.end();           
+                double accuracy = (double)correct / querySize / nn;
+
+                cout << "Annoy" << '\t' << "Annoy(" << trees << ")" << '\t' << r << '\t' << (i + 1) * chunkSize << '\t' << buildTime << '\t' << QPS << '\t' << accuracy << endl;
+            }
+
+            delete[] dataset;
+            delete[] answers.ptr();
+        }
+    }
+
     return 0;
 }

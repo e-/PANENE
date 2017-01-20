@@ -1,4 +1,7 @@
 main
 *.o
-data
 result
+data/sift.txt
+data/glove.txt
+data/convert_texmex_fvec.py
+log_err
