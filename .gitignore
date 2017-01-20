@@ -1,7 +1,6 @@
 main
 *.o
 result
-data/sift.txt
-data/glove.txt
+data/*.txt
 data/convert_texmex_fvec.py
 log_err
