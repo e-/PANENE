@@ -44,7 +44,6 @@ void getCorrectAnswers(Matrix<float> &dataset, int rows, Matrix<float> &queryset
 
     int n = answers.cols;
 
-
 #pragma omp parallel for
     for(unsigned int q = 0; q < queryset.rows; q++) {
         int* match = new int[n];
@@ -86,6 +85,14 @@ void getCorrectAnswers(Matrix<float> &dataset, int rows, Matrix<float> &queryset
     }
 }
 
+#define GLOVE_INITIAL_SIZE 0
+#define GLOVE_CHUNK_SIZE 1000
+#define GLOVE_CHUNK_N 10
+
+#define GLOVE_ORI Dataset("data/glove.trim.txt", GLOVE_INITIAL_SIZE, GLOVE_CHUNK_SIZE, GLOVE_CHUNK_N, 100)
+#define GLOVE_SORTED Dataset("data/glove.sorted.txt", GLOVE_INITIAL_SIZE, GLOVE_CHUNK_SIZE, GLOVE_CHUNK_N, 100)
+#define GLOVE_HALF_SORTED Dataset("data/glove.halfsorted.txt", GLOVE_INITIAL_SIZE, GLOVE_CHUNK_SIZE, GLOVE_CHUNK_N, 100)
+
 int main(int argc, char** argv)
 {
     srand(time(NULL));
@@ -98,19 +105,19 @@ int main(int argc, char** argv)
     int annoyRepeat = 10;
 
     Timer timer;
-    float *rawDataset = new float[(chunkSize * chunkN + querySize) * dim];
+    float *rawDataset;
     
     int annoySearchParam = 128;
     vector<int> annoyTrees{10, 20, 40, 80, 160};
 
-    vector<Param> params;
+    vector<FLANNParam> params;
     SearchParams searchParam(128);
     searchParam.cores = 1;
 
-    params.push_back(Param(KDTreeIndexParams(8)));
-    params.push_back(Param(KDTreeBalancedIndexParams(8, 1.1f)));
-    params.push_back(Param(KDTreeBalancedIndexParams(8, 1.1f, FLANN_MEDIAN)));
-    params.push_back(Param(KDTreeBalancedIndexParams(8, 100)));
+    params.push_back(FLANNParam(KDTreeIndexParams(8), searchParam, GLOVE_ORI));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(8, 1.1f), searchParam, GLOVE_ORI));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(8, 1.1f, FLANN_MEDIAN), searchParam, GLOVE_ORI));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(8, 100), searchParam, GLOVE_ORI));
 
 //    params.push_back(Param(KDTreeIndexParams(1)));
 //    params.push_back(Param(KDTreeIndexParams(2)));
@@ -125,13 +132,15 @@ int main(int argc, char** argv)
     params.push_back(Param(KMeansIndexParams(64)));
     params.push_back(Param(KMeansIndexParams(128)));
 */
-    readData("data/glove.txt", chunkSize * chunkN + querySize, dim, rawDataset);
-
     cout << "Algorithm\tParameter\tRepeat\tRows\tBuild Time\tQPS\tAccuracy" << endl;
-  
-    for(Param& param : params) {
+    for(FLANNParam& param : params) {
+        Dataset& ds = pararm.getDataset();
+
+        rawDataset = new float[(ds.initialSize + ds.chunkSize * ds.chunkN + querySize) * ds.dim];
+        readData(ds.path, ds.initialSize + ds.chunkSize * ds.chunkN + querySize, ds.dim, rawDataset);
+
         for(int r = 0; r < flannRepeat; r++) {
-            float *dataset = shuffle(rawDataset, chunkSize * chunkN + querySize, dim);
+            float *dataset = rawDataset; //shuffle(rawDataset, chunkSize * chunkN + querySize, dim);
 
             Matrix<float> query(dataset, querySize, dim);
             vector<Matrix<float>> chunks;
@@ -143,7 +152,7 @@ int main(int argc, char** argv)
                 chunks.push_back(Matrix<float>(dataset + querySize * dim + i * chunkSize * dim, chunkSize, dim));
             }
 
-            Index<L2<float>> index(chunks[0], param.getIndexParam());  
+            Index<L2<float>> index(chunks[0], param.getIndexParams());  
 
             for(int i = 0; i < chunkN; ++i) {
                 // calculate correct answers
@@ -165,7 +174,7 @@ int main(int argc, char** argv)
 
                 // do search
                 timer.begin();
-                index.knnSearch(query, indices, dists, nn, searchParam);
+                index.knnSearch(query, indices, dists, nn, param.getSearchParams());
                 double queryTime = timer.end() / querySize;
                 double QPS = 1 / queryTime;
 
@@ -195,6 +204,8 @@ int main(int argc, char** argv)
             delete[] dists.ptr();
             delete[] answers.ptr();
         }
+
+        delete[] rawDataset;
     }
 
     for(auto &trees : annoyTrees) {

@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 size = 300000
+query_size = 10000
+
+import random
 from random import randint
 
 def save(path, data):
@@ -11,14 +14,19 @@ def save(path, data):
 for name in ['sift', 'glove']:
     rows = []
     with open(name + ".txt") as inf:
-        i = 0
-        for line in inf:
+        for line in inf.readlines():
             rows.append(map(float, line.strip().split(' ')))
-            i+= 1
-            if i >= size:
-                break
     
     dim = len(rows[0])
+    
+    ind = range(len(rows))
+    random.shuffle(ind)
+    query = [rows[ind[i]] for i in ind[:query_size]]
+
+    save("%s.query.txt" % name, query)
+    
+    rows = rows[:size]
+    
     # trim
     
     save("%s.trim.txt" % name, rows)

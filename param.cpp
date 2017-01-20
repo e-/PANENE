@@ -2,8 +2,8 @@
 #include <sstream>
 #include <string>
 
-string Param::format() {
-    IndexParams& ip = this -> indexParam;
+string FLANNParam::format() {
+    IndexParams& ip = this -> indexParams;
     flann_algorithm_t alg = get_param<flann_algorithm_t>(ip, "algorithm");
     stringstream ss;
     string result;
@@ -24,8 +24,8 @@ string Param::format() {
     return result;
 }
 
-string Param::algorithm() {
-    IndexParams& ip = this -> indexParam;
+string FLANNParam::algorithm() {
+    IndexParams& ip = this -> indexParams;
     flann_algorithm_t alg = get_param<flann_algorithm_t>(ip, "algorithm");
     stringstream ss;
     string result;
@@ -46,4 +46,8 @@ string Param::algorithm() {
     return result;
 }
 
-IndexParams& Param::getIndexParam() {return this -> indexParam;}
+IndexParams& FLANNParam::getIndexParams() {return this -> indexParams;}
+
+SearchParams& FLANNParam::getSearchParams() {return this -> searchParams;}
+
+Dataset& FLANNParam::getDataset() {return this -> dataset;}
