@@ -2,6 +2,16 @@
 #include <sstream>
 #include <string>
 
+string splitCriteria(int a) {
+    if (a == FLANN_MEAN) return "MEAN";
+    return "MEDIAN";
+}
+
+string updateCriteria(int a) {
+    if(a == FLANN_HEIGHT_DIFFERENCE) return "Height";
+    return "AVG_Depth";
+}
+
 string FLANNParam::format() {
     IndexParams& ip = this -> indexParams;
     flann_algorithm_t alg = get_param<flann_algorithm_t>(ip, "algorithm");
@@ -11,7 +21,10 @@ string FLANNParam::format() {
         ss << "KDTree(trees=" << get_param<int>(ip, "trees") << ")";
     }
     else if(alg == FLANN_INDEX_KDTREE_BALANCED) {
-        ss << "KDBalancedTree(trees=" << get_param<int>(ip, "trees") << ',' << get_param<float>(ip, "rebalance_threshold") << ',' << get_param<int>(ip, "split_criteria") << ")";
+        ss << "KDBalancedTree(trees=" << get_param<int>(ip, "trees") << ',' 
+          << get_param<float>(ip, "rebalance_threshold") << ',' 
+          << updateCriteria(get_param<int>(ip, "update_criteria")) << ',' 
+          << splitCriteria(get_param<int>(ip, "split_criteria")) << ")";
     }
     else if(alg == FLANN_INDEX_KMEANS) {
         ss << "Kmeans(branch=" << get_param<int>(ip, "branching") << ")";

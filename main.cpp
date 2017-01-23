@@ -88,15 +88,15 @@ void getCorrectAnswers(Matrix<float> &dataset, int rows, Matrix<float> &queryset
 #define GLOVE_INITIAL_SIZE 3000
 #define GLOVE_CHUNK_SIZE 3000
 #define GLOVE_CHUNK_N 98
-#define GLOVE_QUERY_SIZE 10000
+#define GLOVE_QUERY_SIZE 5000
 
 #define GLOVE_SHUFFLED Dataset("glove.shuffled", "data/glove.shuffled.txt", "data/glove.query.txt", GLOVE_INITIAL_SIZE, GLOVE_CHUNK_SIZE, GLOVE_CHUNK_N, GLOVE_QUERY_SIZE, 100)
 #define GLOVE_SORTED Dataset("glove.sorted", "data/glove.sorted.txt", "data/glove.query.txt", GLOVE_INITIAL_SIZE, GLOVE_CHUNK_SIZE, GLOVE_CHUNK_N, GLOVE_QUERY_SIZE, 100)
 
-#define SIFT_INITIAL_SIZE 1000
-#define SIFT_CHUNK_SIZE 1000
-#define SIFT_CHUNK_N 100
-#define SIFT_QUERY_SIZE 1000
+#define SIFT_INITIAL_SIZE 3000
+#define SIFT_CHUNK_SIZE 3000
+#define SIFT_CHUNK_N 98
+#define SIFT_QUERY_SIZE 5000
 
 #define SIFT_SHUFFLED Dataset("sift.shuffled", "data/sift.shuffled.txt", "data/sift.query.txt", SIFT_INITIAL_SIZE, SIFT_CHUNK_SIZE, SIFT_CHUNK_N, SIFT_QUERY_SIZE, 128)
 #define SIFT_SORTED Dataset("sift.sorted", "data/sift.sorted.txt", "data/sift.query.txt", SIFT_INITIAL_SIZE, SIFT_CHUNK_SIZE, SIFT_CHUNK_N, SIFT_QUERY_SIZE, 128)
@@ -119,15 +119,29 @@ int main(int argc, char** argv)
     SearchParams searchParam(512);
     searchParam.cores = 0;
 
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, GLOVE_SHUFFLED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, GLOVE_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.25f), searchParam, GLOVE_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f), searchParam, GLOVE_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.35f), searchParam, GLOVE_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f, FLANN_HEIGHT_DIFFERENCE, FLANN_MEDIAN), searchParam, GLOVE_SHUFFLED));
     params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_SHUFFLED));
 
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, GLOVE_SORTED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, GLOVE_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.25f), searchParam, GLOVE_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f), searchParam, GLOVE_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.35f), searchParam, GLOVE_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f, FLANN_HEIGHT_DIFFERENCE, FLANN_MEDIAN), searchParam, GLOVE_SORTED));
     params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_SORTED));
 
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.25f), searchParam, SIFT_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f), searchParam, SIFT_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.35f), searchParam, SIFT_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f, FLANN_HEIGHT_DIFFERENCE, FLANN_MEDIAN), searchParam, SIFT_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, SIFT_SHUFFLED));
 
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.25f), searchParam, SIFT_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f), searchParam, SIFT_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.35f), searchParam, SIFT_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f, FLANN_HEIGHT_DIFFERENCE, FLANN_MEDIAN), searchParam, SIFT_SORTED));
+    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, SIFT_SORTED));
 
     /*
 //    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_SHUFFLED));
@@ -246,7 +260,7 @@ int main(int argc, char** argv)
 
                 cout << ds.name << '\t' << param.algorithm() << '\t' << param.format() << '\t' << r << '\t' << initialSize + i * chunkSize << '\t' << buildTime << '\t' << QPS << '\t' << accuracy << endl;
             }
-
+            
             delete[] indices.ptr();
             delete[] dists.ptr();
             delete[] answers.ptr();
@@ -255,7 +269,7 @@ int main(int argc, char** argv)
         delete[] rawDataset;
         delete[] queryDataset;
     }
-
+/*
     int chunkSize = 1000;
     int chunkN = 5;
     int querySize = 1000;
@@ -328,6 +342,6 @@ int main(int argc, char** argv)
             delete[] answers.ptr();
         }
     }
-
+*/
     return 0;
 }
