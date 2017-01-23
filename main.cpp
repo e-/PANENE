@@ -122,6 +122,9 @@ int main(int argc, char** argv)
     SearchParams searchParam(512);
     searchParam.cores = 1;
 
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, GLOVE_ORI));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, GLOVE_ORI));
+
 //    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_ORI));
     params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.00001f), searchParam, GLOVE_ORI));
     params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, GLOVE_ORI));
