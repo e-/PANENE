@@ -85,30 +85,27 @@ void getCorrectAnswers(Matrix<float> &dataset, int rows, Matrix<float> &queryset
     }
 }
 
-#define GLOVE_INITIAL_SIZE 1000
-#define GLOVE_CHUNK_SIZE 1000
-#define GLOVE_CHUNK_N 100
-#define GLOVE_QUERY_SIZE 1000
+#define GLOVE_INITIAL_SIZE 3000
+#define GLOVE_CHUNK_SIZE 3000
+#define GLOVE_CHUNK_N 98
+#define GLOVE_QUERY_SIZE 10000
 
-#define GLOVE_ORI Dataset("glove.original", "data/glove.trim.txt", "data/glove.query.txt", GLOVE_INITIAL_SIZE, GLOVE_CHUNK_SIZE, GLOVE_CHUNK_N, GLOVE_QUERY_SIZE, 100)
+#define GLOVE_SHUFFLED Dataset("glove.shuffled", "data/glove.shuffled.txt", "data/glove.query.txt", GLOVE_INITIAL_SIZE, GLOVE_CHUNK_SIZE, GLOVE_CHUNK_N, GLOVE_QUERY_SIZE, 100)
 #define GLOVE_SORTED Dataset("glove.sorted", "data/glove.sorted.txt", "data/glove.query.txt", GLOVE_INITIAL_SIZE, GLOVE_CHUNK_SIZE, GLOVE_CHUNK_N, GLOVE_QUERY_SIZE, 100)
-#define GLOVE_HALF_SORTED Dataset("glove.halfsorted", "data/glove.halfsorted.txt", "data/glove.query.txt", GLOVE_INITIAL_SIZE, GLOVE_CHUNK_SIZE, GLOVE_CHUNK_N, GLOVE_QUERY_SIZE, 100)
-
 
 #define SIFT_INITIAL_SIZE 1000
 #define SIFT_CHUNK_SIZE 1000
 #define SIFT_CHUNK_N 100
 #define SIFT_QUERY_SIZE 1000
 
-#define SIFT_ORI Dataset("sift.original", "data/sift.trim.txt", "data/sift.query.txt", SIFT_INITIAL_SIZE, SIFT_CHUNK_SIZE, SIFT_CHUNK_N, SIFT_QUERY_SIZE, 128)
+#define SIFT_SHUFFLED Dataset("sift.shuffled", "data/sift.shuffled.txt", "data/sift.query.txt", SIFT_INITIAL_SIZE, SIFT_CHUNK_SIZE, SIFT_CHUNK_N, SIFT_QUERY_SIZE, 128)
 #define SIFT_SORTED Dataset("sift.sorted", "data/sift.sorted.txt", "data/sift.query.txt", SIFT_INITIAL_SIZE, SIFT_CHUNK_SIZE, SIFT_CHUNK_N, SIFT_QUERY_SIZE, 128)
-#define SIFT_HALF_SORTED Dataset("sift.halfsorted", "data/sift.halfsorted.txt", "data/sift.query.txt", SIFT_INITIAL_SIZE, SIFT_CHUNK_SIZE, SIFT_CHUNK_N, SIFT_QUERY_SIZE, 128)
 
 int main(int argc, char** argv)
 {
     srand(time(NULL));
     int nn = 20;
-    int flannRepeat = 3;
+    int flannRepeat = 1;
     int annoyRepeat = 10;
 
     Timer timer;
@@ -120,44 +117,40 @@ int main(int argc, char** argv)
 
     vector<FLANNParam> params;
     SearchParams searchParam(512);
-    searchParam.cores = 1;
+    searchParam.cores = 0;
 
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, GLOVE_ORI));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, GLOVE_ORI));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, GLOVE_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, GLOVE_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_SHUFFLED));
 
-//    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_ORI));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.00001f), searchParam, GLOVE_ORI));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, GLOVE_ORI));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, GLOVE_ORI));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, GLOVE_SORTED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, GLOVE_SORTED));
+    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_SORTED));
+
+
+
+    /*
+//    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.00001f), searchParam, GLOVE_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, GLOVE_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, GLOVE_SHUFFLED));
 
 //    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_SORTED));
     params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.00001f), searchParam, GLOVE_SORTED));
     params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, GLOVE_SORTED));
     params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, GLOVE_SORTED));
 
-//    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_HALF_SORTED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.00001f), searchParam, GLOVE_HALF_SORTED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, GLOVE_HALF_SORTED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, GLOVE_HALF_SORTED));
-
-//    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, SIFT_ORI));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.00001f), searchParam, SIFT_ORI));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, SIFT_ORI));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, SIFT_ORI));
+//    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, SIFT_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.00001f), searchParam, SIFT_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, SIFT_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, SIFT_SHUFFLED));
 
 //    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, SIFT_SORTED));
     params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.00001f), searchParam, SIFT_SORTED));
     params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, SIFT_SORTED));
     params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, SIFT_SORTED));
-
-//    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, SIFT_HALF_SORTED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.00001f), searchParam, SIFT_HALF_SORTED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f), searchParam, SIFT_HALF_SORTED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 10000), searchParam, SIFT_HALF_SORTED));
- 
- 
-    
-    //params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f, FLANN_MEDIAN), searchParam, GLOVE_ORI));
+*/
+    //params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.1f, FLANN_MEDIAN), searchParam, GLOVE_SHUFFLED));
 
 //    params.push_back(Param(KDTreeIndexParams(1)));
 //    params.push_back(Param(KDTreeIndexParams(2)));
