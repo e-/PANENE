@@ -210,9 +210,8 @@ int main(int argc, char** argv)
             for(int i = 0; i < chunkN; ++i) {
                 chunks.push_back(Matrix<float>(dataset + initialSize * dim + i * chunkSize * dim, chunkSize, dim));
             }
-
+            
             Index<L2<float>> index(initial, param.getIndexParams());  
-//            index.buildIndex();
 
             for(int i = 0; i <= chunkN; ++i) {
                 // calculate correct answers
@@ -228,15 +227,25 @@ int main(int argc, char** argv)
                 // add a new chunk
                 timer.begin();
                 if(i > 0) {
+                    //cerr << "addpoint start" << endl;
                     index.addPoints(chunks[i-1]); 
+                    //cerr << "addpoint end" << endl;
                 }
-                else
+                else {
+                    //cerr << "build start" << endl;
                     index.buildIndex();
+                    //cerr << "build end" << endl;
+                }
+
                 double buildTime = timer.end();
 
                 // do search
                 timer.begin();
+                //cerr << query.rows << indices.rows;
+                //cerr << dists.rows << nn << param.getSearchParams().cores << endl;
+                //cerr << "search begins" << endl;
                 index.knnSearch(query, indices, dists, nn, param.getSearchParams());
+                //cerr << "search end" << endl;
                 double queryTime = timer.end() / querySize;
                 double QPS = 1 / queryTime;
 
