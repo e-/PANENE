@@ -5,6 +5,8 @@ query_size = 10000
 
 import random
 from random import randint
+import numpy as np
+from sklearn.decomposition import PCA
 
 def save(path, data):
     with open(path, "w") as ouf:
@@ -21,16 +23,24 @@ for name in ['sift', 'glove']:
     
     ind = range(len(rows))
     random.shuffle(ind)
+
     query = [rows[ind[i]] for i in ind[:query_size]]
 
     save("%s.query.txt" % name, query)
     
-    rows = rows[:size]
+    rows = [rows[ind[i]] for i in ind[query_size:query_size + size]]
     
-    # trim
+    # shuffle
+    save("%s.shuffled.txt" % name, rows)
     
-    save("%s.trim.txt" % name, rows)
+    pca = PCA(1)
+        
+    arr = np.array(rows)
+    xnew = pca.fit_transform(arr)
 
+    save("%s.sorted.txt" % name, map(lambda x: x[0], sorted(zip(rows, xnew), key=lambda x:x[1])))
+    
+    continue
     # sorted
     
     # calculate the mean and stdev
