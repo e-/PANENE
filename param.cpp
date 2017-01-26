@@ -22,7 +22,8 @@ string FLANNParam::format() {
     }
     else if(alg == FLANN_INDEX_KDTREE_BALANCED) {
         ss << "KDBalancedTree(trees=" << get_param<int>(ip, "trees") << ',' 
-          << get_param<float>(ip, "rebalance_threshold") << ',' 
+          << get_param<float>(ip, "rebuild_threshold") << ',' 
+          << get_param<float>(ip, "rebuild_size_threshold") << ',' 
           << updateCriteria(get_param<flann_update_criteria_t>(ip, "update_criteria")) << ',' 
           << splitCriteria(get_param<flann_split_criteria_t>(ip, "split_criteria")) << ")";
     }

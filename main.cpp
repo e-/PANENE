@@ -119,29 +119,8 @@ int main(int argc, char** argv)
     SearchParams searchParam(512);
     searchParam.cores = 0;
 
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.25f), searchParam, GLOVE_SHUFFLED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f), searchParam, GLOVE_SHUFFLED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.35f), searchParam, GLOVE_SHUFFLED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f, FLANN_HEIGHT_DIFFERENCE, FLANN_MEDIAN), searchParam, GLOVE_SHUFFLED));
+    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees), searchParam, GLOVE_SHUFFLED));
     params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_SHUFFLED));
-
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.25f), searchParam, GLOVE_SORTED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f), searchParam, GLOVE_SORTED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.35f), searchParam, GLOVE_SORTED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f, FLANN_HEIGHT_DIFFERENCE, FLANN_MEDIAN), searchParam, GLOVE_SORTED));
-    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_SORTED));
-
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.25f), searchParam, SIFT_SHUFFLED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f), searchParam, SIFT_SHUFFLED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.35f), searchParam, SIFT_SHUFFLED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f, FLANN_HEIGHT_DIFFERENCE, FLANN_MEDIAN), searchParam, SIFT_SHUFFLED));
-    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, SIFT_SHUFFLED));
-
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.25f), searchParam, SIFT_SORTED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f), searchParam, SIFT_SORTED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.35f), searchParam, SIFT_SORTED));
-    params.push_back(FLANNParam(KDTreeBalancedIndexParams(trees, 1.3f, FLANN_HEIGHT_DIFFERENCE, FLANN_MEDIAN), searchParam, SIFT_SORTED));
-    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, SIFT_SORTED));
 
     /*
 //    params.push_back(FLANNParam(KDTreeIndexParams(trees), searchParam, GLOVE_SHUFFLED));
@@ -190,12 +169,14 @@ int main(int argc, char** argv)
         int chunkN = ds.chunkN;
         int initialSize = ds.initialSize;
         int querySize = ds.querySize;
-        
+       
+        cerr << "data loading" << endl; 
         rawDataset = new float[(initialSize + chunkSize * chunkN) * dim];
         readData(ds.path, initialSize + chunkSize * chunkN, dim, rawDataset);
         
         queryDataset = new float[querySize * dim];
         readData(ds.queryPath, querySize, dim, queryDataset);
+        cerr << "data loading done" << endl; 
 
         for(int r = 0; r < flannRepeat; r++) {
             float *dataset = rawDataset; //shuffle(rawDataset, chunkSize * chunkN + querySize, dim);
@@ -211,7 +192,9 @@ int main(int argc, char** argv)
                 chunks.push_back(Matrix<float>(dataset + initialSize * dim + i * chunkSize * dim, chunkSize, dim));
             }
             
+            cerr << "init index" << endl;
             Index<L2<float>> index(initial, param.getIndexParams());  
+            cerr << "init index done" << endl;
 
             for(int i = 0; i <= chunkN; ++i) {
                 // calculate correct answers
@@ -227,14 +210,14 @@ int main(int argc, char** argv)
                 // add a new chunk
                 timer.begin();
                 if(i > 0) {
-                    //cerr << "addpoint start" << endl;
+                    cerr << "addpoint start" << endl;
                     index.addPoints(chunks[i-1]); 
-                    //cerr << "addpoint end" << endl;
+                    cerr << "addpoint end" << endl;
                 }
                 else {
-                    //cerr << "build start" << endl;
+                    cerr << "build start" << endl;
                     index.buildIndex();
-                    //cerr << "build end" << endl;
+                    cerr << "build end" << endl;
                 }
 
                 double buildTime = timer.end();
