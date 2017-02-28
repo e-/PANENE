@@ -1,4 +1,5 @@
 main
+*.gch
 *.o
 result
 data/*.txt
