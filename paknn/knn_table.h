@@ -64,7 +64,9 @@ public:
     size_t old_size = indexer.size();
 
     indexer.addPoints(new_points);
+#if DEBUG
     std::cout << new_points.rows << " new points have been indexed. " << indexer.size() << " points exist in trees." << std::endl;
+#endif
 
     assert(indexer.size() > k); // check if at least k points are in the index
 
@@ -163,7 +165,11 @@ public:
     delete[] new_indices.ptr();
     delete[] new_dists.ptr();
 
+    std::cout << checkCount << '\t';
+
+#if DEBUG
     std::cout << checkCount << " points have been updated." << std::endl;
+#endif
   };
 
   std::vector<Neighbor>& getNeighbors(const IDType id) {

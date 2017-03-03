@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-c -Wall -std=c++11 -O2 -I/usr/include/hdf5/serial 
+CFLAGS=-c -Wall -fopenmp -std=c++11 -O2 -I/usr/include/hdf5/serial 
 LDFLAGS=-fopenmp -L/usr/lib/x86_64-linux-gnu/hdf5/serial/lib -L/usr/lib/x86_64-linux-gnu -lhdf5 -llz4 lib/lz4.o lib/lz4hc.o
 SOURCES=knn_table.cpp paknn.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
