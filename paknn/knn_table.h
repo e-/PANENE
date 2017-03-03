@@ -124,12 +124,12 @@ public:
 
       // we need to update the NN of q.id
       
-      // get new NNs
+      // get new NN
       
       flann::Matrix<ElementType> qvec(points[q.id], 1, d);
       indexer.knnSearch(qvec, new_indices, new_dists, k, searchParams);
       
-      // check if there is a difference between previous NNs and newly computed NNs.
+      // check if there is a difference between previous NN and newly computed NN.
       
       unsigned int i;
       for(i = 0; i < k; ++i) {
@@ -142,9 +142,8 @@ public:
         for(i = 0; i < k; ++i) {
           Neighbor ne(new_indices[0][i], new_dists[0][i]);
           neighbors[q.id][i] = ne;
-          if(!checked.test(ne.id)) {
+          if(!checked.test(ne.id))
             queue.push(ne);
-          }
         }
       }
 

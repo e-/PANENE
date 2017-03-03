@@ -97,8 +97,9 @@ int main(){
     Matrix<float> queryMatrix(new float[sample * d], sample, d);
     Matrix<float> nns(new float[sample * (k + 1)], sample, k + 1);
  
-    // we cannot check all rows to calculate accuracy
-    // therefore, we make a small sample to approximate the accuracy.
+    // We cannot check all rows to calculate accuracy due to the O(n^2) 
+    // complexity of the exact algorithm. 
+    // Instead, we make a small sample and approximate the accuracy.
 
     for(int s = 0; s < sample; ++s) {
       int id = rand() % (n * (r + 1));
@@ -109,13 +110,13 @@ int main(){
       } 
     }
 
-    // get correct NNs for the sample
+    // get exact NNs for the sample
     getCorrectNN(dataMatrix, queryMatrix, nns, k + 1);
 
     // for comparison, measure the performance of KDtrees
     index.addPoints(chunkMatrix);
 
-    // compare the NNs with the ones in the KNN table
+    // compare the kNN with the ones in the KNN table
     int correct_table = 0, correct_tree = 0;
 
     for(int s = 0; s < sample; ++s) {
@@ -133,6 +134,7 @@ int main(){
       }
     }
     
+    // do kNN search using KDTree
     index.knnSearch(queryMatrix, indices, dists, k + 1, searchParam);
 
     for(int s = 0; s < sample; ++s) {
@@ -155,13 +157,6 @@ int main(){
   
     delete[] queryMatrix.ptr(); 
     delete[] nns.ptr();
-  }
-
-  // for testing
-  
-  int id = 5;
-  for(auto& neighbor : table.getNeighbors(id)) { 
-    cout << neighbor.id << ' ' << neighbor.distance << endl;
   }
 
   delete[] data;
