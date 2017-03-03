@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-size = 300000
-query_size = 10000
+size = 100000 #300000
+query_size = 100 #10000
 
 import random
 from random import randint
@@ -13,7 +13,7 @@ def save(path, data):
         for row in data:
             print >> ouf, ' '.join([str(f) for f in row])
 
-for name in ['sift', 'glove']:
+for name in ['glove']:
     rows = []
     with open(name + ".txt") as inf:
         for line in inf.readlines():
