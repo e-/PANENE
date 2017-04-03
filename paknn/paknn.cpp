@@ -12,7 +12,12 @@ void readData(const string &path, int rows, int cols, float *dataset) {
   std::ifstream ifs(path);
 
   for(int i = 0; i < rows * cols; ++i) {
-//    ifs >> dataset[i]; 
+    ifs >> dataset[i]; 
+  }
+}
+
+void randomData(int rows, int cols, float *dataset) {
+  for(int i = 0; i < rows * cols; ++i) {
     dataset[i] = (float)rand() / RAND_MAX;
   }
 }
@@ -65,27 +70,45 @@ void getCorrectNN(Matrix<float> &dataset, Matrix<float> &queryset, Matrix<float>
     }
 }
 
+//#define DATA_PATH "../data/glove.shuffled.txt"
+//#define D 100
+
+//#define DATA_PATH "../data/sift.shuffled.txt"
+//#define D 128
+
+//#define DATA_PATH "random"
+//#define D 100
+
+#define DATA_PATH "../data/creditcard.shuffled.txt"
+#define D 28
 
 int main(){
   int n = 5000; // rows per each chunk
-  int d = 100;
-  int repeat = 60;
+  int d = D;
+  int repeat = 56;
   int k = 10;
   int sample = 1000;
   
   srand(time(0));
 
   float *data = new float[n * d * repeat];
-  readData("../data/glove.shuffled.txt", n * repeat, d, data);
+  if(DATA_PATH == "random") {
+    randomData(n * repeat, d, data);
+  }
+  else {
+    readData(DATA_PATH, n * repeat, d, data);
+  }
+
   SearchParams searchParam(512);
   searchParam.cores = 0;
 
-  KNNTable<Index<L2<float>>> table(k + 1, d, KDTreeIndexParams(4), searchParam);
+  KNNTable<Index<L2<float>>> table(k + 1, d, KDTreeIndexParams(4), searchParam, 20000);
   Matrix<float> initData(nullptr, 0, d);
-  Index<L2<float>> index(initData, KDTreeIndexParams(4));
+  Index<L2<float>> index(initData, KDTreeIndexParams(4)); // baseline 
   Matrix<int> indices(new int[sample * (k + 1)], sample, k + 1);
   Matrix<float> dists(new float[sample * (k + 1)], sample, k + 1);
  
+  cout << "benchmark for " << DATA_PATH << " with " << D << " dimensions, " << n << " * " << repeat << " rows." << endl;
   cout << "updated\trows\taccuracy_table\taccuracy_index" << endl;
 
   for(int r = 0; r < repeat; ++r) { 

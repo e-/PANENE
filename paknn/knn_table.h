@@ -6,7 +6,6 @@
 #include <iostream>
 #include <queue>
 
-#define MAX_CHECK 0
 #define DEBUG 0
 
 template <class Indexer>
@@ -37,7 +36,9 @@ public:
     }
   };
 
-  KNNTable(unsigned int k_, unsigned int d_, flann::IndexParams indexParams_, flann::SearchParams searchParams_) : d(d_), k(k_), indexer(flann::KDTreeIndexParams(1)) {
+  KNNTable(unsigned int k_, unsigned int d_, flann::IndexParams indexParams_, flann::SearchParams searchParams_, int maxCheck_ = -1) : 
+    d(d_), k(k_), indexer(flann::KDTreeIndexParams(1)), maxCheck(maxCheck_) {
+
     flann::Matrix<DistanceType> initData(nullptr, 0, d_);
     indexer = Indexer(initData, indexParams_);
     searchParams = searchParams_;
@@ -110,15 +111,15 @@ public:
 
     // 3. update old knn
 
-    unsigned int checkCount = 0;
+    int checkCount = 0;
     flann::Matrix<IDType> new_indices(new IDType[k], 1, k);
     flann::Matrix<DistanceType> new_dists(new DistanceType[k], 1, k);
-
+    
     while(!queue.empty()) {
       auto q = queue.top();
       queue.pop();
 
-      if(checked.test(q.id) || (MAX_CHECK > 0 && checkCount > MAX_CHECK)) continue;
+      if(checked.test(q.id)) continue;
       checked.set(q.id);
       checkCount++;
 
@@ -159,6 +160,8 @@ public:
       }
       std::cout << std::endl;
 #endif
+
+      if(maxCheck >= 0 && checkCount >= maxCheck) break;
     }
 
     delete[] new_indices.ptr();
@@ -175,6 +178,9 @@ public:
     return neighbors[id];
   }
 
+  int getMaxCheck() { return maxCheck; }
+  void setMaxCheck(int maxCheck_) { maxCheck = maxCheck_; }
+
 private:
   std::vector<ElementType*> points;
   unsigned int d;
@@ -182,6 +188,7 @@ private:
   Indexer indexer;
   flann::SearchParams searchParams;
   std::vector<std::vector<Neighbor>> neighbors;
+  int maxCheck = -1; // unlimited 
 };
 
 #endif
