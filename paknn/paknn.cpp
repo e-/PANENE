@@ -102,18 +102,21 @@ int main(){
   SearchParams searchParam(512);
   searchParam.cores = 0;
 
-  KNNTable<Index<L2<float>>> table(k + 1, d, KDTreeIndexParams(4), searchParam, 20000);
+  KNNTable<Index<L2<float>>> table(k + 1, d, KDTreeIndexParams(4), searchParam);
   Matrix<float> initData(nullptr, 0, d);
   Index<L2<float>> index(initData, KDTreeIndexParams(4)); // baseline 
   Matrix<int> indices(new int[sample * (k + 1)], sample, k + 1);
   Matrix<float> dists(new float[sample * (k + 1)], sample, k + 1);
  
   cout << "benchmark for " << DATA_PATH << " with " << D << " dimensions, " << n << " * " << repeat << " rows." << endl;
+  cout << "maxOps : " << table.getMaxOps() << endl;
   cout << "updated\trows\taccuracy_table\taccuracy_index" << endl;
 
   for(int r = 0; r < repeat; ++r) { 
     Matrix<float> chunkMatrix(data + r * n * d, n, d);
-    table.addPoints(chunkMatrix);
+    
+    // add a batch to 
+    table.addPoints(chunkMatrix, );
 
     vector<int> ids;
     Matrix<float> dataMatrix(data, n * (r + 1), d);

@@ -36,56 +36,72 @@ public:
     }
   };
 
-  KNNTable(unsigned int k_, unsigned int d_, flann::IndexParams indexParams_, flann::SearchParams searchParams_, int maxCheck_ = -1) : 
-    d(d_), k(k_), indexer(flann::KDTreeIndexParams(1)), maxCheck(maxCheck_) {
+  KNNTable(unsigned int k_, unsigned int d_, flann::IndexParams indexParams_, flann::SearchParams searchParams_, int maxOps_ = -1) : 
+    d(d_), k(k_), indexer(flann::KDTreeIndexParams(1)), maxOps(maxOps_) {
 
     flann::Matrix<DistanceType> initData(nullptr, 0, d_);
     indexer = Indexer(initData, indexParams_);
     searchParams = searchParams_;
   }
 
-  void extendDataset(const flann::Matrix<DistanceType>& new_points) { 
+  void extendDataset(const flann::Matrix<DistanceType>& newPoints) { 
     size_t old_size = points.size();
-		size_t new_size = points.size() + new_points.rows;
+		size_t new_size = points.size() + newPoints.rows;
 
     points.resize(new_size);
 
     for (size_t i = old_size; i < new_size; ++i) {
-      points[i] = new_points[i - old_size];
+      points[i] = newPoints[i - old_size];
     }
   }
 
-  void addPoints(const flann::Matrix<DistanceType>& new_points) { 
-    // 0. add new points to data
+  void addPoints(const flann::Matrix<DistanceType>& newPoints) { 
+    // We always add all points to the dataset regardless of the maxOps value to avoid losing data.
+    extendDataset(newPoints); 
 
-    extendDataset(new_points);
+    // calculate the number of steps allocated for each operation
+    if(maxOps == -1) {
+      maxOps = newPointOps = queueOps = indexOps = -1;
+    }
+    else {
+      // example schedule
+      newPointOps = maxOps / 4;
+      queueOps = maxOps - newPointOps;
+      indexOps = 0;
+    }
+  
 
-    // 1. index new points
+    // 1. index new points (indexOps)
     
     size_t old_size = indexer.size();
 
-    indexer.addPoints(new_points);
+    // TODO: Add and update points to the index progressively
+    // TODO: We do not have to insert ALL new points to the index. Rather, insert as many points as newPointOps
+
+    indexer.addPoints(newPoints);
+
 #if DEBUG
-    std::cout << new_points.rows << " new points have been indexed. " << indexer.size() << " points exist in trees." << std::endl;
+    std::cout << newPoints.rows << " new points have been indexed. " << indexer.size() << " points exist in trees." << std::endl;
 #endif
 
     assert(indexer.size() > k); // check if at least k points are in the index
 
     size_t size = indexer.size();
 
-    // 2. compute new knn
+    // 2. compute new knn (newPointOps)
+    // TODO: We need to keep a pointer, lastInserted and add dataset[lastInserted ... lastInserted + newPointOps]
   
-    flann::Matrix<IDType> indices(new IDType[new_points.rows * k], new_points.rows, k);
-    flann::Matrix<DistanceType> dists(new DistanceType[new_points.rows * k], new_points.rows, k);
+    flann::Matrix<IDType> indices(new IDType[newPoints.rows * k], newPoints.rows, k);
+    flann::Matrix<DistanceType> dists(new DistanceType[newPoints.rows * k], newPoints.rows, k);
     std::priority_queue<Neighbor, std::vector<Neighbor>, std::greater<Neighbor>> queue; // descending order
     flann::DynamicBitset checked(size);
 
-    indexer.knnSearch(new_points, indices, dists, k, searchParams);
+    indexer.knnSearch(newPoints, indices, dists, k, searchParams);
 
     std::vector<Neighbor> nns;
     nns.resize(k);
 
-    for(unsigned int i = 0; i < new_points.rows; ++i) {
+    for(unsigned int i = 0; i < newPoints.rows; ++i) {
       IDType id = old_size + i;
       checked.set(id);
 
@@ -109,7 +125,7 @@ public:
     }
 #endif
 
-    // 3. update old knn
+    // 3. Process the queue (queueOps)
 
     int checkCount = 0;
     flann::Matrix<IDType> new_indices(new IDType[k], 1, k);
@@ -161,7 +177,7 @@ public:
       std::cout << std::endl;
 #endif
 
-      if(maxCheck >= 0 && checkCount >= maxCheck) break;
+      if(queueOps >= 0 && checkCount >= queueOps) break;
     }
 
     delete[] new_indices.ptr();
@@ -178,8 +194,8 @@ public:
     return neighbors[id];
   }
 
-  int getMaxCheck() { return maxCheck; }
-  void setMaxCheck(int maxCheck_) { maxCheck = maxCheck_; }
+  int getMaxOps() { return maxOps; }
+  void setMaxOps(int maxOps_) { maxOps = maxOps_; }
 
 private:
   std::vector<ElementType*> points;
@@ -188,7 +204,29 @@ private:
   Indexer indexer;
   flann::SearchParams searchParams;
   std::vector<std::vector<Neighbor>> neighbors;
-  int maxCheck = -1; // unlimited 
+
+  /*
+  maxOps indicates the maximum number of operations that the function addPoints can execute.
+  There are three types of operations:
+    1) Add a new point P to the table. It requires:
+      An insertion operation to the index
+      A knn search for P
+      Mark the neighbors of P as dirty and insert them to the queue
+    
+    2) Take a dirty point P from the queue and update its neighbors
+      A knn search for P
+      Mark the neighbors of P as dirty and insert them to the queue
+
+    3) Rebalance the index
+      Update only one tree at a time
+
+  Note that the three operations have different costs. 
+  */
+  
+  int maxOps = -1; // unlimited 
+  int newPointOps = -1; // add new rows to the table
+  int queueOps = -1; // take a point from the queue and update its neighbors
+  int indexOps = -1; // update index 
 };
 
 #endif
