@@ -1,23 +1,35 @@
 #!/usr/bin/env python
 
-size = 100000 #300000
+size = 280000 #300000
 query_size = 100 #10000
 
 import random
 from random import randint
 import numpy as np
 from sklearn.decomposition import PCA
+import sys
 
 def save(path, data):
     with open(path, "w") as ouf:
         for row in data:
             print >> ouf, ' '.join([str(f) for f in row])
 
-for name in ['glove']:
+for name in ['creditcard']: #glove', 'sift']:
     rows = []
-    with open(name + ".txt") as inf:
-        for line in inf.readlines():
-            rows.append(map(float, line.strip().split(' ')))
+    try:
+        with open(name + ".txt") as inf:
+            n = 0
+            for line in inf.readlines()[:size + query_size]:
+                rows.append(map(float, line.strip().split(' ')))
+
+                n += 1
+                if n % 10000 == 0:
+                    print("{} lines loaded".format(n))
+
+    except Exception as e:
+        print(e)
+        print('Did you run %s.sh?'.format(name))
+        sys.exit(1)
     
     dim = len(rows[0])
     

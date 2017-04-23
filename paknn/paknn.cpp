@@ -82,7 +82,7 @@ void getCorrectNN(Matrix<float> &dataset, Matrix<float> &queryset, Matrix<float>
 #define DATA_PATH "../data/creditcard.shuffled.txt"
 #define D 28
 
-int main(){
+void runTest(){
   int n = 5000; // rows per each chunk
   int d = D;
   int repeat = 56;
@@ -116,7 +116,7 @@ int main(){
     Matrix<float> chunkMatrix(data + r * n * d, n, d);
     
     // add a batch to 
-    table.addPoints(chunkMatrix, );
+    table.addPoints(chunkMatrix);
 
     vector<int> ids;
     Matrix<float> dataMatrix(data, n * (r + 1), d);
@@ -188,6 +188,9 @@ int main(){
   delete[] data;
   delete[] indices.ptr();
   delete[] dists.ptr();
+}
 
+int main(){
+  runTest();
   return 0;
 }
