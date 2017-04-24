@@ -7,7 +7,7 @@
 
 using namespace std;
 
-//#define USE_FLANN
+#define USE_FLANN
 
 #ifdef USE_FLANN
 #include "knn_table_flann.h"
@@ -120,6 +120,8 @@ void runTest(){
   KNNTable<Index<L2<float>>> table(k + 1, d, KDTreeIndexParams(4), searchParam);
 #else
   KNNTable<KDTreeIndex<L2<float>>> table(k + 1, d, IndexParams(4), searchParam);
+  Matrix<float> allData(data, n * repeat, d);
+  table.setDataSource(allData);
 #endif
 
   flann::Matrix<float> initData(nullptr, 0, d);
@@ -136,7 +138,11 @@ void runTest(){
     flann::Matrix<float> chunkMatrix(data + r * n * d, n, d);
     
     // add a batch to 
-    table.addPoints((r + 1) * n); //chunkMatrix);
+#ifdef USE_FLANN
+    table.addPoints(chunkMatrix);
+#else
+    table.addPoints((r + 1) * n);
+#endif
 
     vector<int> ids;
     flann::Matrix<float> dataMatrix(data, n * (r + 1), d);
@@ -213,6 +219,7 @@ void runTest(){
 #include "indices/kd_tree_index.h"
 
 int main(){
+  cout << "size of size_t " << sizeof(size_t) << endl;
   runTest();
   return 0;
 }

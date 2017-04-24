@@ -75,16 +75,20 @@ public:
     // TODO: Add and update points to the index progressively
     // TODO: We do not have to insert ALL new points to the index. Rather, insert as many points as newPointOps
 
-    indexer.addPoints(end);
-
 #if DEBUG
-    std::cout << newPoints.rows << " new points have been indexed. " << indexer.getSize() << " points exist in trees." << std::endl;
+    std::cout << "adding points to indexer" << std::endl;
 #endif
 
-    assert(indexer.getSize() > k); // check if at least k points are in the index
+    indexer.addPoints(end);
 
     size_t size = indexer.getSize();
     size_t inc = size - oldSize;
+
+#if DEBUG
+    std::cout << inc << " new points have been indexed. " << indexer.getSize() << " points exist in trees." << std::endl;
+#endif
+
+    assert(indexer.getSize() > k); // check if at least k points are in the index
 
     Matrix<ElementType> newPoints(dataSource[oldSize], inc, dataSource.cols);
 
@@ -96,7 +100,15 @@ public:
     std::priority_queue<Neighbor, std::vector<Neighbor>, std::greater<Neighbor>> queue; // descending order
     DynamicBitset checked(size);
 
+#if DEBUG
+    std::cerr << "knnSearch begins" << std::endl;
+#endif 
+
     indexer.knnSearch(newPoints, indices, dists, k, searchParams);
+
+#if DEBUG
+    std::cerr << "knnSearch done" << std::endl;
+#endif 
 
     std::vector<Neighbor> nns;
     nns.resize(k);
@@ -123,6 +135,7 @@ public:
       }
       std::cout << std::endl;
     }
+    std::cerr << "starting processing queue" << std::endl;
 #endif
 
     // 3. Process the queue (queueOps)
@@ -133,6 +146,10 @@ public:
     
     while(!queue.empty()) {
       auto q = queue.top();
+
+#if DEBUG
+      std::cerr << "Got a point from the queue: " << q << std::endl;
+#endif
       queue.pop();
 
       if(checked.test(q.id)) continue;
@@ -143,8 +160,15 @@ public:
       
       // get new NN
       
-      Matrix<ElementType> qvec(points[q.id], 1, d);
+      Matrix<ElementType> qvec(dataSource[q.id], 1, d);
+#if DEBUG
+      std::cerr << "starting knn search for queue" << std::endl;
+#endif
       indexer.knnSearch(qvec, newIndices, newDists, k, searchParams);
+#if DEBUG
+      std::cerr << "done knn search for queue" << std::endl;
+#endif
+
       
       // check if there is a difference between previous NN and newly computed NN.
       
@@ -198,7 +222,6 @@ public:
   void setMaxOps(int maxOps_) { maxOps = maxOps_; }
 
 private:
-  std::vector<ElementType*> points;
   unsigned int d;
   unsigned int k;
   Indexer indexer;

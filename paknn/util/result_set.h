@@ -33,6 +33,20 @@ struct DistanceIndex
 
 };
 
+template <typename DistanceType>
+class ResultSet
+{
+public:
+    virtual ~ResultSet() {}
+
+    virtual bool full() const = 0;
+
+    virtual void addPoint(DistanceType dist, size_t index, int tree = 0) = 0;
+
+    virtual DistanceType worstDist() const = 0;
+    
+    virtual void getTrees(std::vector<int> &result) {};
+};
 
 /**
  * KNNSimpleResultSet does not ensure that the element it holds are unique.
@@ -40,7 +54,7 @@ struct DistanceIndex
  * attempt to insert the same element multiple times.
  */
 template <typename DistanceType>
-class KNNSimpleResultSet
+class KNNSimpleResultSet : public ResultSet<DistanceType>
 {
 public:
 	typedef DistanceIndex<DistanceType> DistIndex;
@@ -151,7 +165,7 @@ private:
  * K-Nearest neighbour result set. Ensures that the elements inserted are unique
  */
 template <typename DistanceType>
-class KNNResultSet
+class KNNResultSet : public ResultSet<DistanceType>
 {
 public:
 	typedef DistanceIndex<DistanceType> DistIndex;
@@ -249,7 +263,7 @@ private:
 
 
 template <typename DistanceType>
-class KNNResultSet2
+class KNNResultSet2 : public ResultSet<DistanceType>
 {
 public:
 	typedef DistanceIndex<DistanceType> DistIndex;

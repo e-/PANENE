@@ -6,6 +6,7 @@
 #include <random>
 #include <cstring>
 #include <cstdio>
+#include <iostream>
 
 #include "../util/matrix.h"
 #include "../util/allocator.h"
@@ -125,7 +126,7 @@ public:
 	 *     vec = the vector for which to search the nearest neighbors
 	 *     maxCheck = the maximum number of restarts (in a best-bin-first manner)
 	 */
-	void findNeighbors(KNNResultSet<DistanceType>& result, const ElementType* vec, const SearchParams& searchParams) const
+	void findNeighbors(ResultSet<DistanceType>& result, const ElementType* vec, const SearchParams& searchParams) const
 	{
 		int maxChecks = searchParams.checks;
 		float epsError = 1+searchParams.eps;
@@ -150,136 +151,77 @@ public:
 		}
 	}
 
-  /**
-   * @brief Perform k-nearest neighbor search
-   * @param[in] queries The query points for which to find the nearest neighbors
-   * @param[out] indices The indices of the nearest neighbors found
-   * @param[out] dists Distances to the nearest neighbors found
-   * @param[in] knn Number of nearest neighbors to return
-   * @param[in] params Search parameters
-   */
-  int knnSearch(const Matrix<ElementType>& queries,
-      std::vector< std::vector<size_t> >& indices,
-      std::vector<std::vector<DistanceType> >& dists,
-      size_t knn,
-      const SearchParams& params) const
-  {
-    assert(queries.cols == veclen());
-    bool use_heap = false; 
-    // TODO
-/*    if (params.use_heap==FLANN_Undefined) {
-      use_heap = (knn>KNN_HEAP_THRESHOLD)?true:false;
-    }
-    else {
-      use_heap = (params.use_heap==FLANN_True)?true:false;
-    }*/
 
-    if (indices.size() < queries.rows ) indices.resize(queries.rows);
-    if (dists.size() < queries.rows ) dists.resize(queries.rows);
-
-    int count = 0;
-    if (use_heap) {
-#pragma omp parallel num_threads(params.cores)
-      {
-        KNNResultSet2<DistanceType> resultSet(knn);
-#pragma omp for schedule(static) reduction(+:count)
-        for (int i = 0; i < (int)queries.rows; i++) {
-          resultSet.clear();
-          findNeighbors(resultSet, queries[i], params);
-          size_t n = std::min(resultSet.size(), knn);
-          indices[i].resize(n);
-          dists[i].resize(n);
-          if (n>0) {
-            resultSet.copy(&indices[i][0], &dists[i][0], n, params.sorted);
-            indices_to_ids(&indices[i][0], &indices[i][0], n);
-          }
-          count += n;
-        }
-      }
-    }
-    else {
-#pragma omp parallel num_threads(params.cores)
-      {
-        KNNSimpleResultSet<DistanceType> resultSet(knn);
-#pragma omp for schedule(static) reduction(+:count)
-        for (int i = 0; i < (int)queries.rows; i++) {
-          resultSet.clear();
-          findNeighbors(resultSet, queries[i], params);
-          size_t n = std::min(resultSet.size(), knn);
-          indices[i].resize(n);
-          dists[i].resize(n);
-          if (n>0) {
-            resultSet.copy(&indices[i][0], &dists[i][0], n, params.sorted);
-            indices_to_ids(&indices[i][0], &indices[i][0], n);
-          }
-          count += n;
-        }
-      }
-    }
-
-    return count;
-  }
-
-
-  /**
-   *
-   * @param queries
-   * @param indices
-   * @param dists
-   * @param knn
-   * @param params
-   * @return
-   */
-  int knnSearch(const Matrix<ElementType>& queries,
-      std::vector< std::vector<int> >& indices,
-      std::vector<std::vector<DistanceType> >& dists,
-      size_t knn,
-      const SearchParams& params) const
-  {
-    std::vector<std::vector<size_t> > indices_;
-    int result = knnSearch(queries, indices_, dists, knn, params);
-
-    indices.resize(indices_.size());
-    for (size_t i=0;i<indices_.size();++i) {
-      indices[i].assign(indices_[i].begin(), indices_[i].end());
-    }
-    return result;
-  }
-  
 	/**
-	 *
-	 * @param queries
-	 * @param indices
-	 * @param dists
-	 * @param knn
-	 * @param params
-	 * @return
+	 * @brief Perform k-nearest neighbor search
+	 * @param[in] queries The query points for which to find the nearest neighbors
+	 * @param[out] indices The indices of the nearest neighbors found
+	 * @param[out] dists Distances to the nearest neighbors found
+	 * @param[in] knn Number of nearest neighbors to return
+	 * @param[in] params Search parameters
 	 */
-	int knnSearch(const Matrix<ElementType>& queries,
+  int knnSearch(const Matrix<ElementType>& queries,
 			Matrix<size_t>& indices,
 			Matrix<DistanceType>& dists,
 			size_t knn,
 			const SearchParams& params) const
 	{
-		Matrix<size_t> indices_(new size_t[indices.rows*indices.cols], indices.rows, indices.cols);
-		int result = knnSearch(queries, indices_, dists, knn, params);
+		assert(queries.cols == veclen);
+		assert(indices.rows >= queries.rows);
+		assert(dists.rows >= queries.rows);
+		assert(indices.cols >= knn);
+		assert(dists.cols >= knn);
+		bool use_heap = false; // TODO
 
-		for (size_t i=0;i<indices.rows;++i) {
-			for (size_t j=0;j<indices.cols;++j) {
-				indices[i][j] = indices_[i][j];
+		/*if (params.use_heap==FLANN_Undefined) {
+			use_heap = (knn>KNN_HEAP_THRESHOLD)?true:false;
+		}
+		else {
+			use_heap = (params.use_heap==FLANN_True)?true:false;
+		}*/
+		int count = 0;
+
+		if (use_heap) {
+#pragma omp parallel num_threads(params.cores)
+			{
+				KNNResultSet2<DistanceType> resultSet(knn);
+#pragma omp for schedule(static) reduction(+:count)
+				for (int i = 0; i < (int)queries.rows; i++) {
+					resultSet.clear();
+					findNeighbors(resultSet, queries[i], params);
+					size_t n = std::min(resultSet.size(), knn);
+					resultSet.copy(indices[i], dists[i], n, params.sorted);
+					indices_to_ids(indices[i], indices[i], n);
+					count += n;
+				}
 			}
 		}
-		delete[] indices_.ptr();
-		return result;
-	}
+		else {
+#pragma omp parallel num_threads(params.cores)
+			{
+				KNNSimpleResultSet<DistanceType> resultSet(knn);
+#pragma omp for schedule(static) reduction(+:count)
+				for (int i = 0; i < (int)queries.rows; i++) {
+					resultSet.clear();
+					findNeighbors(resultSet, queries[i], params);
+					size_t n = std::min(resultSet.size(), knn);
 
+					resultSet.copy(indices[i], dists[i], n, params.sorted);
+
+					indices_to_ids(indices[i], indices[i], n);
+					count += n;
+				}
+			}
+		}
+		return count;
+	}
 
 protected:
   
   void buildIndex() {
     sizeAtBuild = size;
     std::vector<int> ind(size);
-    for(size_t i = 0; i < treeRoots.size(); ++i) {
+    for(size_t i = 0; i < size; ++i) {
       ind[i] = int(i);
     }
 
@@ -494,7 +436,7 @@ protected:
 	 * traversal of the tree.
 	 */
 	template<bool with_removed>
-	void getExactNeighbors(KNNResultSet<DistanceType>& result, const ElementType* vec, float epsError) const
+	void getExactNeighbors(ResultSet<DistanceType>& result, const ElementType* vec, float epsError) const
 	{
 		if (trees > 1) {
 			fprintf(stderr,"It doesn't make any sense to use more than one tree for exact search");
@@ -510,7 +452,7 @@ protected:
 	 * the tree.
 	 */
 	template<bool with_removed>
-	void getNeighbors(KNNResultSet<DistanceType>& result, const ElementType* vec, int maxCheck, float epsError) const
+	void getNeighbors(ResultSet<DistanceType>& result, const ElementType* vec, int maxCheck, float epsError) const
 	{
 		int i;
 		BranchSt branch;
@@ -539,7 +481,7 @@ protected:
 	 *  at least "mindistsq".
 	 */
 	template<bool with_removed>
-	void searchLevel(KNNResultSet<DistanceType>& result_set, const ElementType* vec, NodePtr node, DistanceType mindist, int& checkCount, int maxCheck,
+	void searchLevel(ResultSet<DistanceType>& result_set, const ElementType* vec, NodePtr node, DistanceType mindist, int& checkCount, int maxCheck,
 			float epsError, Heap<BranchSt>* heap, DynamicBitset& checked) const
 	{
 		if (result_set.worstDist()<mindist) {
@@ -592,7 +534,7 @@ protected:
 	 * Performs an exact search in the tree starting from a node.
 	 */
 	template<bool with_removed>
-	void searchLevelExact(KNNResultSet<DistanceType>& result_set, const ElementType* vec, const NodePtr node, DistanceType mindist, const float epsError) const
+	void searchLevelExact(ResultSet<DistanceType>& result_set, const ElementType* vec, const NodePtr node, DistanceType mindist, const float epsError) const
 	{
 		/* If this is a leaf node, then do check and return. */
 		if ((node->child1 == NULL)&&(node->child2 == NULL)) {

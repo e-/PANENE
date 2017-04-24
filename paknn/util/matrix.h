@@ -53,7 +53,7 @@ public:
 	{
 		data = static_cast<uchar*>(data_);
 
-		if (stride==0) stride = sizeof(ElementType) * cols;
+//		if (stride==0) stride = sizeof(ElementType) * cols;
 	}
 
 	/**
