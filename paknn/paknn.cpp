@@ -190,7 +190,10 @@ void runTest(){
   delete[] dists.ptr();
 }
 
+#include "indices/kd_tree_index.h"
+
 int main(){
-  runTest();
+  //runTest();
+  int a = 2;
   return 0;
 }
