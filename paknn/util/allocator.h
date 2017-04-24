@@ -28,8 +28,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *************************************************************************/
 
-#ifndef FLANN_ALLOCATOR_H_
-#define FLANN_ALLOCATOR_H_
+#ifndef PAKNN_ALLOCATOR_H_
+#define PAKNN_ALLOCATOR_H_
 
 #include <stdlib.h>
 #include <stdio.h>

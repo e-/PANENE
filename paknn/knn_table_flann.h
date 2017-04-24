@@ -1,14 +1,10 @@
-#ifndef knn_table_h
-#define knn_table_h
+#ifndef knn_table_flann_h
+#define knn_table_flann_h
 
+#include <flann/flann.hpp>
 #include <vector>
 #include <iostream>
 #include <queue>
-#include <cassert>
-
-#include "indices/kd_tree_index.h"
-
-using namespace paknn;
 
 #define DEBUG 0
 
@@ -16,7 +12,7 @@ template <class Indexer>
 class KNNTable {
   typedef typename Indexer::ElementType ElementType;
   typedef typename Indexer::DistanceType DistanceType;
-  typedef size_t IDType;
+  typedef long unsigned int IDType;
   
 public:
   struct Neighbor {
@@ -40,21 +36,28 @@ public:
     }
   };
 
-  KNNTable(unsigned int k_, unsigned int d_, IndexParams indexParams_, SearchParams searchParams_, int maxOps_ = -1) : 
-    d(d_), k(k_), indexer(Indexer(IndexParams(4))), maxOps(maxOps_) {
+  KNNTable(unsigned int k_, unsigned int d_, flann::IndexParams indexParams_, flann::SearchParams searchParams_, int maxOps_ = -1) : 
+    d(d_), k(k_), indexer(flann::KDTreeIndexParams(1)), maxOps(maxOps_) {
 
-    indexer = Indexer(indexParams_);
+    flann::Matrix<DistanceType> initData(nullptr, 0, d_);
+    indexer = Indexer(initData, indexParams_);
     searchParams = searchParams_;
   }
 
-  void setDataSource(Matrix<ElementType> &dataSource_) {
-    dataSource = dataSource_;
-    indexer.setDataSource(dataSource);
+  void extendDataset(const flann::Matrix<DistanceType>& newPoints) { 
+    size_t old_size = points.size();
+		size_t new_size = points.size() + newPoints.rows;
+
+    points.resize(new_size);
+
+    for (size_t i = old_size; i < new_size; ++i) {
+      points[i] = newPoints[i - old_size];
+    }
   }
 
-  void addPoints(size_t end) {
+  void addPoints(const flann::Matrix<DistanceType>& newPoints) { 
     // We always add all points to the dataset regardless of the maxOps value to avoid losing data.
-//    extendDataset(newPoints); 
+    extendDataset(newPoints); 
 
     // calculate the number of steps allocated for each operation
     if(maxOps == -1) {
@@ -70,31 +73,28 @@ public:
 
     // 1. index new points (indexOps)
     
-    size_t oldSize = indexer.getSize();
+    size_t old_size = indexer.size();
 
     // TODO: Add and update points to the index progressively
     // TODO: We do not have to insert ALL new points to the index. Rather, insert as many points as newPointOps
 
-    indexer.addPoints(end);
+    indexer.addPoints(newPoints);
 
 #if DEBUG
-    std::cout << newPoints.rows << " new points have been indexed. " << indexer.getSize() << " points exist in trees." << std::endl;
+    std::cout << newPoints.rows << " new points have been indexed. " << indexer.size() << " points exist in trees." << std::endl;
 #endif
 
-    assert(indexer.getSize() > k); // check if at least k points are in the index
+    assert(indexer.size() > k); // check if at least k points are in the index
 
-    size_t size = indexer.getSize();
-    size_t inc = size - oldSize;
-
-    Matrix<ElementType> newPoints(dataSource[oldSize], inc, dataSource.cols);
+    size_t size = indexer.size();
 
     // 2. compute new knn (newPointOps)
     // TODO: We need to keep a pointer, lastInserted and add dataset[lastInserted ... lastInserted + newPointOps]
   
-    Matrix<IDType> indices(new IDType[newPoints.rows * k], newPoints.rows, k);
-    Matrix<DistanceType> dists(new DistanceType[newPoints.rows * k], newPoints.rows, k);
+    flann::Matrix<IDType> indices(new IDType[newPoints.rows * k], newPoints.rows, k);
+    flann::Matrix<DistanceType> dists(new DistanceType[newPoints.rows * k], newPoints.rows, k);
     std::priority_queue<Neighbor, std::vector<Neighbor>, std::greater<Neighbor>> queue; // descending order
-    DynamicBitset checked(size);
+    flann::DynamicBitset checked(size);
 
     indexer.knnSearch(newPoints, indices, dists, k, searchParams);
 
@@ -102,7 +102,7 @@ public:
     nns.resize(k);
 
     for(unsigned int i = 0; i < newPoints.rows; ++i) {
-      IDType id = oldSize + i;
+      IDType id = old_size + i;
       checked.set(id);
 
       for(unsigned int j = 0; j < k; ++j) {
@@ -128,8 +128,8 @@ public:
     // 3. Process the queue (queueOps)
 
     int checkCount = 0;
-    Matrix<IDType> newIndices(new IDType[k], 1, k);
-    Matrix<DistanceType> newDists(new DistanceType[k], 1, k);
+    flann::Matrix<IDType> new_indices(new IDType[k], 1, k);
+    flann::Matrix<DistanceType> new_dists(new DistanceType[k], 1, k);
     
     while(!queue.empty()) {
       auto q = queue.top();
@@ -143,21 +143,21 @@ public:
       
       // get new NN
       
-      Matrix<ElementType> qvec(points[q.id], 1, d);
-      indexer.knnSearch(qvec, newIndices, newDists, k, searchParams);
+      flann::Matrix<ElementType> qvec(points[q.id], 1, d);
+      indexer.knnSearch(qvec, new_indices, new_dists, k, searchParams);
       
       // check if there is a difference between previous NN and newly computed NN.
       
       unsigned int i;
       for(i = 0; i < k; ++i) {
-        if(neighbors[q.id][i].id != newIndices[0][i])
+        if(neighbors[q.id][i].id != new_indices[0][i])
           break;
       } 
 
       if(i < k) { // if there is a difference
         // update q.id
         for(i = 0; i < k; ++i) {
-          Neighbor ne(newIndices[0][i], newDists[0][i]);
+          Neighbor ne(new_indices[0][i], new_dists[0][i]);
           neighbors[q.id][i] = ne;
           if(!checked.test(ne.id))
             queue.push(ne);
@@ -172,7 +172,7 @@ public:
       std::cout << std::endl;
 
       for(unsigned int i = 0; i < k; ++i) {
-        std::cout << '(' << newIndices[0][i] << ", " << newDists[0][i] << ") ";
+        std::cout << '(' << new_indices[0][i] << ", " << new_dists[0][i] << ") ";
       }
       std::cout << std::endl;
 #endif
@@ -180,8 +180,8 @@ public:
       if(queueOps >= 0 && checkCount >= queueOps) break;
     }
 
-    delete[] newIndices.ptr();
-    delete[] newDists.ptr();
+    delete[] new_indices.ptr();
+    delete[] new_dists.ptr();
 
     std::cout << checkCount << '\t';
 
@@ -202,9 +202,8 @@ private:
   unsigned int d;
   unsigned int k;
   Indexer indexer;
-  SearchParams searchParams;
+  flann::SearchParams searchParams;
   std::vector<std::vector<Neighbor>> neighbors;
-  Matrix<ElementType> dataSource;
 
   /*
   maxOps indicates the maximum number of operations that the function addPoints can execute.

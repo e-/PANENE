@@ -1,12 +1,23 @@
-#include "paknn.h"
 #include <memory>
 #include <fstream>
 #include <cstdlib>
 #include <ctime>
 #include <set>
 
-using namespace flann;
+
 using namespace std;
+
+//#define USE_FLANN
+
+#ifdef USE_FLANN
+#include "knn_table_flann.h"
+using namespace flann;
+#else
+#include "knn_table.h"
+using namespace paknn;
+
+#include <flann/flann.hpp>
+#endif
 
 void readData(const string &path, int rows, int cols, float *dataset) {
   std::ifstream ifs(path);
@@ -22,7 +33,7 @@ void randomData(int rows, int cols, float *dataset) {
   }
 }
 
-void getCorrectNN(Matrix<float> &dataset, Matrix<float> &queryset, Matrix<float> &answers, int k){
+void getCorrectNN(flann::Matrix<float> &dataset, flann::Matrix<float> &queryset, flann::Matrix<float> &answers, int k){
     L2<float> distance = L2<float>();
     typedef typename L2<float>::ResultType DistanceType;
     
@@ -100,28 +111,37 @@ void runTest(){
   }
 
   SearchParams searchParam(512);
-  searchParam.cores = 0;
+  searchParam.cores = 1;
 
+  flann::SearchParams flannSearchParam(512);
+  flannSearchParam.cores = 1;
+
+#ifdef USE_FLANN
   KNNTable<Index<L2<float>>> table(k + 1, d, KDTreeIndexParams(4), searchParam);
-  Matrix<float> initData(nullptr, 0, d);
-  Index<L2<float>> index(initData, KDTreeIndexParams(4)); // baseline 
-  Matrix<int> indices(new int[sample * (k + 1)], sample, k + 1);
-  Matrix<float> dists(new float[sample * (k + 1)], sample, k + 1);
+#else
+  KNNTable<KDTreeIndex<L2<float>>> table(k + 1, d, IndexParams(4), searchParam);
+#endif
+
+  flann::Matrix<float> initData(nullptr, 0, d);
+  flann::Index<flann::L2<float>> index(initData, flann::KDTreeIndexParams(4)); // baseline 
+
+  flann::Matrix<int> indices(new int[sample * (k + 1)], sample, k + 1);
+  flann::Matrix<float> dists(new float[sample * (k + 1)], sample, k + 1);
  
   cout << "benchmark for " << DATA_PATH << " with " << D << " dimensions, " << n << " * " << repeat << " rows." << endl;
   cout << "maxOps : " << table.getMaxOps() << endl;
   cout << "updated\trows\taccuracy_table\taccuracy_index" << endl;
 
   for(int r = 0; r < repeat; ++r) { 
-    Matrix<float> chunkMatrix(data + r * n * d, n, d);
+    flann::Matrix<float> chunkMatrix(data + r * n * d, n, d);
     
     // add a batch to 
-    table.addPoints(chunkMatrix);
+    table.addPoints((r + 1) * n); //chunkMatrix);
 
     vector<int> ids;
-    Matrix<float> dataMatrix(data, n * (r + 1), d);
-    Matrix<float> queryMatrix(new float[sample * d], sample, d);
-    Matrix<float> nns(new float[sample * (k + 1)], sample, k + 1);
+    flann::Matrix<float> dataMatrix(data, n * (r + 1), d);
+    flann::Matrix<float> queryMatrix(new float[sample * d], sample, d);
+    flann::Matrix<float> nns(new float[sample * (k + 1)], sample, k + 1);
  
     // We cannot check all rows to calculate accuracy due to the O(n^2) 
     // complexity of the exact algorithm. 
@@ -161,7 +181,7 @@ void runTest(){
     }
     
     // do kNN search using KDTree
-    index.knnSearch(queryMatrix, indices, dists, k + 1, searchParam);
+    index.knnSearch(queryMatrix, indices, dists, k + 1, flannSearchParam);
 
     for(int s = 0; s < sample; ++s) {
       int id = ids[s];
@@ -193,7 +213,6 @@ void runTest(){
 #include "indices/kd_tree_index.h"
 
 int main(){
-  //runTest();
-  int a = 2;
+  runTest();
   return 0;
 }
