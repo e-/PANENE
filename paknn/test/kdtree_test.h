@@ -44,7 +44,7 @@ public:
     float *data = new float[rows * cols];
     float *query = new float[q * cols];
 
-    srand(0);
+    srand(seed);
     generateRandomData(rows, cols, data);
     generateRandomData(q, cols, query);
 
@@ -110,6 +110,8 @@ public:
     delete[] query;
     delete[] flannIndices.ptr();
     delete[] flannDists.ptr();
+    delete[] paknnIndices.ptr();
+    delete[] paknnDists.ptr();
   }
 };
 
