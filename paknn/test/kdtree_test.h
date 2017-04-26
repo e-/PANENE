@@ -39,7 +39,7 @@ public:
     srand(time(NULL));
     int seed = rand();
 
-//    cout << "This test checks whether two versions of KDTrees (ours and FLANN's) works identically." << endl;
+    cout << "This test checks whether two versions of KDTrees (ours and FLANN's) work identically." << endl;
 
     float *data = new float[rows * cols];
     float *query = new float[q * cols];
