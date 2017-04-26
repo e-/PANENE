@@ -103,7 +103,9 @@ void runTest(){
   srand(time(0));
 
   float *data = new float[n * d * repeat];
-  if(DATA_PATH == "random") {
+  string path = DATA_PATH;
+
+  if(path.compare("random")) {
     randomData(n * repeat, d, data);
   }
   else {
@@ -127,7 +129,7 @@ void runTest(){
   flann::Matrix<float> initData(nullptr, 0, d);
   flann::Index<flann::L2<float>> index(initData, flann::KDTreeIndexParams(4)); // baseline 
 
-  flann::Matrix<int> indices(new int[sample * (k + 1)], sample, k + 1);
+  flann::Matrix<size_t> indices(new size_t[sample * (k + 1)], sample, k + 1);
   flann::Matrix<float> dists(new float[sample * (k + 1)], sample, k + 1);
  
   cout << "benchmark for " << DATA_PATH << " with " << D << " dimensions, " << n << " * " << repeat << " rows." << endl;
@@ -144,7 +146,7 @@ void runTest(){
     table.addPoints((r + 1) * n);
 #endif
 
-    vector<int> ids;
+    vector<size_t> ids;
     flann::Matrix<float> dataMatrix(data, n * (r + 1), d);
     flann::Matrix<float> queryMatrix(new float[sample * d], sample, d);
     flann::Matrix<float> nns(new float[sample * (k + 1)], sample, k + 1);
@@ -154,7 +156,7 @@ void runTest(){
     // Instead, we make a small sample and approximate the accuracy.
 
     for(int s = 0; s < sample; ++s) {
-      int id = rand() % (n * (r + 1));
+      size_t id = rand() % (n * (r + 1));
 
       ids.push_back(id);
       for(int i = 0; i < d; ++i) {
@@ -172,7 +174,7 @@ void runTest(){
     int correct_table = 0, correct_tree = 0;
 
     for(int s = 0; s < sample; ++s) {
-      int id = ids[s];
+      size_t id = ids[s];
       float radius = nns[s][k];
       int kk = k;
 
@@ -190,7 +192,7 @@ void runTest(){
     index.knnSearch(queryMatrix, indices, dists, k + 1, flannSearchParam);
 
     for(int s = 0; s < sample; ++s) {
-      int id = ids[s];
+      size_t id = ids[s];
       float radius = nns[s][k];
       int kk = k;
 
@@ -217,9 +219,10 @@ void runTest(){
 }
 
 #include "indices/kd_tree_index.h"
+#include "test/kdtree_test.h"
 
 int main(){
-  cout << "size of size_t " << sizeof(size_t) << endl;
-  runTest();
+  paknn::KDTreeTest test;
+  test.run();
   return 0;
 }

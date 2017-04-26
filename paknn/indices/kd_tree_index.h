@@ -13,6 +13,7 @@
 #include "../util/result_set.h"
 #include "../util/heap.h"
 #include "../util/dynamic_bitset.h"
+#include "../util/random.h"
 #include "dist.h"
 
 namespace paknn
@@ -83,7 +84,6 @@ protected:
 public:
   KDTreeIndex(int trees_, Distance distance_ = Distance()): trees(trees_), distance(distance_)
   {
-
   }
 
   KDTreeIndex(IndexParams indexParams_, Distance distance_ = Distance()): distance(distance_) {
@@ -232,6 +232,8 @@ protected:
 
     for(int i = 0; i < trees; ++i) {
       std::random_shuffle(ind.begin(), ind.end());
+      //std::cerr << "first five indices: " << ind[0] << " " << ind[1] << " " << ind[2] << " " << ind[3] << " " <<           ind[4] << std::endl;
+
       treeRoots[i] = divideTree(&ind[0], int(size));
     }
 
@@ -309,6 +311,7 @@ protected:
 				int cutfeat;
 				DistanceType cutval;
 				meanSplit(ind, count, idx, cutfeat, cutval);
+//        std::cerr << "cutfeat: " << cutfeat << " cutval: " << cutval << " count: " << count << std::endl;
 
 				node->divfeat = cutfeat;
 				node->divval = cutval;
@@ -396,7 +399,8 @@ protected:
 			}
 		}
 		/* Select a random integer in range [0,num-1], and return that index. */
-		int rnd = std::rand() % num; //rand_int(num);
+		int rnd = rand_int(num); 
+//    std::cerr << "rnd: " << rnd << "so chosen: " << topind[rnd] << std::endl;
 		return (int)topind[rnd]; 
 	}
 
@@ -593,7 +597,7 @@ private:
   int trees;
   Distance distance;
   size_t size;
-  size_t sizeAtBuild;
+  size_t sizeAtBuild = 0;
   size_t veclen;
   Matrix<ElementType> dataSource;
 
