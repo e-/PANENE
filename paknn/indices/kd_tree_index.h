@@ -8,39 +8,18 @@
 #include <cstdio>
 #include <iostream>
 
-#include "../util/matrix.h"
-#include "../util/allocator.h"
-#include "../util/result_set.h"
-#include "../util/heap.h"
-#include "../util/dynamic_bitset.h"
-#include "../util/random.h"
-#include "dist.h"
+#include "base_index.h"
 
 namespace paknn
 {
 
-struct IndexParams {
-  int trees;
-
-  IndexParams(int trees_) : trees(trees_) {}
-};
-
-struct SearchParams {
-  int checks; // 32
-  float eps; // 0
-  int sorted;
-  int cores;
-  
-  SearchParams() = default;
-  SearchParams(int checks_, float eps_ = 0, int sorted_ = 0, int cores_ = 0) : checks(checks_), eps(eps_), sorted(sorted_), cores(cores_) {}
-};
-
 template <typename Distance>
-class KDTreeIndex
+class KDTreeIndex : public BaseIndex<Distance>
 {
 public:
   typedef float ElementType;
   typedef float DistanceType;
+
 
 protected:
   struct Node {

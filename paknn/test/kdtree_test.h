@@ -18,7 +18,7 @@ class KDTreeTest
     }
   }
 
-  bool check(const flann::Matrix<size_t> &indices0, const paknn::Matrix<size_t> &indices1, int row, int k) {
+  bool check(const flann::Matrix<size_t> &indices0, const Matrix<size_t> &indices1, int row, int k) {
     for(int i = 0; i < row; ++i) {
       for(int j = 0; j < k; ++j) {
         if(indices0[i][j] != indices1[i][j]) {
@@ -49,17 +49,17 @@ public:
     generateRandomData(q, cols, query);
 
     srand(seed);
-    paknn::Matrix<float> paknnDataMatrix(data, rows, cols);
-    paknn::Matrix<float> paknnQueryMatrix(query, q, cols);
-    paknn::KDTreeIndex<paknn::L2<float>> paknnIndex(paknn::IndexParams(1));
+    Matrix<float> paknnDataMatrix(data, rows, cols);
+    Matrix<float> paknnQueryMatrix(query, q, cols);
+    KDTreeIndex<L2<float>> paknnIndex(IndexParams(1));
     paknnIndex.setDataSource(paknnDataMatrix);
     paknnIndex.addPoints(rows);
 
-    paknn::SearchParams paknnSearchParam(1);
+    SearchParams paknnSearchParam(1);
     paknnSearchParam.cores = 1;
 
-    paknn::Matrix<size_t> paknnIndices(new size_t[q * k], q, k);
-    paknn::Matrix<float> paknnDists(new float[q * k], q, k);
+    Matrix<size_t> paknnIndices(new size_t[q * k], q, k);
+    Matrix<float> paknnDists(new float[q * k], q, k);
 
     paknnIndex.knnSearch(paknnQueryMatrix, paknnIndices, paknnDists, k, paknnSearchParam);
    

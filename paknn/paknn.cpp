@@ -100,7 +100,7 @@ void runTest(){
   int k = 10;
   int sample = 1000;
   
-  srand(time(0));
+  //srand(time(0));
 
   float *data = new float[n * d * repeat];
   string path = DATA_PATH;
@@ -218,11 +218,13 @@ void runTest(){
   delete[] dists.ptr();
 }
 
-#include "indices/kd_tree_index.h"
-#include "test/kdtree_test.h"
+//#include "indices/kd_tree_index.h"
+//#include "test/kdtree_test.h"
 
 int main(){
-  paknn::KDTreeTest test;
-  test.run();
+//  paknn::KDTreeTest test;
+//  test.run();
+
+  runTest();
   return 0;
 }
