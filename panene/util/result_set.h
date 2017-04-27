@@ -5,7 +5,7 @@
 #include <limits>
 #include <vector>
 
-namespace paknn {
+namespace panene {
 
 template <typename DistanceType>
 struct DistanceIndex

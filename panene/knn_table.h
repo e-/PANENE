@@ -1,5 +1,5 @@
-#ifndef knn_table_h
-#define knn_table_h
+#ifndef panene_knn_table_h
+#define panene_knn_table_h
 
 #include <vector>
 #include <iostream>
@@ -8,7 +8,7 @@
 
 #include "indices/kd_tree_index.h"
 
-using namespace paknn;
+using namespace panene;
 
 #define DEBUG 0
 

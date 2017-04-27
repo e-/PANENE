@@ -1,5 +1,5 @@
-#ifndef kdtree_test_h
-#define kdtree_test_h
+#ifndef panene_kdtree_test_h
+#define panene_kdtree_test_h
 
 #include <flann/flann.hpp>
 #include <ctime>
@@ -7,7 +7,7 @@
 #include <iostream>
 #include "../indices/kd_tree_index.h"
 
-namespace paknn {
+namespace panene {
 using namespace std;
 
 class KDTreeTest
@@ -49,26 +49,26 @@ public:
     generateRandomData(q, cols, query);
 
     srand(seed);
-    Matrix<float> paknnDataMatrix(data, rows, cols);
-    Matrix<float> paknnQueryMatrix(query, q, cols);
-    KDTreeIndex<L2<float>> paknnIndex(IndexParams(1));
-    paknnIndex.setDataSource(paknnDataMatrix);
-    paknnIndex.addPoints(rows);
+    Matrix<float> paneneDataMatrix(data, rows, cols);
+    Matrix<float> paneneQueryMatrix(query, q, cols);
+    KDTreeIndex<L2<float>> paneneIndex(IndexParams(1));
+    paneneIndex.setDataSource(paneneDataMatrix);
+    paneneIndex.addPoints(rows);
 
-    SearchParams paknnSearchParam(1);
-    paknnSearchParam.cores = 1;
+    SearchParams paneneSearchParam(1);
+    paneneSearchParam.cores = 1;
 
-    Matrix<size_t> paknnIndices(new size_t[q * k], q, k);
-    Matrix<float> paknnDists(new float[q * k], q, k);
+    Matrix<size_t> paneneIndices(new size_t[q * k], q, k);
+    Matrix<float> paneneDists(new float[q * k], q, k);
 
-    paknnIndex.knnSearch(paknnQueryMatrix, paknnIndices, paknnDists, k, paknnSearchParam);
+    paneneIndex.knnSearch(paneneQueryMatrix, paneneIndices, paneneDists, k, paneneSearchParam);
    
     cerr << "Output of PAKNN's" << endl;
     for(int i = 0; i < q; ++i) {
       cerr << i << " : ";
 
       for(int j = 0; j < k; ++j) {
-        cerr << "(" << paknnIndices[i][j] << ", " << paknnDists[i][j] << ") ";
+        cerr << "(" << paneneIndices[i][j] << ", " << paneneDists[i][j] << ") ";
       }
 
       cerr << endl;
@@ -99,7 +99,7 @@ public:
       cerr << endl;
     }
 
-    if(check(flannIndices, paknnIndices, q, k)) {
+    if(check(flannIndices, paneneIndices, q, k)) {
       cout << "The results are the same." << endl;
     }
     else {
@@ -110,8 +110,8 @@ public:
     delete[] query;
     delete[] flannIndices.ptr();
     delete[] flannDists.ptr();
-    delete[] paknnIndices.ptr();
-    delete[] paknnDists.ptr();
+    delete[] paneneIndices.ptr();
+    delete[] paneneDists.ptr();
   }
 };
 

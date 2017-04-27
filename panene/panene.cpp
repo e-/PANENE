@@ -14,7 +14,7 @@ using namespace std;
 using namespace flann;
 #else
 #include "knn_table.h"
-using namespace paknn;
+using namespace panene;
 
 #include <flann/flann.hpp>
 #endif
@@ -222,7 +222,7 @@ void runTest(){
 //#include "test/kdtree_test.h"
 
 int main(){
-//  paknn::KDTreeTest test;
+//  panene::KDTreeTest test;
 //  test.run();
 
   runTest();

@@ -34,7 +34,7 @@
 #include <algorithm>
 #include <vector>
 
-namespace paknn
+namespace panene
 {
 
 /**

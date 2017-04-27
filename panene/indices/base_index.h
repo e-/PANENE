@@ -1,5 +1,5 @@
-#ifndef base_index_h
-#define base_index_h
+#ifndef panene_base_index_h
+#define panene_base_index_h
 
 #include <vector>
 #include <algorithm>
@@ -16,7 +16,7 @@
 #include "../util/random.h"
 #include "dist.h"
 
-namespace paknn
+namespace panene
 {
 
 struct IndexParams {

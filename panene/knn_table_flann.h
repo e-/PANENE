@@ -1,5 +1,5 @@
-#ifndef knn_table_flann_h
-#define knn_table_flann_h
+#ifndef panene_knn_table_flann_h
+#define panene_knn_table_flann_h
 
 #include <flann/flann.hpp>
 #include <vector>

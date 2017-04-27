@@ -34,7 +34,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-namespace paknn
+namespace panene
 {
 
 /**
@@ -193,12 +193,12 @@ public:
 
 }
 
-inline void* operator new (std::size_t size, paknn::PooledAllocator& allocator)
+inline void* operator new (std::size_t size, panene::PooledAllocator& allocator)
 {
     return allocator.allocateMemory(size) ;
 }
 
-inline void operator delete(void* p, paknn::PooledAllocator& allocator)
+inline void operator delete(void* p, panene::PooledAllocator& allocator)
 {
 }
 

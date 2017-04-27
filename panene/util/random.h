@@ -3,7 +3,7 @@
 
 #include <cstdlib>
 
-namespace paknn
+namespace panene
 {
 
 inline int rand_int(int high = RAND_MAX, int low = 0) {

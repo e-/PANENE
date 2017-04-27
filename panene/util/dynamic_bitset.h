@@ -43,7 +43,7 @@ typedef boost::dynamic_bitset<> DynamicBitset;
 
 #include <limits.h>
 
-namespace paknn {
+namespace panene {
 
 /** Class re-implementing the boost version of it
  * This helps not depending on boost, it also does not do the bound checks

@@ -1,5 +1,5 @@
-#ifndef kd_tree_index_h
-#define kd_tree_index_h
+#ifndef panene_kd_tree_index_h
+#define panene_kd_tree_index_h
 
 #include <vector>
 #include <algorithm>
@@ -10,7 +10,7 @@
 
 #include "base_index.h"
 
-namespace paknn
+namespace panene
 {
 
 template <typename Distance>

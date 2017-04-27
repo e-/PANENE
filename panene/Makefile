@@ -2,7 +2,7 @@ CC=g++
 CFLAGS=-c -Wall -fopenmp -std=c++11 -O2 -I/usr/include/hdf5/serial -g
 LDFLAGS=-fopenmp -L/usr/lib/x86_64-linux-gnu/hdf5/serial/lib -L/usr/lib/x86_64-linux-gnu -lhdf5 -llz4 lib/lz4.o lib/lz4hc.o
 HEADERS=knn_table.h knn_table_flann.h indices/kd_tree_index.h test/kdtree_test.h 
-SOURCES=paknn.cpp
+SOURCES=panene.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=main
 

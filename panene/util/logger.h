@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-namespace paknn {
+namespace panene {
 
 class Logger() {
   static void Log(string s) {

@@ -41,8 +41,6 @@ typedef unsigned __int64 uint64_t;
 #include <stdint.h>
 #endif
 
-//#include "flann/defines.h"
-
 
 namespace paknn
 {
