@@ -78,7 +78,7 @@ public:
     size_t oldSize = size;
     size = end;
 
-    if(sizeAtBuild * 2 < size) {
+    if(oldSize == 0) { // for the first time, build the index as we did in the non-progressive version.
       buildIndex();
     }
     else {
@@ -91,7 +91,13 @@ public:
   }
 
   void update(size_t ops) {
-    // do nothing (this is a non-progressive version)
+    if(sizeAtUpdate == 0) {
+      sizeAtUpdate = size;
+      indices.resize(sizeAtUpdate);
+
+      for(int i = 0)
+
+    }
   }
 
   size_t getSize() { return size; }
@@ -202,7 +208,6 @@ public:
 protected:
   
   void buildIndex() {
-    sizeAtBuild = size;
     std::vector<int> ind(size);
     for(size_t i = 0; i < size; ++i) {
       ind[i] = int(i);
@@ -580,13 +585,15 @@ private:
   int trees;
   Distance distance;
   size_t size;
-  size_t sizeAtBuild = 0;
+  size_t sizeAtUpdate = 0;
   size_t veclen;
   Matrix<ElementType> dataSource;
 
   DistanceType* mean;
   DistanceType* var;
   std::vector<NodePtr> treeRoots;
+  NodePtr partialTree;
+  std::vector<int> indices;
   PooledAllocator pool;
 };
 

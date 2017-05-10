@@ -43,6 +43,8 @@ public:
   typedef float DistanceType;
 
   virtual void addPoints(size_t end) = 0;
+  virtual void update(size_t ops) = 0;
+
   virtual size_t getSize() = 0;
 
   virtual int usedMemory() const = 0;
