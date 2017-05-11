@@ -1,5 +1,5 @@
-#ifndef panene_kd_tree_index_h
-#define panene_kd_tree_index_h
+#ifndef panene_progressive_kd_tree_index_h
+#define panene_progressive_kd_tree_index_h
 
 #include <vector>
 #include <algorithm>
@@ -7,6 +7,8 @@
 #include <cstring>
 #include <cstdio>
 #include <iostream>
+#include <queue>
+#include <cassert>
 
 #include "base_index.h"
 
@@ -14,7 +16,7 @@ namespace panene
 {
 
 template <typename Distance>
-class KDTreeIndex : public BaseIndex<Distance>
+class ProgressiveKDTreeIndex : public BaseIndex<Distance>
 {
 public:
   typedef float ElementType;
@@ -36,6 +38,12 @@ protected:
       if(child1 != nullptr) {child1->~Node(); child1 = nullptr;}
       if(child2 != nullptr) {child2->~Node(); child2 = nullptr;}
     }
+  };
+  
+  struct NodeSplit { 
+    struct Node* node;
+    int *begin;
+    int count;
   };
 
   template <typename T, typename DistanceType>
@@ -61,17 +69,25 @@ protected:
 
 
 public:
-  KDTreeIndex(int trees_, Distance distance_ = Distance()): trees(trees_), distance(distance_)
+  ProgressiveKDTreeIndex(int trees_, Distance distance_ = Distance()): trees(trees_), distance(distance_)
   {
   }
 
-  KDTreeIndex(IndexParams indexParams_, Distance distance_ = Distance()): distance(distance_) {
+  ProgressiveKDTreeIndex(IndexParams indexParams_, Distance distance_ = Distance()): distance(distance_) {
     trees = indexParams_.trees;
+  }
+
+  ~ProgressiveKDTreeIndex() {
+    delete[] mean;
+    delete[] var;
   }
 
   void setDataSource(Matrix<ElementType> &dataSource_) {
     dataSource = dataSource_;
     veclen = dataSource.cols;
+
+    mean = new DistanceType[veclen];
+    var = new DistanceType[veclen];
   }
 
   void addPoints(size_t end) {
@@ -95,8 +111,61 @@ public:
       sizeAtUpdate = size;
       indices.resize(sizeAtUpdate);
 
-      for(int i = 0)
+      for(size_t i = 0; i < sizeAtUpdate; ++i) indices[i] = int(i);
+      std::random_shuffle(indices.begin(), indices.end());
+      
+      ongoingTree = new(pool) Node();
+      queue.push(NodeSplit(ongoingTree, &indices[0], sizeAtUpdate));
+    }
+    
+    size_t count = 0;
 
+    while((ops == 0 || count < ops) && !queue.empty()) {
+      NodeSplit &nodeSplit = queue.front();
+      queue.pop();
+      
+
+      NodePtr node = nodeSplit.node;
+      int *begin = nodeSplit.begin;
+      int count = nodeSplit.count;
+
+      // At this point, nodeSplit the two children of nodeSplit are nullptr
+      if (count == 1) {
+          node->child1 = node->child2 = NULL;    /* Mark as leaf node. */
+          node->divfeat = *begin;    /* Store index of this vec. */
+          node->point = dataSource[*begin];
+      }
+      else {
+          int idx;
+          int cutfeat;
+          DistanceType cutval;
+          meanSplit(begin, count, idx, cutfeat, cutval);
+
+          node->divfeat = cutfeat;
+          node->divval = cutval;
+          node->child1 = new(pool) Node();
+          node->child2 = new(pool) Node();
+          
+          queue.push(NodeSplit(node->child1, begin, idx));
+          queue.push(NodeSplit(node->child2, begin + idx, count - idx));
+      }
+
+      count++;
+    }
+
+    if(queue.empty()) { //finished creating a new tree
+      // reset the sizeAtUpdate
+      sizeAtUpdate = 0;
+      
+      // get the victim
+      NodePtr victim = treeRoots[replaced % trees];
+      
+      // replace the victim with the newly created tree
+      treeRoots[replaced % trees]  = ongoingTree;
+      replaced++;
+
+      // free the victim
+      victim -> ~Node();
     }
   }
 
@@ -213,9 +282,6 @@ protected:
       ind[i] = int(i);
     }
 
-    mean = new DistanceType[veclen];
-    var = new DistanceType[veclen];
-
     treeRoots.resize(trees);
 
     for(int i = 0; i < trees; ++i) {
@@ -224,9 +290,6 @@ protected:
 
       treeRoots[i] = divideTree(&ind[0], int(size));
     }
-
-    delete[] mean;
-    delete[] var;
   }
 
   void freeIndex() {
@@ -592,9 +655,11 @@ private:
   DistanceType* mean;
   DistanceType* var;
   std::vector<NodePtr> treeRoots;
-  NodePtr partialTree;
+  NodePtr ongoingTree;
   std::vector<int> indices;
   PooledAllocator pool;
+  std::queue<NodeSplit> queue;
+  size_t replaced = 0;
 };
 
 }

@@ -7,6 +7,7 @@
 #include <cassert>
 
 #include "indices/kd_tree_index.h"
+#include "indices/progressive_kd_tree_index.h"
 
 using namespace panene;
 

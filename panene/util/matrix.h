@@ -34,7 +34,7 @@
 #include <stdio.h>
 
 // revised: enforce flann_datatype_t to be float
-namespace paknn
+namespace panene
 {
 
 typedef unsigned char uchar;
