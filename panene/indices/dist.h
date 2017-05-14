@@ -42,7 +42,7 @@ typedef unsigned __int64 uint64_t;
 #endif
 
 
-namespace paknn
+namespace panene
 {
 
 template<typename T>

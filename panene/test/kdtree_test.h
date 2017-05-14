@@ -5,12 +5,13 @@
 #include <ctime>
 #include <cstdlib>
 #include <iostream>
+#include "test.h"
 #include "../indices/kd_tree_index.h"
 
 namespace panene {
 using namespace std;
 
-class KDTreeTest
+class KDTreeTest : Test
 {
   void generateRandomData(int rows, int cols, float *dataset) {
     for(int i = 0; i < rows * cols; ++i) {

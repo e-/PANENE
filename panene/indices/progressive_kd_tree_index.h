@@ -10,13 +10,13 @@
 #include <queue>
 #include <cassert>
 
-#include "base_index.h"
+#include "progressive_base_index.h"
 
 namespace panene
 {
 
 template <typename Distance>
-class ProgressiveKDTreeIndex : public BaseIndex<Distance>
+class ProgressiveKDTreeIndex : public ProgressiveBaseIndex<Distance>
 {
 public:
   typedef float ElementType;
@@ -44,6 +44,8 @@ protected:
     struct Node* node;
     int *begin;
     int count;
+    
+    NodeSplit(Node* node_, int* begin_, int count_) : node(node_), begin(begin_), count(count_) {}
   };
 
   template <typename T, typename DistanceType>
@@ -78,8 +80,8 @@ public:
   }
 
   ~ProgressiveKDTreeIndex() {
-    delete[] mean;
-    delete[] var;
+    if(mean != nullptr) delete[] mean;
+    if(var != nullptr)delete[] var;
   }
 
   void setDataSource(Matrix<ElementType> &dataSource_) {
@@ -90,12 +92,15 @@ public:
     var = new DistanceType[veclen];
   }
 
-  void addPoints(size_t end) {
+  size_t addPoints(size_t newPoints) {
     size_t oldSize = size;
-    size = end;
+    size += newPoints;
+    if(size > dataSource.rows)
+      size = dataSource.rows;
 
     if(oldSize == 0) { // for the first time, build the index as we did in the non-progressive version.
       buildIndex();
+      return newPoints;
     }
     else {
       for(size_t i=oldSize; i<size; ++i) {
@@ -103,10 +108,11 @@ public:
           addPointToTree(treeRoots[j], i);
         }
       }
+      return size - oldSize;
     }
   }
 
-  void update(size_t ops) {
+  size_t update(int ops) {
     if(sizeAtUpdate == 0) {
       sizeAtUpdate = size;
       indices.resize(sizeAtUpdate);
@@ -118,12 +124,11 @@ public:
       queue.push(NodeSplit(ongoingTree, &indices[0], sizeAtUpdate));
     }
     
-    size_t count = 0;
+    size_t updatedCount = 0;
 
-    while((ops == 0 || count < ops) && !queue.empty()) {
+    while((ops == -1 || updatedCount < ops) && !queue.empty()) {
       NodeSplit &nodeSplit = queue.front();
-      queue.pop();
-      
+      queue.pop(); 
 
       NodePtr node = nodeSplit.node;
       int *begin = nodeSplit.begin;
@@ -149,8 +154,7 @@ public:
           queue.push(NodeSplit(node->child1, begin, idx));
           queue.push(NodeSplit(node->child2, begin + idx, count - idx));
       }
-
-      count++;
+      updatedCount++;
     }
 
     if(queue.empty()) { //finished creating a new tree
@@ -167,6 +171,8 @@ public:
       // free the victim
       victim -> ~Node();
     }
+
+    return updatedCount;
   }
 
   size_t getSize() { return size; }
@@ -647,13 +653,13 @@ private:
 
   int trees;
   Distance distance;
-  size_t size;
+  size_t size = 0;
   size_t sizeAtUpdate = 0;
   size_t veclen;
   Matrix<ElementType> dataSource;
 
-  DistanceType* mean;
-  DistanceType* var;
+  DistanceType* mean = nullptr;
+  DistanceType* var = nullptr;
   std::vector<NodePtr> treeRoots;
   NodePtr ongoingTree;
   std::vector<int> indices;
