@@ -1,6 +1,7 @@
 #ifndef panene_naive_scheduler_h
 #define panene_naive_scheduler_h
 
+#include "schedule.h"
 
 namespace panene
 {

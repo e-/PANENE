@@ -1,15 +1,16 @@
 #ifndef panene_test_h
 #define panene_test_h
 
-namespace panene {
-using namespace std;
+#include <string>
 
-class KDTreeTest : Test
+namespace panene {
+
+class Test
 {
 public:
-  virtual string getName() = 0;
+  virtual std::string getName() = 0;
   virtual void run() = 0;
-}
+};
 
 }
 

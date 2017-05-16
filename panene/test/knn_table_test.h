@@ -1,3 +1,6 @@
+#ifndef panene_knn_table_test_h
+#define panene_knn_table_test_h
+
 #include <memory>
 #include <fstream>
 #include <cstdlib>
@@ -7,10 +10,10 @@
 #define USE_FLANN
 
 #ifdef USE_FLANN
-#include "knn_table_flann.h"
+#include "../knn_table_flann.h"
 using namespace flann;
 #else
-#include "knn_table.h"
+#include "../knn_table.h"
 using namespace panene;
 
 #include <flann/flann.hpp>
@@ -222,7 +225,8 @@ class KNNTableTest : Test {
     delete[] dists.ptr();
   }
 
-}
+};
+
 }
 
 #endif

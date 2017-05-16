@@ -22,7 +22,7 @@ namespace panene
 struct IndexParams {
   int trees;
 
-  IndexParams(int trees_) : trees(trees_) {}
+  IndexParams(int trees_ = 4) : trees(trees_) {}
 };
 
 struct SearchParams {
@@ -31,8 +31,7 @@ struct SearchParams {
   int sorted;
   int cores;
   
-  SearchParams() = default;
-  SearchParams(int checks_, float eps_ = 0, int sorted_ = 0, int cores_ = 0) : checks(checks_), eps(eps_), sorted(sorted_), cores(cores_) {}
+  SearchParams(int checks_ = 32, float eps_ = 0, int sorted_ = 0, int cores_ = 0) : checks(checks_), eps(eps_), sorted(sorted_), cores(cores_) {}
 };
 
 template <typename Distance>

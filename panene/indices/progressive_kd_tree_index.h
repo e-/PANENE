@@ -127,12 +127,16 @@ public:
     size_t updatedCount = 0;
 
     while((ops == -1 || updatedCount < ops) && !queue.empty()) {
-      NodeSplit &nodeSplit = queue.front();
+      NodeSplit nodeSplit = queue.front();
       queue.pop(); 
+      
+//      std::cerr << "updatedCount " << updatedCount << std::endl;
 
       NodePtr node = nodeSplit.node;
       int *begin = nodeSplit.begin;
       int count = nodeSplit.count;
+
+//      std::cerr << begin << " " << count << std::endl;
 
       // At this point, nodeSplit the two children of nodeSplit are nullptr
       if (count == 1) {
@@ -145,6 +149,8 @@ public:
           int cutfeat;
           DistanceType cutval;
           meanSplit(begin, count, idx, cutfeat, cutval);
+          
+//          std::cerr << "cut index: " << idx << " cut count: " << count << std::endl;
 
           node->divfeat = cutfeat;
           node->divval = cutval;

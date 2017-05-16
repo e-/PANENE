@@ -1,20 +1,7 @@
 #ifndef panene_progressive_base_index_h
 #define panene_progressive_base_index_h
 
-#include <vector>
-#include <algorithm>
-#include <random>
-#include <cstring>
-#include <cstdio>
-#include <iostream>
-
-#include "../util/matrix.h"
-#include "../util/allocator.h"
-#include "../util/result_set.h"
-#include "../util/heap.h"
-#include "../util/dynamic_bitset.h"
-#include "../util/random.h"
-#include "dist.h"
+#include "base_index.h"
 
 namespace panene
 {

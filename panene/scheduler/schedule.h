@@ -13,9 +13,7 @@ public:
   int updateIndexOps;
   int updateTableOps;
 
-  Schedule() : addNewPointOps(-1), updateIndexOps(-1), updateTableOps(-1) {}
-
-  Schedule(int addNewPointOps_, int updateIndexOps_, int updateTableOps_) : addNewPointOps(addNewPointOps_), updateIndexOps(updateIndexOps_), updateTableOps(updateTableOps_)
+  Schedule(int addNewPointOps_ = -1, int updateIndexOps_ = -1, int updateTableOps_ = -1) : addNewPointOps(addNewPointOps_), updateIndexOps(updateIndexOps_), updateTableOps(updateTableOps_)
   {}
 
   friend std::ostream& operator<<( std::ostream& os, const Schedule& schedule) {

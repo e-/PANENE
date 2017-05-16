@@ -13,7 +13,7 @@
 
 using namespace panene;
 
-#define DEBUG 0
+#define DEBUG 1
 
 template <class Indexer>
 class ProgressiveKNNTable {
@@ -71,58 +71,59 @@ public:
   void setDataSource(Matrix<ElementType> &dataSource_) {
     dataSource = dataSource_;
     indexer.setDataSource(dataSource);
-    checked = DynamicBitset(dataSource.rows);
+    queued = DynamicBitset(dataSource.rows);
   }
 
   /*
-  maxOps indicates the maximum number of operations that the function addPoints can execute.
+  maxOps indicates the maximum number of operations that the function 'update' can execute.
   There are three types of operations:
-    1) Add a new point P to the table. It requires:
-      An insertion operation to the index
-      A knn search for P
+    1) addNewPointOp adds a new point P to both table and index. It requires:
+      An insertion operation to the index (O(lg N))
+      An insertion operation to the table (O(1))
+      A knn search for P (O(klg(N)))
       Mark the neighbors of P as dirty and insert them to the queue
     
-    2) Take a dirty point P from the queue and update its neighbors
+    2) updateIndexOp updates a progressive k-d tree index.
+      Basically, it calls the update function of the k-d tree and the update function
+      creates a new k-d tree incrementally behind the scene
+
+    2) updateTableOp takes a dirty point from a queue and updates its neighbors. It requires:
       A knn search for P
       Mark the neighbors of P as dirty and insert them to the queue
 
-    3) Rebalance the index
-      Update only one tree at a time
 
   Note that the three operations have different costs. 
   */
+  
   UpdateResult update(size_t maxOps) {
     // To avoid keeping a copy of the whole data, we need to use an abstract dataframe that grows in real time.
     // Since we do not have such a dataframe currently, we assume all data are loaded in a datasource.
     
     // calculate the number of steps allocated for each operation
     Schedule schedule = naiveScheduler.schedule(maxOps);
+
 #if DEBUG
-    std::cerr << "update with schedule " << schedule << std::endl;
+    std::cerr << "[PKNNTable] Updating with a schedule " << schedule << std::endl;
 #endif
 
     size_t oldSize = indexer.getSize();
 
-    // 1. index new points (addNewPointps)
+    // 1. add new points to both index and table (addNewPointOps)
     
 #if DEBUG
-    std::cerr << "adding points to indexer" << std::endl;
+    std::cerr << "[PKNNTable] Adding points to the index" << std::endl;
 #endif
 
     size_t addNewPointResult = indexer.addPoints(schedule.addNewPointOps);
 
 #if DEBUG
-    std::cerr << addNewPointResult << " new points have been indexed. " << indexer.getSize() << " points exist in trees." << std::endl;
+    std::cerr << "[PKNNTable] " << addNewPointResult << " points have been newly indexed. " << indexer.getSize() << " points exist in trees." << std::endl;
 #endif
 
-    // 2. update the index (updateIndexOps)
-    
-    size_t updateIndexResult = indexer.update(schedule.updateIndexOps);
-    
-    // 3. compute knn for newly added points in step 1 (newPointOps)
-    
     size_t size = indexer.getSize();
 
+    // checks if points are added (if not, it means all points in the data have already been inserted)
+    //
     if(addNewPointResult > 0) {
       assert(size > k); // check if at least k points are in the index
 
@@ -132,13 +133,13 @@ public:
       Matrix<DistanceType> dists(new DistanceType[newPoints.rows * k], newPoints.rows, k);
 
 #if DEBUG
-      std::cerr << "knnSearch begins" << std::endl;
+      std::cerr << "[PKNNTable] Filling in thw rows of the new points in KNNTable" << std::endl;
 #endif 
 
       indexer.knnSearch(newPoints, indices, dists, k, searchParams);
 
 #if DEBUG
-      std::cerr << "knnSearch done" << std::endl;
+      std::cerr << "[PKNNTable] KNNSearch Done" << std::endl;
 #endif 
 
       std::vector<Neighbor> nns;
@@ -146,14 +147,19 @@ public:
 
       for(unsigned int i = 0; i < newPoints.rows; ++i) {
         IDType id = oldSize + i;
-        checked.set(id);
+        queued.set(id);
 
         for(unsigned int j = 0; j < k; ++j) {
           nns[j] = Neighbor(indices[i][j], dists[i][j]);
-          queue.push(nns[j]);
+
+          if(!queued.test(indices[i][j])) {
+            queued.set(indices[i][j]);
+            queue.push(nns[j]);
+
 #if DEBUG
-          std::cerr << "queue added " << nns[j] << std::endl;
+            std::cerr << "[PKNNTable] Adding a dirty neighbor point to the queue " << nns[j] << std::endl;
 #endif
+          }
         }
         
         neighbors.push_back(nns);
@@ -164,17 +170,28 @@ public:
     }
 
 
+    // 2. update the index (updateIndexOps)
+    
 #if DEBUG
+    std::cerr << "[PKNNTable] Updating the index" << std::endl;
+#endif
+    size_t updateIndexResult = indexer.update(schedule.updateIndexOps);
+    
+
+#if DEBUG
+    std::cerr << "[PKNNTable] Current cache table: " << std::endl;
+
     for(unsigned int i = 0; i < neighbors.size(); ++i) {
       for(unsigned int j = 0; j < k; ++j) {
         std::cerr << neighbors[i][j] << ' ';
       }
       std::cerr << std::endl;
     }
-    std::cerr << "starting processing queue" << std::endl;
+
+    std::cerr << "[PKNNTable] Starting processing queue" << std::endl;
 #endif
 
-    // 4. process the queue (updateTableOps)
+    // 3. process the queue (updateTableOps)
 
     int checkCount = 0;
     Matrix<IDType> newIndices(new IDType[k], 1, k);
@@ -184,24 +201,25 @@ public:
       auto q = queue.top();
 
 #if DEBUG
-      std::cerr << "Got a point from the queue: " << q << std::endl;
+      std::cerr << "[PKNNTable] Got a dirty point from the queue: " << q << std::endl;
 #endif
+
       queue.pop();
 
-      checked.reset(q.id);
+      queued.reset(q.id);
       checkCount++;
 
       // we need to update the NN of q.id
       
-      // get new NN
-      
+      // get the new NN of the dirty point
+
       Matrix<ElementType> qvec(dataSource[q.id], 1, d);
 #if DEBUG
-      std::cerr << "starting knn search for queue" << std::endl;
+      std::cerr << "[PKNNTable] Starting KNN search for the dirty point" << std::endl;
 #endif
       indexer.knnSearch(qvec, newIndices, newDists, k, searchParams);
 #if DEBUG
-      std::cerr << "done knn search for queue" << std::endl;
+      std::cerr << "[PKNNTable] KNN search done" << std::endl;
 #endif
 
       // check if there is a difference between previous NN and newly computed NN.
@@ -213,12 +231,16 @@ public:
       } 
 
       if(i < k) { // if there is a difference
-        // update q.id
+        // then, mark the nn of q.id as dirty
+
         for(i = 0; i < k; ++i) {
           Neighbor ne(newIndices[0][i], newDists[0][i]);
           neighbors[q.id][i] = ne;
-          if(!checked.test(ne.id))
+
+          if(!queued.test(ne.id)) {
+            queued.set(ne.id);
             queue.push(ne);
+          }
         }
       }
 
@@ -240,7 +262,7 @@ public:
     delete[] newDists.ptr();
 
 #if DEBUG
-    std::cerr << checkCount << " points have been updated." << std::endl;
+    std::cerr << "[PKNNTable] " << checkCount << " points have been updated." << std::endl;
 #endif
     
     size_t updateTableResult = checkCount;
@@ -261,7 +283,7 @@ private:
   Matrix<ElementType> dataSource;
 
   std::priority_queue<Neighbor, std::vector<Neighbor>, std::greater<Neighbor>> queue; // descending order
-  DynamicBitset checked;
+  DynamicBitset queued;
   
   NaiveScheduler naiveScheduler;
 };
