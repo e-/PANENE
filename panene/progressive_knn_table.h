@@ -13,7 +13,7 @@
 
 using namespace panene;
 
-#define DEBUG 1
+#define DEBUG 0
 
 template <class Indexer>
 class ProgressiveKNNTable {
@@ -72,6 +72,10 @@ public:
     dataSource = dataSource_;
     indexer.setDataSource(dataSource);
     queued = DynamicBitset(dataSource.rows);
+  }
+
+  size_t getSize() {
+    return indexer.getSize();
   }
 
   /*

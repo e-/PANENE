@@ -3,6 +3,7 @@
 
 #include <flann/flann.hpp>
 #include <string>
+#include <fstream>
 
 #include "test.h"
 #include "../progressive_knn_table.h"
@@ -17,7 +18,7 @@ public:
 
   std::string getName() { return "ProgressiveKNNTableTest"; }
 
-  void readData(const string &path, int rows, int cols, float *dataset) {
+  void readData(const std::string &path, int rows, int cols, float *dataset) {
     std::ifstream ifs(path);
 
     for(int i = 0; i < rows * cols; ++i) {

@@ -1,14 +1,10 @@
-#include <memory>
-#include <fstream>
-#include <cstdlib>
-#include <ctime>
-#include <set>
-#include <flann/flann.hpp>
-
+#include "util/data_source.h"
 #include "test/tests.h"
 
 int main(){
-  ProgressiveKNNTableTest test;
+  DataSource dataSource("../data/sift.shuffled.txt", "sift", 100000, 128);
+
+  ProgressiveKNNTableBenchmark test(dataSource);
 
   test.run();
   return 0;
