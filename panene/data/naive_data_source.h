@@ -40,6 +40,27 @@ public:
     return reinterpret_cast<ElementType *>(data + id * d);
   }
 
+  std::vector<ElementType> subtract(const IDType &id1, const IDType &id2) const {
+    ElementType* ele1 = (*this)[id1];
+    ElementType* ele2 = (*this)[id2];
+    std::vector<ElementType> vec(d);
+
+    for(size_t i = 0; i < d; ++i)
+      vec[i] = ele1[i] - ele2[i];
+    
+    return vec;
+  }
+
+  std::vector<ElementType> subtract(const IDType &id1, const ElementType *p2) const {
+    ElementType* ele1 = (*this)[id1];
+    std::vector<ElementType> vec(d);
+
+    for(size_t i = 0; i < d; ++i)
+      vec[i] = ele1[i] - p2[i];
+    
+    return vec;
+  }
+
   DistanceType distL2Squared(const IDType &id1, const IDType &id2) const {
     DistanceType sum = 0;
     ElementType* ele1 = (*this)[id1];

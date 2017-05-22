@@ -2,6 +2,7 @@
 #define panene_data_source_h
 
 #include <string>
+#include <vector>
 
 namespace panene
 {
@@ -22,6 +23,12 @@ public:
   // same with operator[]
   virtual ElementType* get(const IDType &id) const = 0;
 
+  // returns the L1 distance between two points
+  virtual std::vector<ElementType> subtract(const IDType &id1, const IDType &id2) const = 0;
+
+  // returns the L1 distance between two points
+  virtual std::vector<ElementType> subtract(const IDType &id1, const ElementType *p2) const = 0;
+  
   // returns the squared distance between two points
   virtual DistanceType distL2Squared(const IDType &id1, const IDType &id2) const = 0;
 
