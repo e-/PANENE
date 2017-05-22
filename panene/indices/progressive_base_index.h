@@ -21,10 +21,10 @@ public:
   virtual int usedMemory() const = 0;
 
   virtual int knnSearch(const Matrix<ElementType>& queries,
-			Matrix<size_t>& indices,
-			Matrix<DistanceType>& dists,
-			size_t knn,
-			const SearchParams& params) const = 0;
+      Matrix<size_t>& indices,
+      Matrix<DistanceType>& dists,
+      size_t knn,
+      const SearchParams& params) const = 0;
 
   virtual void freeIndex() = 0;
 };

@@ -104,7 +104,7 @@ public:
     return d;
   }
 
-	size_t n;
+  size_t n;
   size_t d;
   bool opened = false;
 protected:

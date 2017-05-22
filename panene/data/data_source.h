@@ -10,7 +10,7 @@ namespace panene
 class DataSource
 {
 public:
-	typedef size_t IDType;
+  typedef size_t IDType;
   typedef float ElementType;
   typedef float DistanceType;
 
