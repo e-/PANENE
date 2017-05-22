@@ -23,10 +23,10 @@ public:
   // same with operator[]
   virtual ElementType* get(const IDType &id) const = 0;
 
-  // returns the L1 distance between two points
+  // subtracts two points
   virtual std::vector<ElementType> subtract(const IDType &id1, const IDType &id2) const = 0;
 
-  // returns the L1 distance between two points
+  // subtracts two points
   virtual std::vector<ElementType> subtract(const IDType &id1, const ElementType *p2) const = 0;
   
   // returns the squared distance between two points
