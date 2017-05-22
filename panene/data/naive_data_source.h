@@ -51,6 +51,16 @@ public:
     return sum;
   }
 
+  DistanceType distL2Squared(const IDType &id1, const ElementType *p2) const {
+    DistanceType sum = 0;
+    ElementType* ele1 = (*this)[id1];
+
+    for(size_t i = 0; i < d; ++i)
+      sum += (ele1[i] - p2[i]) * (ele1[i] - p2[i]);
+    
+    return sum;
+  }
+
   DistanceType sum(const IDType &id) const {
     DistanceType sum = 0;
     ElementType* ele = (*this)[id];

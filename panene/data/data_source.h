@@ -25,6 +25,9 @@ public:
   // returns the squared distance between two points
   virtual DistanceType distL2Squared(const IDType &id1, const IDType &id2) const = 0;
 
+  // returns the squared distance between two points
+  virtual DistanceType distL2Squared(const IDType &id1, const ElementType *p2) const = 0;
+
   // returns the number of points in the dataset
   virtual size_t size() const = 0;
 
