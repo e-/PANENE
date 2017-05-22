@@ -3,8 +3,6 @@
 
 #include <ctime>
 
-using namespace std;
-
 class Timer
 {
 public:

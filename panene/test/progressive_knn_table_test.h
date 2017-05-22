@@ -9,8 +9,9 @@
 #include "../progressive_knn_table.h"
 #include "../indices/progressive_kd_tree_index.h"
 
-namespace panene {
 using namespace std;
+
+namespace panene {
 
 class ProgressiveKNNTableTest : Test {
 public:

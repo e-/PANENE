@@ -11,6 +11,7 @@
 #include <cassert>
 
 #include "progressive_base_index.h"
+#include "../data/data_source.h"
 
 namespace panene
 {
@@ -19,8 +20,8 @@ template <typename Distance>
 class ProgressiveKDTreeIndex : public ProgressiveBaseIndex<Distance>
 {
 public:
-  typedef float ElementType;
-  typedef float DistanceType;
+  typedef DataSource::ElementType ElementType;
+  typedef DataSource::DistanceType DistanceType;
 
 
 protected:
@@ -84,9 +85,9 @@ public:
     if(var != nullptr)delete[] var;
   }
 
-  void setDataSource(Matrix<ElementType> &dataSource_) {
+  void setDataSource(DataSource *dataSource_) {
     dataSource = dataSource_;
-    veclen = dataSource.cols;
+    veclen = dataSource -> dim();
 
     mean = new DistanceType[veclen];
     var = new DistanceType[veclen];
@@ -95,8 +96,8 @@ public:
   size_t addPoints(size_t newPoints) {
     size_t oldSize = size;
     size += newPoints;
-    if(size > dataSource.rows)
-      size = dataSource.rows;
+    if(size > dataSource -> loaded())
+      size = dataSource -> loaded();
 
     if(oldSize == 0) { // for the first time, build the index as we did in the non-progressive version.
       buildIndex();
@@ -124,7 +125,7 @@ public:
       queue.push(NodeSplit(ongoingTree, &indices[0], sizeAtUpdate));
     }
     
-    size_t updatedCount = 0;
+    int updatedCount = 0;
 
     while((ops == -1 || updatedCount < ops) && !queue.empty()) {
       NodeSplit nodeSplit = queue.front();
@@ -142,7 +143,7 @@ public:
       if (count == 1) {
           node->child1 = node->child2 = NULL;    /* Mark as leaf node. */
           node->divfeat = *begin;    /* Store index of this vec. */
-          node->point = dataSource[*begin];
+          node->point = dataSource->get(*begin);
       }
       else {
           int idx;
@@ -312,7 +313,7 @@ protected:
   }
   
   void addPointToTree(NodePtr node, int ind) {
-		ElementType* point = dataSource[ind];
+		ElementType* point = dataSource->get(ind);
 
 		if ((node->child1==NULL) && (node->child2==NULL)) {
       ElementType* leafPoint = node->point;
@@ -367,7 +368,7 @@ protected:
 		if (count == 1) {
 				node->child1 = node->child2 = NULL;    /* Mark as leaf node. */
 				node->divfeat = *ind;    /* Store index of this vec. */
-				node->point = dataSource[*ind];
+				node->point = dataSource -> get(*ind);
 		}
 		else {
 				int idx;
@@ -399,7 +400,7 @@ protected:
 		 */
 		int cnt = std::min((int)SAMPLE_MEAN+1, count);
 		for (int j = 0; j < cnt; ++j) {
-				ElementType* v = dataSource[ind[j]];
+				ElementType* v = dataSource -> get(ind[j]);
 				for (size_t k=0; k<veclen; ++k) {
 						mean[k] += v[k];
 				}
@@ -411,7 +412,7 @@ protected:
 
 		/* Compute variances (no need to divide by count). */
 		for (int j = 0; j < cnt; ++j) {
-				ElementType* v = dataSource[ind[j]];
+				ElementType* v = dataSource -> get(ind[j]);
 				for (size_t k=0; k<veclen; ++k) {
 						DistanceType dist = v[k] - mean[k];
 						var[k] += dist * dist;
@@ -482,16 +483,16 @@ protected:
 		int left = 0;
 		int right = count-1;
 		for (;; ) {
-			while (left<=right && dataSource[ind[left]][cutfeat]<cutval) ++left;
-			while (left<=right && dataSource[ind[right]][cutfeat]>=cutval) --right;
+			while (left<=right && dataSource -> get(ind[left])[cutfeat]<cutval) ++left;
+			while (left<=right && dataSource -> get(ind[right])[cutfeat]>=cutval) --right;
 			if (left>right) break;
 			std::swap(ind[left], ind[right]); ++left; --right;
 		}
 		lim1 = left;
 		right = count-1;
 		for (;; ) {
-			while (left<=right && dataSource[ind[left]][cutfeat]<=cutval) ++left;
-			while (left<=right && dataSource[ind[right]][cutfeat]>cutval) --right;
+			while (left<=right && dataSource -> get(ind[left])[cutfeat]<=cutval) ++left;
+			while (left<=right && dataSource -> get(ind[right])[cutfeat]>cutval) --right;
 			if (left>right) break;
 			std::swap(ind[left], ind[right]); ++left; --right;
 		}
@@ -662,7 +663,7 @@ private:
   size_t size = 0;
   size_t sizeAtUpdate = 0;
   size_t veclen;
-  Matrix<ElementType> dataSource;
+  DataSource *dataSource;
 
   DistanceType* mean = nullptr;
   DistanceType* var = nullptr;

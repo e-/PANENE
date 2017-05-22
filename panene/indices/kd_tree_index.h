@@ -20,7 +20,6 @@ public:
   typedef float ElementType;
   typedef float DistanceType;
 
-
 protected:
   struct Node {
     int divfeat;

@@ -4,30 +4,22 @@
 #include <string>
 #include <fstream>
 #include <algorithm>
+#include <vector>
 
 #include "test.h"
 #include "../progressive_knn_table.h"
-#include "../util/data_source.h"
+#include "../data/data_source.h"
 #include "../util/timer.h"
 
 namespace panene {
-using namespace std;
 
 class ProgressiveKNNTableBenchmark : Test {
-  DataSource dataSource;
+  DataSource* dataSource;
 
 public:
-  ProgressiveKNNTableBenchmark(DataSource dataSource_) : dataSource(dataSource_) {}
+  ProgressiveKNNTableBenchmark(DataSource* dataSource_) : dataSource(dataSource_) {}
 
   std::string getName() { return "ProgressiveKNNTableBenchmark"; }
-
-  void readData(const DataSource &dataSource, float *data) {
-    std::ifstream ifs(dataSource.path);
-
-    for(int i = 0; i < dataSource.n * dataSource.d; ++i) {
-      ifs >> data[i]; 
-    }
-  }
 
   void getExactNN(Matrix<float> &dataset, Matrix<float> &queryset, Matrix<float> &answers, int k){
     L2<float> distance = L2<float>();
@@ -78,54 +70,59 @@ public:
   }
 
   void run(){
-    int n = dataSource.n;
-    int d = dataSource.d;
+    size_t n = dataSource -> size();
+    size_t d = dataSource -> dim();
     int k = 10;
     int maxOps = 3000;
     Timer timer;
 
     //srand(time(0));
 
+    std::cerr << getName() << " starts with n = " << n << ", d = " << d << ", k = " << k << ", maxOps = " << maxOps << std::endl;
+    
     float *numbers = new float[n * d];
-    cerr << getName() << " starts with dataSource " << dataSource.name << ", n = " << n << ", d = " << d << ", k = " << k << ", maxOps = " << maxOps << endl;
-
-    readData(dataSource, numbers);
+    
+    for(size_t i = 0; i < n; ++i) {
+      for(size_t j = 0; j < d; ++j) {
+        numbers[i * d + j] = dataSource -> get(i)[j];
+      }
+    }
 
     SearchParams searchParam(512);
     searchParam.cores = 1;
 
     // create a progressive table
     ProgressiveKNNTable<ProgressiveKDTreeIndex<L2<float>>> table(k + 1, d, IndexParams(4), searchParam);
-    cerr << "progressive knn table created" << endl;
+    std::cerr << "progressive knn table created" << std::endl;
 
     Matrix<float> dataMatrix(numbers, n, d);
-    table.setDataSource(dataMatrix);
+    table.setDataSource(dataSource);
 
     // since the raw data are can be large, we create a sample of points that will be tested.
     // sample 5% of points
 
-    int sample = n / 20;
-    vector<int> order(n);
+    size_t sample = n / 20;
+    std::vector<size_t> order(n);
 
-    for(int i = 0; i < n; ++i) order[i] = i;
+    for(size_t i = 0; i < n; ++i) order[i] = i;
     random_shuffle(order.begin(), order.end());
 
     Matrix<float> samplePoints(new float[sample * d], sample, d);
 
-    for(int i = 0; i < sample; ++i) 
-      for(int j = 0; j < d; ++j)
+    for(size_t i = 0; i < sample; ++i) 
+      for(size_t j = 0; j < d; ++j)
         samplePoints[i][j] = dataMatrix[order[i]][j];
     
-    cerr << "sampled " << sample << " points" << endl;
+    std::cerr << "sampled " << sample << " points" << std::endl;
 
     // compute the exact knn of the sample
     Matrix<float> exactDists(new float[sample * (k + 1)], sample, k + 1);
 
     getExactNN(dataMatrix, samplePoints, exactDists, k + 1);
 
-    cerr << "computed the exact nn of the sample" << endl;
+    std::cerr << "computed the exact nn of the sample" << std::endl;
     
-    cerr << "iteration\taddNewPointRes\tupdateIndexRes\tupdateTableRes\tsampleSize\tcoverage\tmeanDistanceError\ttime" << endl;
+    std::cerr << "iteration\taddNewPointRes\tupdateIndexRes\tupdateTableRes\tsampleSize\tcoverage\tmeanDistanceError\ttime" << std::endl;
 
     for(int r = 0; r < 500; ++r) { 
       // update the table with the given number operations
@@ -141,7 +138,7 @@ public:
       size_t missing = 0;
       float distSum = 0;
 
-      for(int i = 0; i < sample; ++i) {
+      for(size_t i = 0; i < sample; ++i) {
         size_t id = order[i];
 
         if(id < size) { // the sample point is present in the table
@@ -161,16 +158,16 @@ public:
       }
 
       if(missing == sample) {
-        cerr << "all points are missing" << endl;
+        std::cerr << "all points are missing" << std::endl;
         continue;
       }
 
       float meanError = distSum / (sample - missing);
 
-      cerr << r << "\t" << result.addNewPointResult << "\t" 
+      std::cerr << r << "\t" << result.addNewPointResult << "\t" 
           << result.updateIndexResult << "\t" 
           << result.updateTableResult << "\t" 
-          << sample << "\t" << sample - missing << "\t" << meanError << "\t" << elapsed << endl;
+          << sample << "\t" << sample - missing << "\t" << meanError << "\t" << elapsed << std::endl;
 
     }
 

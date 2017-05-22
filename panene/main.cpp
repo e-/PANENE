@@ -1,10 +1,12 @@
-#include "util/data_source.h"
+#include "data/naive_data_source.h"
 #include "test/tests.h"
 
 int main(){
-  DataSource dataSource("../data/sift.shuffled.txt", "sift", 100000, 128);
+  panene::NaiveDataSource naiveDataSource;
+  
+  naiveDataSource.open("../data/sift.shuffled.txt", 100000, 128);
 
-  ProgressiveKNNTableBenchmark test(dataSource);
+  panene::ProgressiveKNNTableBenchmark test(&naiveDataSource);
 
   test.run();
   return 0;

@@ -9,9 +9,9 @@
 #include "indices/kd_tree_index.h"
 #include "indices/progressive_kd_tree_index.h"
 
-using namespace panene;
-
 #define DEBUG 0
+
+namespace panene {
 
 template <class Indexer>
 class KNNTable {
@@ -254,4 +254,5 @@ private:
   int indexOps = -1; // update index 
 };
 
+}
 #endif

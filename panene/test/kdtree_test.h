@@ -8,8 +8,9 @@
 #include "test.h"
 #include "../indices/kd_tree_index.h"
 
-namespace panene {
 using namespace std;
+
+namespace panene {
 
 class KDTreeTest : Test
 {

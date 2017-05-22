@@ -10,10 +10,11 @@
 #include "indices/progressive_kd_tree_index.h"
 #include "scheduler/schedule.h"
 #include "scheduler/naive_scheduler.h"
+#include "data/data_source.h"
 
-using namespace panene;
+//#define DEBUG 1
 
-#define DEBUG 0
+namespace panene {
 
 template <class Indexer>
 class ProgressiveKNNTable {
@@ -68,10 +69,10 @@ public:
     searchParams = searchParams_;
   }
 
-  void setDataSource(Matrix<ElementType> &dataSource_) {
+  void setDataSource(DataSource *dataSource_) {
     dataSource = dataSource_;
     indexer.setDataSource(dataSource);
-    queued = DynamicBitset(dataSource.rows);
+    queued = DynamicBitset(dataSource -> size());
   }
 
   size_t getSize() {
@@ -131,7 +132,9 @@ public:
     if(addNewPointResult > 0) {
       assert(size > k); // check if at least k points are in the index
 
-      Matrix<ElementType> newPoints(dataSource[size - addNewPointResult], addNewPointResult, dataSource.cols);
+      // TODO: the following line assumes that data are stored in a continuous memory space. We need to ditch FLANN's matrix implementation later.
+     
+      Matrix<ElementType> newPoints(dataSource -> get(size - addNewPointResult), addNewPointResult, dataSource -> dim());
 
       Matrix<IDType> indices(new IDType[newPoints.rows * k], newPoints.rows, k);
       Matrix<DistanceType> dists(new DistanceType[newPoints.rows * k], newPoints.rows, k);
@@ -217,7 +220,7 @@ public:
       
       // get the new NN of the dirty point
 
-      Matrix<ElementType> qvec(dataSource[q.id], 1, d);
+      Matrix<ElementType> qvec((*dataSource)[q.id], 1, d);
 #if DEBUG
       std::cerr << "[PKNNTable] Starting KNN search for the dirty point" << std::endl;
 #endif
@@ -284,7 +287,7 @@ private:
   Indexer indexer;
   SearchParams searchParams;
   std::vector<std::vector<Neighbor>> neighbors;
-  Matrix<ElementType> dataSource;
+  DataSource *dataSource;
 
   std::priority_queue<Neighbor, std::vector<Neighbor>, std::greater<Neighbor>> queue; // descending order
   DynamicBitset queued;
@@ -292,4 +295,5 @@ private:
   NaiveScheduler naiveScheduler;
 };
 
+}
 #endif

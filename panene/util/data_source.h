@@ -6,11 +6,11 @@
 namespace panene
 {
 
-class DataSource {
+class DataSource2 {
 public:
-  DataSource() = default;
+  DataSource2() = default;
 
-  DataSource(std::string path_, std::string name_, int n_, int d_) : path(path_), name(name_), n(n_), d(d_) {
+  DataSource2(std::string path_, std::string name_, int n_, int d_) : path(path_), name(name_), n(n_), d(d_) {
 
   }
 
