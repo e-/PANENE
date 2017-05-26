@@ -3,15 +3,20 @@
 
 #include <string>
 #include <fstream>
-#include "data_source.h"
+#include <vector>
 
 namespace panene
 {
 
-class NaiveDataSource : public DataSource
+class NaiveDataSource
 {
 
 public:
+
+  typedef size_t IDType;
+  typedef float ElementType;
+  typedef float DistanceType;
+
   NaiveDataSource() {
   }
 

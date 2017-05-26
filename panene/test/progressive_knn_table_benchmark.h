@@ -7,17 +7,17 @@
 #include <vector>
 
 #include "test.h"
-#include "../progressive_knn_table.h"
-#include "../data/data_source.h"
+#include "../table/progressive_knn_table.h"
+#include "../data/naive_data_source.h"
 #include "../util/timer.h"
 
 namespace panene {
 
 class ProgressiveKNNTableBenchmark : Test {
-  DataSource* dataSource;
+  NaiveDataSource* dataSource;
 
 public:
-  ProgressiveKNNTableBenchmark(DataSource* dataSource_) : dataSource(dataSource_) {}
+  ProgressiveKNNTableBenchmark(NaiveDataSource* dataSource_) : dataSource(dataSource_) {}
 
   std::string getName() { return "ProgressiveKNNTableBenchmark"; }
 
@@ -92,7 +92,7 @@ public:
     searchParam.cores = 1;
 
     // create a progressive table
-    ProgressiveKNNTable<ProgressiveKDTreeIndex<L2<float>>> table(k + 1, d, IndexParams(4), searchParam);
+    ProgressiveKNNTable<ProgressiveKDTreeIndex<L2<float>, NaiveDataSource>, NaiveDataSource> table(k + 1, d, IndexParams(4), searchParam);
     std::cerr << "progressive knn table created" << std::endl;
 
     Matrix<float> dataMatrix(numbers, n, d);

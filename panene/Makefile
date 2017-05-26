@@ -1,7 +1,7 @@
 CC=g++
 CFLAGS=-c -Wall -std=c++11 -I/usr/include/hdf5/serial -g -O2 -fopenmp
 LDFLAGS=-L/usr/lib/x86_64-linux-gnu/hdf5/serial/lib -L/usr/lib/x86_64-linux-gnu -lhdf5 -llz4 lib/lz4.o lib/lz4hc.o -fopenmp
-HEADERS=knn_table.h knn_table_flann.h indices/kd_tree_index.h indices/progressive_kd_tree_index.h test/kdtree_test.h 
+HEADERS=
 SOURCES=main.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=main
@@ -17,5 +17,5 @@ $(EXECUTABLE): $(OBJECTS)
 
 clean:
 	rm -f *.o *.gch main
-	rm -f indices/*.o indices/*.gch util/*.gch
+	rm -f index/*.o index/*.gch util/*.gch table/*.o table/*.gch
 

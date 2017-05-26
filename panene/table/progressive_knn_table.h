@@ -6,17 +6,16 @@
 #include <queue>
 #include <cassert>
 
-#include "indices/kd_tree_index.h"
-#include "indices/progressive_kd_tree_index.h"
-#include "scheduler/schedule.h"
-#include "scheduler/naive_scheduler.h"
-#include "data/data_source.h"
+#include "../index/kd_tree_index.h"
+#include "../index/progressive_kd_tree_index.h"
+#include "../scheduler/schedule.h"
+#include "../scheduler/naive_scheduler.h"
 
 //#define DEBUG 1
 
 namespace panene {
 
-template <class Indexer>
+template <typename Indexer, typename DataSource>
 class ProgressiveKNNTable {
   typedef typename Indexer::ElementType ElementType;
   typedef typename Indexer::DistanceType DistanceType;

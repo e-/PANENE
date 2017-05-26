@@ -11,18 +11,16 @@
 #include <cassert>
 
 #include "progressive_base_index.h"
-#include "../data/data_source.h"
 
 namespace panene
 {
 
-template <typename Distance>
+template <typename Distance, typename DataSource>
 class ProgressiveKDTreeIndex : public ProgressiveBaseIndex<Distance>
 {
 public:
-  typedef DataSource::ElementType ElementType;
-  typedef DataSource::DistanceType DistanceType;
-
+  typedef typename DataSource::ElementType ElementType;
+  typedef typename DataSource::DistanceType DistanceType;
 
 protected:
   struct Node {
