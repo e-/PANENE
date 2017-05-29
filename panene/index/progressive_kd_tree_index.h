@@ -383,7 +383,7 @@ protected:
     int sampleCount = std::min((int)SAMPLE_MEAN+1, count);
     std::vector<DistanceType> mean(dim), var(dim);
     
-    dataSource->sampleMeanAndVar(ids, sampleCount, mean, var);
+    dataSource->computeMeanAndVar(ids, sampleCount, mean, var);
 
     /* Select one of the highest variance ids at random. */
     cutfeat = selectDivision(var);

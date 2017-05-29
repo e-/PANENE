@@ -57,7 +57,7 @@ public:
     return dim;
   }
 
-  void sampleMeanAndVar(const IDType *ids, int count, std::vector<DistanceType> &mean, std::vector<DistanceType> &var) {
+  void computeMeanAndVar(const IDType *ids, int count, std::vector<DistanceType> &mean, std::vector<DistanceType> &var) {
     mean.resize(d);
     var.resize(d);
 
@@ -100,27 +100,6 @@ public:
     return sum;
   }
 
-/*  DistanceType distL2Squared(const IDType &id1, const ElementType *p2) const {
-    DistanceType sum = 0;
-
-    for(size_t i = 0; i < d; ++i) {
-      ElementType v = this->get(id1, i);
-      sum += (v - p2[i]) * (v - p2[i]);
-    }
-    
-    return sum;
-  }*/
-
-/*  DistanceType sum(const IDType &id) const {
-    DistanceType sum = 0;
-    ElementType* ele = (*this)[id];
-
-    for(size_t i = 0; i <d; ++i)
-      sum += ele[i];
-
-    return sum;
-  }*/
-  
   size_t size() const {
     return n;
   }
