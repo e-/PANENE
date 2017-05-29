@@ -132,8 +132,14 @@ public:
       assert(size > k); // check if at least k points are in the index
 
       // TODO: the following line assumes that data are stored in a continuous memory space. We need to ditch FLANN's matrix implementation later.
+       
+      Matrix<ElementType> newPoints(new ElementType[addNewPointResult * d], addNewPointResult, d);
      
-      Matrix<ElementType> newPoints(dataSource -> get(size - addNewPointResult), addNewPointResult, dataSource -> dim());
+      for(int i = 0; i < addNewPointResult; ++i) {
+        for(int j = 0; j < d; ++j) {
+          newPoints[i][j] = dataSource->get(size - addNewPointResult + i, j);
+        }
+      } 
 
       Matrix<IDType> indices(new IDType[newPoints.rows * k], newPoints.rows, k);
       Matrix<DistanceType> dists(new DistanceType[newPoints.rows * k], newPoints.rows, k);
@@ -173,6 +179,7 @@ public:
 
       delete[] indices.ptr();
       delete[] dists.ptr();
+      delete[] newPoints.ptr();
     }
 
 
@@ -219,7 +226,11 @@ public:
       
       // get the new NN of the dirty point
 
-      Matrix<ElementType> qvec((*dataSource)[q.id], 1, d);
+      Matrix<ElementType> qvec(new ElementType[d], 1, d); // TODO ditch matrix
+      for(int i = 0; i < d; ++i) {
+        qvec[0][i] = dataSource->get(q.id, i);
+      }
+
 #if DEBUG
       std::cerr << "[PKNNTable] Starting KNN search for the dirty point" << std::endl;
 #endif
@@ -227,6 +238,8 @@ public:
 #if DEBUG
       std::cerr << "[PKNNTable] KNN search done" << std::endl;
 #endif
+
+      delete[] qvec.ptr();
 
       // check if there is a difference between previous NN and newly computed NN.
       

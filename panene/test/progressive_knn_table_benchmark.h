@@ -84,7 +84,7 @@ public:
     
     for(size_t i = 0; i < n; ++i) {
       for(size_t j = 0; j < d; ++j) {
-        numbers[i * d + j] = dataSource -> get(i)[j];
+        numbers[i * d + j] = dataSource -> get(i, j);
       }
     }
 

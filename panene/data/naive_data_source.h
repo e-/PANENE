@@ -4,6 +4,7 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <cmath>
 
 namespace panene
 {
@@ -37,36 +38,58 @@ public:
     }
   }
 
-  inline ElementType* operator[](const IDType &id) const {
-    return reinterpret_cast<ElementType *>(data + id * d);
+  ElementType get(const IDType &id, const IDType &dim) const {
+    return *(data + id * d + dim);
   }
 
-  ElementType* get(const IDType &id) const {
-    return reinterpret_cast<ElementType *>(data + id * d);
+  IDType findDimWithMaxSpan(const IDType &id1, const IDType &id2) {
+    size_t dim = 0;
+    ElementType maxSpan = 0;
+
+    for(size_t i = 0; i < d; ++i) {
+      ElementType span = std::abs(this->get(id1, i) - this->get(id2, i));
+      if(maxSpan < span) {
+        maxSpan = span;
+        dim = i;
+      }
+    }
+
+    return dim;
   }
 
-  std::vector<ElementType> subtract(const IDType &id1, const IDType &id2) const {
-    ElementType* ele1 = (*this)[id1];
-    ElementType* ele2 = (*this)[id2];
-    std::vector<ElementType> vec(d);
+  void sampleMeanAndVar(const IDType *ids, int count, std::vector<DistanceType> &mean, std::vector<DistanceType> &var) {
+    mean.resize(d);
+    var.resize(d);
 
-    for(size_t i = 0; i < d; ++i)
-      vec[i] = ele1[i] - ele2[i];
-    
-    return vec;
-  }
+    for (size_t i = 0; i < d; ++i) 
+      mean[i] = var[i] = 0;
 
-  std::vector<ElementType> subtract(const IDType &id1, const ElementType *p2) const {
-    ElementType* ele1 = (*this)[id1];
-    std::vector<ElementType> vec(d);
+    for (int j = 0; j < count; ++j) {
+      for (size_t i = 0; i < d; ++i) {
+        mean[i] += this->get(ids[j], i);
+      }
+    }
 
-    for(size_t i = 0; i < d; ++i)
-      vec[i] = ele1[i] - p2[i];
-    
-    return vec;
-  }
+    DistanceType divFactor = DistanceType(1)/count;
 
-  DistanceType distL2Squared(const IDType &id1, const IDType &id2) const {
+    for (size_t i = 0 ; i < d; ++i) {
+      mean[i] *= divFactor;
+    }
+
+    /* Compute variances */
+    for (int j = 0; j < count; ++j) {
+      for (size_t i = 0; i < d; ++i) {
+        DistanceType dist = this->get(ids[j], i) - mean[i];
+        var[i] += dist * dist;
+      }
+    }
+
+    for(size_t i = 0; i < d; ++i) {
+      var[i] *= divFactor;
+    }
+  }  
+
+/*  DistanceType distL2Squared(const IDType &id1, const IDType &id2) const {
     DistanceType sum = 0;
     ElementType* ele1 = (*this)[id1];
     ElementType* ele2 = (*this)[id2];
@@ -75,19 +98,20 @@ public:
       sum += (ele1[i] - ele2[i]) * (ele1[i] - ele2[i]);
     
     return sum;
-  }
+  }*/
 
   DistanceType distL2Squared(const IDType &id1, const ElementType *p2) const {
     DistanceType sum = 0;
-    ElementType* ele1 = (*this)[id1];
 
-    for(size_t i = 0; i < d; ++i)
-      sum += (ele1[i] - p2[i]) * (ele1[i] - p2[i]);
+    for(size_t i = 0; i < d; ++i) {
+      ElementType v = this->get(id1, i);
+      sum += (v - p2[i]) * (v - p2[i]);
+    }
     
     return sum;
   }
 
-  DistanceType sum(const IDType &id) const {
+/*  DistanceType sum(const IDType &id) const {
     DistanceType sum = 0;
     ElementType* ele = (*this)[id];
 
@@ -95,7 +119,7 @@ public:
       sum += ele[i];
 
     return sum;
-  }
+  }*/
   
   size_t size() const {
     return n;
@@ -112,8 +136,8 @@ public:
   size_t n;
   size_t d;
   bool opened = false;
-protected:
-	ElementType* data;
+protected:  
+  ElementType* data;
 };
 
 }

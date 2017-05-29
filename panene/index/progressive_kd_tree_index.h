@@ -21,12 +21,15 @@ class ProgressiveKDTreeIndex : public ProgressiveBaseIndex<Distance>
 public:
   typedef typename DataSource::ElementType ElementType;
   typedef typename DataSource::DistanceType DistanceType;
+  typedef typename DataSource::IDType IDType;
 
 protected:
   struct Node {
     int divfeat;
     DistanceType divval;
-    ElementType* point;
+    //ElementType* point;
+    IDType id; // point id for a leaf node, 0 otherwise
+
     Node *child1, *child2;
 
     Node() {
@@ -40,11 +43,11 @@ protected:
   };
   
   struct NodeSplit { 
-    struct Node* node;
-    int *begin;
+    struct Node *node;
+    IDType *begin;
     int count;
     
-    NodeSplit(Node* node_, int* begin_, int count_) : node(node_), begin(begin_), count(count_) {}
+    NodeSplit(Node* node_, IDType *begin_, int count_) : node(node_), begin(begin_), count(count_) {}
   };
 
   template <typename T, typename DistanceType>
@@ -68,7 +71,6 @@ protected:
   typedef BranchStruct<NodePtr, DistanceType> BranchSt;
   typedef BranchSt* Branch;
 
-
 public:
   ProgressiveKDTreeIndex(int trees_, Distance distance_ = Distance()): trees(trees_), distance(distance_)
   {
@@ -79,16 +81,11 @@ public:
   }
 
   ~ProgressiveKDTreeIndex() {
-    if(mean != nullptr) delete[] mean;
-    if(var != nullptr)delete[] var;
   }
 
   void setDataSource(DataSource *dataSource_) {
     dataSource = dataSource_;
-    veclen = dataSource -> dim();
-
-    mean = new DistanceType[veclen];
-    var = new DistanceType[veclen];
+    dim = dataSource -> dim();
   }
 
   size_t addPoints(size_t newPoints) {
@@ -102,8 +99,8 @@ public:
       return newPoints;
     }
     else {
-      for(size_t i=oldSize; i<size; ++i) {
-        for(int j = 0; j< trees; ++j) {
+      for(size_t i = oldSize; i < size; ++i) {
+        for(int j = 0; j < trees; ++j) {
           addPointToTree(treeRoots[j], i);
         }
       }
@@ -114,13 +111,13 @@ public:
   size_t update(int ops) {
     if(sizeAtUpdate == 0) {
       sizeAtUpdate = size;
-      indices.resize(sizeAtUpdate);
+      ids.resize(sizeAtUpdate);
 
-      for(size_t i = 0; i < sizeAtUpdate; ++i) indices[i] = int(i);
-      std::random_shuffle(indices.begin(), indices.end());
+      for(size_t i = 0; i < sizeAtUpdate; ++i) ids[i] = int(i);
+      std::random_shuffle(ids.begin(), ids.end());
       
       ongoingTree = new(pool) Node();
-      queue.push(NodeSplit(ongoingTree, &indices[0], sizeAtUpdate));
+      queue.push(NodeSplit(ongoingTree, &ids[0], sizeAtUpdate));
     }
     
     int updatedCount = 0;
@@ -132,7 +129,7 @@ public:
 //      std::cerr << "updatedCount " << updatedCount << std::endl;
 
       NodePtr node = nodeSplit.node;
-      int *begin = nodeSplit.begin;
+      IDType *begin = nodeSplit.begin;
       int count = nodeSplit.count;
 
 //      std::cerr << begin << " " << count << std::endl;
@@ -140,8 +137,7 @@ public:
       // At this point, nodeSplit the two children of nodeSplit are nullptr
       if (count == 1) {
           node->child1 = node->child2 = NULL;    /* Mark as leaf node. */
-          node->divfeat = *begin;    /* Store index of this vec. */
-          node->point = dataSource->get(*begin);
+          node->id = *begin;    /* Store index of this vec. */ // TODO id of vec
       }
       else {
           int idx;
@@ -187,11 +183,11 @@ public:
   }
 
   /**
-   * Find set of nearest neighbors to vec. Their indices are stored inside
+   * Find set of nearest neighbors to vec. Their ids are stored inside
    * the result object.
    *
    * Params:
-   *     result = the result object in which the indices of the nearest-neighbors are stored
+   *     result = the result object in which the ids of the nearest-neighbors are stored
    *     vec = the vector for which to search the nearest neighbors
    *     maxCheck = the maximum number of restarts (in a best-bin-first manner)
    */
@@ -224,21 +220,21 @@ public:
   /**
    * @brief Perform k-nearest neighbor search
    * @param[in] queries The query points for which to find the nearest neighbors
-   * @param[out] indices The indices of the nearest neighbors found
+   * @param[out] ids The ids of the nearest neighbors found
    * @param[out] dists Distances to the nearest neighbors found
    * @param[in] knn Number of nearest neighbors to return
    * @param[in] params Search parameters
    */
   int knnSearch(const Matrix<ElementType>& queries,
-      Matrix<size_t>& indices,
+      Matrix<size_t>& ids,
       Matrix<DistanceType>& dists,
       size_t knn,
       const SearchParams& params) const
   {
-    assert(queries.cols == veclen);
-    assert(indices.rows >= queries.rows);
+    assert(queries.cols == dim);
+    assert(ids.rows >= queries.rows);
     assert(dists.rows >= queries.rows);
-    assert(indices.cols >= knn);
+    assert(ids.cols >= knn);
     assert(dists.cols >= knn);
     bool use_heap = false; // TODO
 
@@ -259,8 +255,8 @@ public:
           resultSet.clear();
           findNeighbors(resultSet, queries[i], params);
           size_t n = std::min(resultSet.size(), knn);
-          resultSet.copy(indices[i], dists[i], n, params.sorted);
-          indices_to_ids(indices[i], indices[i], n);
+          resultSet.copy(ids[i], dists[i], n, params.sorted);
+          ids_to_ids(ids[i], ids[i], n);
           count += n;
         }
       }
@@ -275,9 +271,9 @@ public:
           findNeighbors(resultSet, queries[i], params);
           size_t n = std::min(resultSet.size(), knn);
 
-          resultSet.copy(indices[i], dists[i], n, params.sorted);
+          resultSet.copy(ids[i], dists[i], n, params.sorted);
 
-          indices_to_ids(indices[i], indices[i], n);
+          ids_to_ids(ids[i], ids[i], n);
           count += n;
         }
       }
@@ -288,18 +284,16 @@ public:
 protected:
   
   void buildIndex() {
-    std::vector<int> ind(size);
+    std::vector<IDType> ids(size);
     for(size_t i = 0; i < size; ++i) {
-      ind[i] = int(i);
+      ids[i] = IDType(i);
     }
 
     treeRoots.resize(trees);
 
     for(int i = 0; i < trees; ++i) {
-      std::random_shuffle(ind.begin(), ind.end());
-      //std::cerr << "first five indices: " << ind[0] << " " << ind[1] << " " << ind[2] << " " << ind[3] << " " <<           ind[4] << std::endl;
-
-      treeRoots[i] = divideTree(&ind[0], int(size));
+      std::random_shuffle(ids.begin(), ids.end());
+      treeRoots[i] = divideTree(&ids[0], int(size));
     }
   }
 
@@ -310,75 +304,68 @@ protected:
     pool.free();
   }
   
-  void addPointToTree(NodePtr node, int ind) {
-    ElementType* point = dataSource->get(ind);
+  void addPointToTree(NodePtr node, IDType id) {
+//    ElementType* point = dataSource->get(id); // TODO
 
     if ((node->child1==NULL) && (node->child2==NULL)) {
-      ElementType* leafPoint = node->point;
-      ElementType maxSpan = 0;
+//      ElementType *leafPoint = node->point;
 
-      size_t divfeat = 0;
-      for (size_t i=0;i<veclen;++i) {
-          ElementType span = std::abs(point[i]-leafPoint[i]);
-          if (span > maxSpan) {
-              maxSpan = span;
-              divfeat = i;
-          }
-      }
-
+      size_t divfeat = dataSource->findDimWithMaxSpan(id, node->id);
+      
       NodePtr left = new(pool) Node();
       left->child1 = left->child2 = NULL;
 
       NodePtr right = new(pool) Node();
       right->child1 = right->child2 = NULL;
 
-      if (point[divfeat]<leafPoint[divfeat]) {
-          left->divfeat = ind;
-          left->point = point;
-          right->divfeat = node->divfeat;
-          right->point = node->point;
+      ElementType pointValue = dataSource -> get(id, divfeat);
+      ElementType leafValue = dataSource -> get(node->id, divfeat);
+
+      if (pointValue < leafValue) {
+          left->id = id;
+          right->id = node->id;
       }
       else {
-          left->divfeat = node->divfeat;
-          left->point = node->point;
-          right->divfeat = ind;
-          right->point = point;
+          left->id = node->id;
+          right->id = id;
       }
+      
+      left->divfeat = right->divfeat = -1;
+
       node->divfeat = divfeat;
-      node->divval = (point[divfeat]+leafPoint[divfeat])/2;
+      node->divval = (pointValue + leafValue)/2;
       node->child1 = left;
       node->child2 = right;            
     }
     else {
-      if (point[node->divfeat]<node->divval) {
-          addPointToTree(node->child1,ind);
+      if (dataSource->get(id, node->divfeat) < node->divval) {
+          addPointToTree(node->child1, id);
       }
       else {
-          addPointToTree(node->child2,ind);                
+          addPointToTree(node->child2, id);                
       }
     }
   }
 
-  NodePtr divideTree(int *ind, int count) {
+  NodePtr divideTree(IDType *ids, int count) {
     NodePtr node = new(pool) Node();
     
     /* If too few exemplars remain, then make this a leaf node. */
     if (count == 1) {
         node->child1 = node->child2 = NULL;    /* Mark as leaf node. */
-        node->divfeat = *ind;    /* Store index of this vec. */
-        node->point = dataSource -> get(*ind);
+        node->divfeat = -1; // a leaf node
+        node->id = ids[0];
     }
     else {
         int idx;
         int cutfeat;
         DistanceType cutval;
-        meanSplit(ind, count, idx, cutfeat, cutval);
-//        std::cerr << "cutfeat: " << cutfeat << " cutval: " << cutval << " count: " << count << std::endl;
+        meanSplit(ids, count, idx, cutfeat, cutval);
 
         node->divfeat = cutfeat;
         node->divval = cutval;
-        node->child1 = divideTree(ind, idx);
-        node->child2 = divideTree(ind+idx, count-idx);
+        node->child1 = divideTree(ids, idx);
+        node->child2 = divideTree(ids+idx, count-idx);
     }
 
     return node;
@@ -389,39 +376,22 @@ protected:
     * Make a random choice among those with the highest variance, and use
     * its variance as the threshold value.
     **/
-  void meanSplit(int* ind, int count, int& index, int& cutfeat, DistanceType& cutval) {
-    memset(mean,0,veclen*sizeof(DistanceType));
-    memset(var,0,veclen*sizeof(DistanceType));
-
+  void meanSplit(IDType *ids, int count, int &index, int &cutfeat, DistanceType &cutval) {
     /* Compute mean values.  Only the first SAMPLE_MEAN values need to be
         sampled to get a good estimate.
      */
-    int cnt = std::min((int)SAMPLE_MEAN+1, count);
-    for (int j = 0; j < cnt; ++j) {
-        ElementType* v = dataSource -> get(ind[j]);
-        for (size_t k=0; k<veclen; ++k) {
-            mean[k] += v[k];
-        }
-    }
-    DistanceType divFactor = DistanceType(1)/cnt;
-    for (size_t k=0; k<veclen; ++k) {
-        mean[k] *= divFactor;
-    }
 
-    /* Compute variances (no need to divide by count). */
-    for (int j = 0; j < cnt; ++j) {
-        ElementType* v = dataSource -> get(ind[j]);
-        for (size_t k=0; k<veclen; ++k) {
-            DistanceType dist = v[k] - mean[k];
-            var[k] += dist * dist;
-        }
-    }
-    /* Select one of the highest variance indices at random. */
+    int sampleCount = std::min((int)SAMPLE_MEAN+1, count);
+    std::vector<DistanceType> mean(dim), var(dim);
+    
+    dataSource->sampleMeanAndVar(ids, sampleCount, mean, var);
+
+    /* Select one of the highest variance ids at random. */
     cutfeat = selectDivision(var);
     cutval = mean[cutfeat];
 
     int lim1, lim2;
-    planeSplit(ind, count, cutfeat, cutval, lim1, lim2);
+    planeSplit(ids, count, cutfeat, cutval, lim1, lim2);
 
     if (lim1>count/2) index = lim1;
     else if (lim2<count/2) index = lim2;
@@ -437,13 +407,13 @@ protected:
    * Select the top RAND_DIM largest values from v and return the index of
    * one of these selected at random.
    */
-  int selectDivision(DistanceType* v)
+  int selectDivision(const std::vector<DistanceType> &v)
   {
     int num = 0;
     size_t topind[RAND_DIM];
 
-    /* Create a list of the indices of the top RAND_DIM values. */
-    for (size_t i = 0; i < veclen; ++i) {
+    /* Create a list of the ids of the top RAND_DIM values. */
+    for (size_t i = 0; i < dim; ++i) {
       if ((num < RAND_DIM)||(v[i] > v[topind[num-1]])) {
         /* Put this element at end of topind. */
         if (num < RAND_DIM) {
@@ -475,24 +445,24 @@ protected:
    *  dataset[ind[lim1..lim2-1]][cutfeat]==cutval
    *  dataset[ind[lim2..count]][cutfeat]>cutval
    */
-  void planeSplit(int* ind, int count, int cutfeat, DistanceType cutval, int& lim1, int& lim2)
+  void planeSplit(IDType *ids, int count, int cutfeat, DistanceType cutval, int& lim1, int& lim2)
   {
-    /* Move vector indices for left subtree to front of list. */
+    /* Move vector ids for left subtree to front of list. */
     int left = 0;
     int right = count-1;
     for (;; ) {
-      while (left<=right && dataSource -> get(ind[left])[cutfeat]<cutval) ++left;
-      while (left<=right && dataSource -> get(ind[right])[cutfeat]>=cutval) --right;
+      while (left<=right && dataSource -> get(ids[left], cutfeat) < cutval) ++left; // TODO
+      while (left<=right && dataSource -> get(ids[right], cutfeat) >= cutval) --right; // TODO
       if (left>right) break;
-      std::swap(ind[left], ind[right]); ++left; --right;
+      std::swap(ids[left], ids[right]); ++left; --right;
     }
     lim1 = left;
     right = count-1;
     for (;; ) {
-      while (left<=right && dataSource -> get(ind[left])[cutfeat]<=cutval) ++left;
-      while (left<=right && dataSource -> get(ind[right])[cutfeat]>cutval) --right;
+      while (left<=right && dataSource -> get(ids[left], cutfeat) <= cutval) ++left; // TODO
+      while (left<=right && dataSource -> get(ids[right], cutfeat) > cutval) --right; // TODO
       if (left>right) break;
-      std::swap(ind[left], ind[right]); ++left; --right;
+      std::swap(ids[left], ids[right]); ++left; --right;
     }
     lim2 = left;
   }
@@ -557,18 +527,18 @@ protected:
 
     /* If this is a leaf node, then do check and return. */
     if ((node->child1 == NULL)&&(node->child2 == NULL)) {
-      int index = node->divfeat;
+      int id = node -> id;
       // TODO
 /*      if (with_removed) {
         if (removed_points_.test(index)) return;
       }*/
       /*  Do not check same node more than once when searching multiple trees. */
-      if ( checked.test(index) || ((checkCount>=maxCheck)&& result_set.full()) ) return;
-      checked.set(index);
+      if ( checked.test(id) || ((checkCount>=maxCheck)&& result_set.full()) ) return;
+      checked.set(id);
       checkCount++;
 
-      DistanceType dist = distance(node->point, vec, veclen);
-      result_set.addPoint(dist,index);
+      DistanceType dist = dataSource -> distL2Squared(id, vec);
+      result_set.addPoint(dist, id);
       return;
     }
 
@@ -604,13 +574,14 @@ protected:
   {
     /* If this is a leaf node, then do check and return. */
     if ((node->child1 == NULL)&&(node->child2 == NULL)) {
-      int index = node->divfeat;
+      IDType id = node->id;
       // TODO
 /*      if (with_removed) {
         if (removed_points_.test(index)) return; // ignore removed points
       }*/
-      DistanceType dist = distance(node->point, vec, veclen);
-      result_set.addPoint(dist,index);
+      DistanceType dist = dataSource->distL2Squared(id, vec);
+
+      result_set.addPoint(dist, id);
 
       return;
     }
@@ -639,7 +610,7 @@ protected:
     }
   }
   
-  void indices_to_ids(const size_t* in, size_t* out, size_t size) const
+  void ids_to_ids(const size_t* in, size_t* out, size_t size) const
   {
     // TODO
 /*    if (removed_) {
@@ -660,14 +631,12 @@ private:
   Distance distance;
   size_t size = 0;
   size_t sizeAtUpdate = 0;
-  size_t veclen;
+  size_t dim;
   DataSource *dataSource;
 
-  DistanceType* mean = nullptr;
-  DistanceType* var = nullptr;
   std::vector<NodePtr> treeRoots;
   NodePtr ongoingTree;
-  std::vector<int> indices;
+  std::vector<IDType> ids;
   PooledAllocator pool;
   std::queue<NodeSplit> queue;
   size_t replaced = 0;
