@@ -89,18 +89,18 @@ public:
     }
   }  
 
-/*  DistanceType distL2Squared(const IDType &id1, const IDType &id2) const {
+  DistanceType distL2Squared(const IDType &id1, const IDType &id2) const {
     DistanceType sum = 0;
-    ElementType* ele1 = (*this)[id1];
-    ElementType* ele2 = (*this)[id2];
 
-    for(size_t i = 0; i < d; ++i)
-      sum += (ele1[i] - ele2[i]) * (ele1[i] - ele2[i]);
+    for(size_t i = 0; i < d; ++i) {
+      ElementType v1 = this->get(id1, i), v2 = this->get(id2, i);
+      sum += (v1 - v2) * (v1 - v2);
+    }
     
     return sum;
-  }*/
+  }
 
-  DistanceType distL2Squared(const IDType &id1, const ElementType *p2) const {
+/*  DistanceType distL2Squared(const IDType &id1, const ElementType *p2) const {
     DistanceType sum = 0;
 
     for(size_t i = 0; i < d; ++i) {
@@ -109,7 +109,7 @@ public:
     }
     
     return sum;
-  }
+  }*/
 
 /*  DistanceType sum(const IDType &id) const {
     DistanceType sum = 0;

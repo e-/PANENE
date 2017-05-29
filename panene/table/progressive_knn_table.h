@@ -6,7 +6,6 @@
 #include <queue>
 #include <cassert>
 
-#include "../index/kd_tree_index.h"
 #include "../index/progressive_kd_tree_index.h"
 #include "../scheduler/schedule.h"
 #include "../scheduler/naive_scheduler.h"
@@ -17,32 +16,13 @@ namespace panene {
 
 template <typename Indexer, typename DataSource>
 class ProgressiveKNNTable {
-  typedef typename Indexer::ElementType ElementType;
-  typedef typename Indexer::DistanceType DistanceType;
-  typedef size_t IDType;
+  typedef typename DataSource::ElementType ElementType;
+  typedef typename DataSource::DistanceType DistanceType;
+  typedef typename DataSource::IDType IDType;
   
+  typedef Neighbor<IDType, DistanceType> NeighborType;
+
 public:
-  struct Neighbor {
-    IDType id;    
-    DistanceType distance;
-
-    Neighbor() = default;
-    Neighbor(IDType id_, DistanceType distance_) : id(id_), distance(distance_) {}
-
-    friend std::ostream& operator<<( std::ostream& os, const Neighbor& obj ) {
-      os << "(" << obj.id << ", " << obj.distance << ")";
-      return os;  
-    }
-
-    bool operator< (const Neighbor &n) const {
-      return this->distance < n.distance;
-    }
-
-    bool operator> (const Neighbor &n) const {
-      return this->distance > n.distance;
-    }
-  };
-
   struct UpdateResult {
     Schedule schedule;
     size_t addNewPointResult;
@@ -131,42 +111,34 @@ public:
     if(addNewPointResult > 0) {
       assert(size > k); // check if at least k points are in the index
 
-      // TODO: the following line assumes that data are stored in a continuous memory space. We need to ditch FLANN's matrix implementation later.
-       
-      Matrix<ElementType> newPoints(new ElementType[addNewPointResult * d], addNewPointResult, d);
-     
-      for(int i = 0; i < addNewPointResult; ++i) {
-        for(int j = 0; j < d; ++j) {
-          newPoints[i][j] = dataSource->get(size - addNewPointResult + i, j);
-        }
+      std::vector<IDType> newPoints(addNewPointResult);
+      
+      for(size_t i = 0; i < addNewPointResult; ++i) {
+        newPoints[i] = oldSize + i;
       } 
 
-      Matrix<IDType> indices(new IDType[newPoints.rows * k], newPoints.rows, k);
-      Matrix<DistanceType> dists(new DistanceType[newPoints.rows * k], newPoints.rows, k);
+      std::vector<ResultSet<IDType, DistanceType>> results(addNewPointResult);
+      for(size_t i = 0; i < addNewPointResult; ++i)
+        results[i] = ResultSet<IDType, DistanceType>(k);
 
 #if DEBUG
       std::cerr << "[PKNNTable] Filling in thw rows of the new points in KNNTable" << std::endl;
 #endif 
 
-      indexer.knnSearch(newPoints, indices, dists, k, searchParams);
+      indexer.knnSearch(newPoints, results, k, searchParams);
 
 #if DEBUG
       std::cerr << "[PKNNTable] KNNSearch Done" << std::endl;
 #endif 
 
-      std::vector<Neighbor> nns;
-      nns.resize(k);
-
-      for(unsigned int i = 0; i < newPoints.rows; ++i) {
+      for(size_t i = 0; i < addNewPointResult; ++i) {
         IDType id = oldSize + i;
         queued.set(id);
 
-        for(unsigned int j = 0; j < k; ++j) {
-          nns[j] = Neighbor(indices[i][j], dists[i][j]);
-
-          if(!queued.test(indices[i][j])) {
-            queued.set(indices[i][j]);
-            queue.push(nns[j]);
+        for(IDType j = 0; j < k; ++j) {
+          if(!queued.test(results[i][j].id)) {
+            queued.set(results[i][j].id);
+            queue.push(results[i][j]);
 
 #if DEBUG
             std::cerr << "[PKNNTable] Adding a dirty neighbor point to the queue " << nns[j] << std::endl;
@@ -174,12 +146,8 @@ public:
           }
         }
         
-        neighbors.push_back(nns);
+        neighbors.push_back(results[i]);
       }
-
-      delete[] indices.ptr();
-      delete[] dists.ptr();
-      delete[] newPoints.ptr();
     }
 
 
@@ -207,8 +175,6 @@ public:
     // 3. process the queue (updateTableOps)
 
     int checkCount = 0;
-    Matrix<IDType> newIndices(new IDType[k], 1, k);
-    Matrix<DistanceType> newDists(new DistanceType[k], 1, k);
     
     while((schedule.updateTableOps < 0 || checkCount < schedule.updateTableOps) && !queue.empty()) {
       auto q = queue.top();
@@ -225,40 +191,31 @@ public:
       // we need to update the NN of q.id
       
       // get the new NN of the dirty point
-
-      Matrix<ElementType> qvec(new ElementType[d], 1, d); // TODO ditch matrix
-      for(int i = 0; i < d; ++i) {
-        qvec[0][i] = dataSource->get(q.id, i);
-      }
-
+      ResultSet<IDType, DistanceType> result(k);
 #if DEBUG
       std::cerr << "[PKNNTable] Starting KNN search for the dirty point" << std::endl;
 #endif
-      indexer.knnSearch(qvec, newIndices, newDists, k, searchParams);
+      indexer.knnSearch(q.id, result, k, searchParams);
 #if DEBUG
       std::cerr << "[PKNNTable] KNN search done" << std::endl;
 #endif
 
-      delete[] qvec.ptr();
-
-      // check if there is a difference between previous NN and newly computed NN.
-      
-      unsigned int i;
+      // check if there is a difference between previous NN and newly computed NN.      
+      size_t i;
       for(i = 0; i < k; ++i) {
-        if(neighbors[q.id][i].id != newIndices[0][i])
+        if(neighbors[q.id][i] != result[i])
           break;
       } 
 
       if(i < k) { // if there is a difference
         // then, mark the nn of q.id as dirty
 
-        for(i = 0; i < k; ++i) {
-          Neighbor ne(newIndices[0][i], newDists[0][i]);
-          neighbors[q.id][i] = ne;
+        neighbors[q.id] = result;
 
-          if(!queued.test(ne.id)) {
-            queued.set(ne.id);
-            queue.push(ne);
+        for(i = 0; i < k; ++i) {
+          if(!queued.test(result[i].id)) {
+            queued.set(result[i].id);
+            queue.push(result[i]);
           }
         }
       }
@@ -277,9 +234,6 @@ public:
 #endif
     }
 
-    delete[] newIndices.ptr();
-    delete[] newDists.ptr();
-
 #if DEBUG
     std::cerr << "[PKNNTable] " << checkCount << " points have been updated." << std::endl;
 #endif
@@ -289,7 +243,7 @@ public:
     return UpdateResult(schedule, addNewPointResult, updateIndexResult, updateTableResult);
   };
 
-  std::vector<Neighbor>& getNeighbors(const IDType id) {
+  ResultSet<IDType, DistanceType> &getNeighbors(const IDType id) {
     return neighbors[id];
   }
 
@@ -298,10 +252,10 @@ private:
   unsigned int k;
   Indexer indexer;
   SearchParams searchParams;
-  std::vector<std::vector<Neighbor>> neighbors;
+  std::vector<ResultSet<IDType, DistanceType>> neighbors;
   DataSource *dataSource;
 
-  std::priority_queue<Neighbor, std::vector<Neighbor>, std::greater<Neighbor>> queue; // descending order
+  std::priority_queue<NeighborType, std::vector<NeighborType>, std::greater<NeighborType>> queue; // descending order
   DynamicBitset queued;
   
   NaiveScheduler naiveScheduler;

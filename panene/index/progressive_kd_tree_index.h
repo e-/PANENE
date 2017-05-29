@@ -16,7 +16,7 @@ namespace panene
 {
 
 template <typename Distance, typename DataSource>
-class ProgressiveKDTreeIndex : public ProgressiveBaseIndex<Distance>
+class ProgressiveKDTreeIndex : public ProgressiveBaseIndex<Distance, DataSource>
 {
 public:
   typedef typename DataSource::ElementType ElementType;
@@ -182,6 +182,68 @@ public:
     return int(pool.usedMemory+pool.wastedMemory+size*sizeof(int));  // pool memory and vind array memory
   }
 
+  void knnSearch(
+      const IDType &qid,
+      ResultSet<IDType, DistanceType> &resultSet,
+      size_t knn,
+      const SearchParams& params) const
+  {
+    bool use_heap = false; // TODO
+
+    /*if (params.use_heap==FLANN_Undefined) {
+      use_heap = (knn>KNN_HEAP_THRESHOLD)?true:false;
+    }
+    else {
+      use_heap = (params.use_heap==FLANN_True)?true:false;
+    }*/
+
+    if (use_heap) {
+      findNeighbors(qid, resultSet, params);
+      //ids_to_ids(ids[i], ids[i], n);
+    }
+    else {
+      findNeighbors(qid, resultSet, params);
+      //ids_to_ids(ids[i], ids[i], n);
+    }
+  }
+
+  void knnSearch(
+      const std::vector<IDType> qids,
+      std::vector<ResultSet<IDType, DistanceType>> &resultSets,
+      size_t knn,
+      const SearchParams& params) const
+  {
+    bool use_heap = false; // TODO
+
+    /*if (params.use_heap==FLANN_Undefined) {
+      use_heap = (knn>KNN_HEAP_THRESHOLD)?true:false;
+    }
+    else {
+      use_heap = (params.use_heap==FLANN_True)?true:false;
+    }*/
+
+    if (use_heap) {
+#pragma omp parallel num_threads(params.cores)
+      {
+#pragma omp for schedule(static)
+        for (size_t i = 0; i < qids.size(); i++) {
+          findNeighbors(qids[i], resultSets[i], params);
+          //ids_to_ids(ids[i], ids[i], n);
+        }
+      }
+    }
+    else {
+#pragma omp parallel num_threads(params.cores)
+      {
+#pragma omp for schedule(static)
+        for (size_t i = 0; i < qids.size(); i++) {
+          findNeighbors(qids[i], resultSets[i], params);
+          //ids_to_ids(ids[i], ids[i], n);
+        }
+      }
+    }
+  }
+
   /**
    * Find set of nearest neighbors to vec. Their ids are stored inside
    * the result object.
@@ -191,13 +253,14 @@ public:
    *     vec = the vector for which to search the nearest neighbors
    *     maxCheck = the maximum number of restarts (in a best-bin-first manner)
    */
-  void findNeighbors(ResultSet<DistanceType>& result, const ElementType* vec, const SearchParams& searchParams) const
+  void findNeighbors(const IDType &qid, ResultSet<IDType, DistanceType> &result, const SearchParams& searchParams) const
   {
     int maxChecks = searchParams.checks;
     float epsError = 1+searchParams.eps;
 
     if (maxChecks==0) { // }FLANN_CHECKS_UNLIMITED) {
-      getExactNeighbors<false>(result, vec, epsError);
+      getExactNeighbors<false>(qid, result, epsError);
+      // TODO deletion
       /*if (removed_) {
         getExactNeighbors<true>(result, vec, epsError);
       }
@@ -206,7 +269,8 @@ public:
       }*/
     }
     else {
-      getNeighbors<false>(result, vec, maxChecks, epsError);
+      getNeighbors<false>(qid, result, maxChecks, epsError);
+      // TODO deletion
       /*if (removed_) {
         getNeighbors<true>(result, vec, maxChecks, epsError);
       }
@@ -214,71 +278,6 @@ public:
         getNeighbors<false>(result, vec, maxChecks, epsError);
       }*/
     }
-  }
-
-
-  /**
-   * @brief Perform k-nearest neighbor search
-   * @param[in] queries The query points for which to find the nearest neighbors
-   * @param[out] ids The ids of the nearest neighbors found
-   * @param[out] dists Distances to the nearest neighbors found
-   * @param[in] knn Number of nearest neighbors to return
-   * @param[in] params Search parameters
-   */
-  int knnSearch(const Matrix<ElementType>& queries,
-      Matrix<size_t>& ids,
-      Matrix<DistanceType>& dists,
-      size_t knn,
-      const SearchParams& params) const
-  {
-    assert(queries.cols == dim);
-    assert(ids.rows >= queries.rows);
-    assert(dists.rows >= queries.rows);
-    assert(ids.cols >= knn);
-    assert(dists.cols >= knn);
-    bool use_heap = false; // TODO
-
-    /*if (params.use_heap==FLANN_Undefined) {
-      use_heap = (knn>KNN_HEAP_THRESHOLD)?true:false;
-    }
-    else {
-      use_heap = (params.use_heap==FLANN_True)?true:false;
-    }*/
-    int count = 0;
-
-    if (use_heap) {
-#pragma omp parallel num_threads(params.cores)
-      {
-        KNNResultSet2<DistanceType> resultSet(knn);
-#pragma omp for schedule(static) reduction(+:count)
-        for (int i = 0; i < (int)queries.rows; i++) {
-          resultSet.clear();
-          findNeighbors(resultSet, queries[i], params);
-          size_t n = std::min(resultSet.size(), knn);
-          resultSet.copy(ids[i], dists[i], n, params.sorted);
-          ids_to_ids(ids[i], ids[i], n);
-          count += n;
-        }
-      }
-    }
-    else {
-#pragma omp parallel num_threads(params.cores)
-      {
-        KNNSimpleResultSet<DistanceType> resultSet(knn);
-#pragma omp for schedule(static) reduction(+:count)
-        for (int i = 0; i < (int)queries.rows; i++) {
-          resultSet.clear();
-          findNeighbors(resultSet, queries[i], params);
-          size_t n = std::min(resultSet.size(), knn);
-
-          resultSet.copy(ids[i], dists[i], n, params.sorted);
-
-          ids_to_ids(ids[i], ids[i], n);
-          count += n;
-        }
-      }
-    }
-    return count;
   }
 
 protected:
@@ -472,13 +471,13 @@ protected:
    * traversal of the tree.
    */
   template<bool with_removed>
-  void getExactNeighbors(ResultSet<DistanceType>& result, const ElementType* vec, float epsError) const
+  void getExactNeighbors(const IDType &qid, ResultSet<IDType, DistanceType> &result, float epsError) const
   {
     if (trees > 1) {
       fprintf(stderr,"It doesn't make any sense to use more than one tree for exact search");
     }
     if (trees > 0) {
-      searchLevelExact<with_removed>(result, vec, treeRoots[0], 0.0, epsError);
+      searchLevelExact<with_removed>(qid, result, treeRoots[0], 0.0, epsError);
     }
   }
 
@@ -488,7 +487,7 @@ protected:
    * the tree.
    */
   template<bool with_removed>
-  void getNeighbors(ResultSet<DistanceType>& result, const ElementType* vec, int maxCheck, float epsError) const
+  void getNeighbors(const IDType &qid, ResultSet<IDType, DistanceType> &result, int maxCheck, float epsError) const
   {
     int i;
     BranchSt branch;
@@ -499,16 +498,15 @@ protected:
 
     /* Search once through each tree down to root. */
     for (i = 0; i < trees; ++i) {
-      searchLevel<with_removed>(result, vec, treeRoots[i], 0, checkCount, maxCheck, epsError, heap, checked);
+      searchLevel<with_removed>(qid, result, treeRoots[i], 0, checkCount, maxCheck, epsError, heap, checked);
     }
 
     /* Keep searching other branches from heap until finished. */
     while ( heap->popMin(branch) && (checkCount < maxCheck || !result.full() )) {
-      searchLevel<with_removed>(result, vec, branch.node, branch.mindist, checkCount, maxCheck, epsError, heap, checked);
+      searchLevel<with_removed>(qid, result, branch.node, branch.mindist, checkCount, maxCheck, epsError, heap, checked);
     }
 
     delete heap;
-
   }
 
   /**
@@ -517,10 +515,10 @@ protected:
    *  at least "mindistsq".
    */
   template<bool with_removed>
-  void searchLevel(ResultSet<DistanceType>& result_set, const ElementType* vec, NodePtr node, DistanceType mindist, int& checkCount, int maxCheck,
+  void searchLevel(const IDType &qid, ResultSet<IDType, DistanceType> &result_set, NodePtr node, DistanceType mindist, int& checkCount, int maxCheck,
       float epsError, Heap<BranchSt>* heap, DynamicBitset& checked) const
   {
-    if (result_set.worstDist()<mindist) {
+    if (result_set.worstDist < mindist) {
       //      printf("Ignoring branch, too far\n");
       return;
     }
@@ -537,13 +535,13 @@ protected:
       checked.set(id);
       checkCount++;
 
-      DistanceType dist = dataSource -> distL2Squared(id, vec);
-      result_set.addPoint(dist, id);
+      DistanceType dist = dataSource -> distL2Squared(id, qid);
+      result_set << Neighbor<IDType, DistanceType>(id, dist);
       return;
     }
 
     /* Which child branch should be taken first? */
-    ElementType val = vec[node->divfeat];
+    ElementType val = dataSource->get(qid, node -> divfeat);
     DistanceType diff = val - node->divval;
     NodePtr bestChild = (diff < 0) ? node->child1 : node->child2;
     NodePtr otherChild = (diff < 0) ? node->child2 : node->child1;
@@ -558,19 +556,19 @@ protected:
 
     DistanceType new_distsq = mindist + distance.accum_dist(val, node->divval, node->divfeat);
     //    if (2 * checkCount < maxCheck  ||  !result.full()) {
-    if ((new_distsq*epsError < result_set.worstDist())||  !result_set.full()) {
+    if ((new_distsq*epsError < result_set.worstDist)||  !result_set.full()) {
       heap->insert( BranchSt(otherChild, new_distsq) );
     }
 
     /* Call recursively to search next level down. */
-    searchLevel<with_removed>(result_set, vec, bestChild, mindist, checkCount, maxCheck, epsError, heap, checked);
+    searchLevel<with_removed>(qid, result_set, bestChild, mindist, checkCount, maxCheck, epsError, heap, checked);
   }
 
   /**
    * Performs an exact search in the tree starting from a node.
    */
   template<bool with_removed>
-  void searchLevelExact(ResultSet<DistanceType>& result_set, const ElementType* vec, const NodePtr node, DistanceType mindist, const float epsError) const
+  void searchLevelExact(const IDType &qid, ResultSet<IDType, DistanceType> &result_set, const NodePtr node, DistanceType mindist, const float epsError) const
   {
     /* If this is a leaf node, then do check and return. */
     if ((node->child1 == NULL)&&(node->child2 == NULL)) {
@@ -579,15 +577,15 @@ protected:
 /*      if (with_removed) {
         if (removed_points_.test(index)) return; // ignore removed points
       }*/
-      DistanceType dist = dataSource->distL2Squared(id, vec);
+      DistanceType dist = dataSource->distL2Squared(qid, id);
 
-      result_set.addPoint(dist, id);
+      result_set << Neighbor<IDType, DistanceType>(id, dist);
 
       return;
     }
 
     /* Which child branch should be taken first? */
-    ElementType val = vec[node->divfeat];
+    ElementType val = dataSource->get(qid, node->divfeat);
     DistanceType diff = val - node->divval;
     NodePtr bestChild = (diff < 0) ? node->child1 : node->child2;
     NodePtr otherChild = (diff < 0) ? node->child2 : node->child1;
@@ -603,10 +601,10 @@ protected:
     DistanceType new_distsq = mindist + distance.accum_dist(val, node->divval, node->divfeat);
 
     /* Call recursively to search next level down. */
-    searchLevelExact<with_removed>(result_set, vec, bestChild, mindist, epsError);
+    searchLevelExact<with_removed>(qid, result_set, bestChild, mindist, epsError);
 
-    if (mindist*epsError<=result_set.worstDist()) {
-      searchLevelExact<with_removed>(result_set, vec, otherChild, new_distsq, epsError);
+    if (mindist*epsError<=result_set.worstDist) {
+      searchLevelExact<with_removed>(qid, result_set, otherChild, new_distsq, epsError);
     }
   }
   

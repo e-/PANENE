@@ -10,6 +10,7 @@
 #include "../table/progressive_knn_table.h"
 #include "../data/naive_data_source.h"
 #include "../util/timer.h"
+#include "../util/matrix.h"
 
 namespace panene {
 
@@ -145,7 +146,7 @@ public:
           auto nn = table.getNeighbors(id);
          
           // get the distance to the farthest neighbor
-          float dist = nn[k].distance;
+          float dist = nn[k].dist;
 
           // get the exact distnce
           float exact = exactDists[i][k];

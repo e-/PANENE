@@ -3,6 +3,8 @@
 
 #include <ctime>
 
+namespace panene {
+
 class Timer
 {
 public:
@@ -21,5 +23,7 @@ public:
 protected:
   struct timespec bb, ff;
 };
+
+}
 
 #endif
