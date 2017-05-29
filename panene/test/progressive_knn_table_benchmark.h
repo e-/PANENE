@@ -148,6 +148,8 @@ public:
           // get the distance to the farthest neighbor
           float dist = nn[k].dist;
 
+          //std::cerr << nn << std::endl;
+
           // get the exact distnce
           float exact = exactDists[i][k];
 

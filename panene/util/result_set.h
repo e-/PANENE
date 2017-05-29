@@ -15,7 +15,7 @@ struct Neighbor {
   Neighbor() = default;
   Neighbor(IDType id_, DistanceType dist_) : id(id_), dist(dist_) {}
 
-  friend std::ostream& operator<<( std::ostream& os, const Neighbor& obj ) {
+  friend std::ostream& operator<<( std::ostream& os, const Neighbor<IDType, DistanceType>& obj ) {
     os << "(" << obj.id << ", " << obj.dist << ")";
     return os;  
   }
@@ -57,6 +57,13 @@ struct ResultSet {
   bool full() const
   {
       return worstDist < std::numeric_limits<DistanceType>::max();
+  }
+
+  friend std::ostream& operator<<( std::ostream& os, const ResultSet<IDType, DistanceType> &obj ) {
+    for(size_t i = 0; i < obj.size; ++i) {
+      os << i << ":" << obj.neighbors[i] << " ";
+    }
+    return os;  
   }
 
   void operator<<( const Neighbor<IDType, DistanceType> neighbor ) {
