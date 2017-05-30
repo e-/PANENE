@@ -10,7 +10,7 @@
 #include <queue>
 #include <cassert>
 
-#include "progressive_base_index.h"
+#include <progressive_base_index.h>
 
 namespace panene
 {

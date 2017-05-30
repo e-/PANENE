@@ -5,13 +5,13 @@
 #include <algorithm>
 #include <random>
 
-#include "../util/allocator.h"
-#include "../util/result_set.h"
-#include "../util/heap.h"
-#include "../util/dynamic_bitset.h"
-#include "../util/random.h"
-#include "../util/result_set.h"
-#include "dist.h"
+#include <util/allocator.h>
+#include <util/result_set.h>
+#include <util/heap.h>
+#include <util/dynamic_bitset.h>
+#include <util/random.h>
+#include <util/result_set.h>
+#include <dist.h>
 
 namespace panene
 {

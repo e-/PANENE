@@ -6,15 +6,14 @@
 #include <algorithm>
 #include <vector>
 
-#include "test.h"
-#include "../table/progressive_knn_table.h"
-#include "../data/naive_data_source.h"
-#include "../util/timer.h"
-#include "../util/matrix.h"
+#include <progressive_knn_table.h>
+#include <naive_data_source.h>
+#include <util/timer.h>
+#include <util/matrix.h>
 
 namespace panene {
 
-class ProgressiveKNNTableBenchmark : Test {
+class ProgressiveKNNTableBenchmark {
   NaiveDataSource* dataSource;
 
 public:
@@ -148,11 +147,12 @@ public:
           // get the distance to the farthest neighbor
           float dist = nn[k].dist;
 
-          //std::cerr << nn << std::endl;
+//          std::cerr << nn << std::endl;
 
           // get the exact distnce
           float exact = exactDists[i][k];
 
+//          std::cerr << dist << " " << exact << std::endl;
           distSum += dist / exact;
         }
         else {

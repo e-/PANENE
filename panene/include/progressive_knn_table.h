@@ -6,9 +6,8 @@
 #include <queue>
 #include <cassert>
 
-#include "../index/progressive_kd_tree_index.h"
-#include "../scheduler/schedule.h"
-#include "../scheduler/naive_scheduler.h"
+#include <progressive_kd_tree_index.h>
+#include <scheduler/naive_scheduler.h>
 
 //#define DEBUG 1
 
