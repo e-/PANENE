@@ -3,7 +3,7 @@
 int main(){
   panene::NaiveDataSource naiveDataSource;
   
-  naiveDataSource.open("../../../data/sift.shuffled.txt", 100000, 128);
+  naiveDataSource.open("../../data/sift.shuffled.txt", 100000, 128);
 
   panene::ProgressiveKNNTableBenchmark test(&naiveDataSource);
 
