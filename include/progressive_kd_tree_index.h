@@ -244,6 +244,45 @@ public:
     }
   }
 
+  void knnSearch(
+      const std::vector<std::vector<ElementType>> &vectors,
+      std::vector<ResultSet<IDType, DistanceType>> &resultSets,
+      size_t knn,
+      const SearchParams& params) const
+  {
+    bool use_heap = false; // TODO
+
+    /*if (params.use_heap==FLANN_Undefined) {
+      use_heap = (knn>KNN_HEAP_THRESHOLD)?true:false;
+    }
+    else {
+      use_heap = (params.use_heap==FLANN_True)?true:false;
+    }*/
+
+    if (use_heap) {
+#pragma omp parallel num_threads(params.cores)
+      {
+#pragma omp for schedule(static)
+        for (size_t i = 0; i < vectors.size(); i++) {
+          findNeighbors(vectors[i], resultSets[i], params);
+          //ids_to_ids(ids[i], ids[i], n);
+        }
+      }
+    }
+    else {
+#pragma omp parallel num_threads(params.cores)
+      {
+#pragma omp for schedule(static)
+        for (size_t i = 0; i < vectors.size(); i++) {
+          findNeighbors(vectors[i], resultSets[i], params);
+          //ids_to_ids(ids[i], ids[i], n);
+        }
+      }
+    }
+  }
+
+
+
   /**
    * Find set of nearest neighbors to vec. Their ids are stored inside
    * the result object.
@@ -259,7 +298,8 @@ public:
     float epsError = 1+searchParams.eps;
 
     if (maxChecks==0) { // }FLANN_CHECKS_UNLIMITED) {
-      getExactNeighbors<false>(qid, result, epsError);
+      throw;
+      //getExactNeighbors<false>(qid, result, epsError);
       // TODO deletion
       /*if (removed_) {
         getExactNeighbors<true>(result, vec, epsError);
@@ -270,6 +310,34 @@ public:
     }
     else {
       getNeighbors<false>(qid, result, maxChecks, epsError);
+      // TODO deletion
+      /*if (removed_) {
+        getNeighbors<true>(result, vec, maxChecks, epsError);
+      }
+      else {
+        getNeighbors<false>(result, vec, maxChecks, epsError);
+      }*/
+    }
+  }
+
+  void findNeighbors(const std::vector<ElementType> &vec, ResultSet<IDType, DistanceType> &result, const SearchParams& searchParams) const
+  {
+    int maxChecks = searchParams.checks;
+    float epsError = 1+searchParams.eps;
+
+    if (maxChecks==0) { // }FLANN_CHECKS_UNLIMITED) {
+      throw;
+      //getExactNeighbors<false>(vec, result, epsError);
+      // TODO deletion
+      /*if (removed_) {
+        getExactNeighbors<true>(result, vec, epsError);
+      }
+      else {
+        getExactNeighbors<false>(result, vec, epsError);
+      }*/
+    }
+    else {
+      getNeighbors<false>(vec, result, maxChecks, epsError);
       // TODO deletion
       /*if (removed_) {
         getNeighbors<true>(result, vec, maxChecks, epsError);
@@ -509,6 +577,29 @@ protected:
     delete heap;
   }
 
+  template<bool with_removed>
+  void getNeighbors(const std::vector<ElementType> &vec, ResultSet<IDType, DistanceType> &result, int maxCheck, float epsError) const
+  {
+    int i;
+    BranchSt branch;
+
+    int checkCount = 0;
+    Heap<BranchSt>* heap = new Heap<BranchSt>((int)size);
+    DynamicBitset checked(size);
+
+    /* Search once through each tree down to root. */
+    for (i = 0; i < trees; ++i) {
+      searchLevel<with_removed>(vec, result, treeRoots[i], 0, checkCount, maxCheck, epsError, heap, checked);
+    }
+
+    /* Keep searching other branches from heap until finished. */
+    while ( heap->popMin(branch) && (checkCount < maxCheck || !result.full() )) {
+      searchLevel<with_removed>(vec, result, branch.node, branch.mindist, checkCount, maxCheck, epsError, heap, checked);
+    }
+
+    delete heap;
+  }
+
   /**
    *  Search starting from a given node of the tree.  Based on any mismatches at
    *  higher levels, all exemplars below this level must have a distance of
@@ -562,6 +653,68 @@ protected:
 
     /* Call recursively to search next level down. */
     searchLevel<with_removed>(qid, result_set, bestChild, mindist, checkCount, maxCheck, epsError, heap, checked);
+  }
+
+  /**
+   *  Search starting from a given node of the tree.  Based on any mismatches at
+   *  higher levels, all exemplars below this level must have a distance of
+   *  at least "mindistsq".
+   */
+  template<bool with_removed>
+  void searchLevel(const std::vector<ElementType> &vec, ResultSet<IDType, DistanceType> &result_set, NodePtr node, DistanceType mindist, int& checkCount, int maxCheck,
+      float epsError, Heap<BranchSt>* heap, DynamicBitset& checked) const
+  {
+    if (result_set.worstDist < mindist) {
+      //      printf("Ignoring branch, too far\n");
+      return;
+    }
+
+    /* If this is a leaf node, then do check and return. */
+    if ((node->child1 == NULL)&&(node->child2 == NULL)) {
+      int id = node -> id;
+      // TODO
+/*      if (with_removed) {
+        if (removed_points_.test(index)) return;
+      }*/
+      /*  Do not check same node more than once when searching multiple trees. */
+      if ( checked.test(id) || ((checkCount>=maxCheck)&& result_set.full()) ) return;
+      checked.set(id);
+      checkCount++;
+
+      DistanceType dist = DistanceType(0);
+      
+      for(size_t i = 0; i < dim; ++i) {
+        ElementType x = dataSource -> get(id, i);
+        ElementType y = vec[i];
+
+        dist += (x - y) * (x - y);
+      }
+      result_set << Neighbor<IDType, DistanceType>(id, dist);
+      return;
+    }
+
+    /* Which child branch should be taken first? */
+    ElementType val = vec[node -> divfeat]; //dataSource->get(qid, node -> divfeat);
+    DistanceType diff = val - node->divval;
+    NodePtr bestChild = (diff < 0) ? node->child1 : node->child2;
+    NodePtr otherChild = (diff < 0) ? node->child2 : node->child1;
+
+    /* Create a branch record for the branch not taken.  Add distance
+       of this feature boundary (we don't attempt to correct for any
+       use of this feature in a parent node, which is unlikely to
+       happen and would have only a small effect).  Don't bother
+       adding more branches to heap after halfway point, as cost of
+       adding exceeds their value.
+       */
+
+    DistanceType new_distsq = mindist + distance.accum_dist(val, node->divval, node->divfeat);
+    //    if (2 * checkCount < maxCheck  ||  !result.full()) {
+    if ((new_distsq*epsError < result_set.worstDist)||  !result_set.full()) {
+      heap->insert( BranchSt(otherChild, new_distsq) );
+    }
+
+    /* Call recursively to search next level down. */
+    searchLevel<with_removed>(vec, result_set, bestChild, mindist, checkCount, maxCheck, epsError, heap, checked);
   }
 
   /**

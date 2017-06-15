@@ -33,6 +33,11 @@ public:
     
     std::ifstream ifs(path);
 
+    if(!ifs) {
+      std::cerr << "file " << path << " does not exist" << std::endl;
+      throw;
+    }
+
     for(size_t i = 0; i < n * d; ++i) {
       ifs >> data[i]; 
     }

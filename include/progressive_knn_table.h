@@ -7,7 +7,7 @@
 #include <cassert>
 
 #include <progressive_kd_tree_index.h>
-#include <scheduler/naive_scheduler.h>
+#include <scheduler/scheduler.h>
 
 //#define DEBUG 1
 
@@ -53,6 +53,10 @@ public:
     queued = DynamicBitset(dataSource -> size());
   }
 
+  void setScheduler(Scheduler *scheduler) {
+    this -> scheduler = scheduler;
+  }
+
   size_t getSize() {
     return indexer.getSize();
   }
@@ -83,7 +87,7 @@ public:
     // Since we do not have such a dataframe currently, we assume all data are loaded in a datasource.
     
     // calculate the number of steps allocated for each operation
-    Schedule schedule = naiveScheduler.schedule(maxOps);
+    Schedule schedule = scheduler->schedule(maxOps);
 
 #if DEBUG
     std::cerr << "[PKNNTable] Updating with a schedule " << schedule << std::endl;
@@ -246,18 +250,18 @@ public:
     return neighbors[id];
   }
 
+  Indexer indexer;
+
 private:
   unsigned int d;
   unsigned int k;
-  Indexer indexer;
   SearchParams searchParams;
   std::vector<ResultSet<IDType, DistanceType>> neighbors;
   DataSource *dataSource;
+  Scheduler *scheduler;
 
   std::priority_queue<NeighborType, std::vector<NeighborType>, std::greater<NeighborType>> queue; // descending order
   DynamicBitset queued;
-  
-  NaiveScheduler naiveScheduler;
 };
 
 }

@@ -30,6 +30,10 @@ def main():
                 if count > 0:
                     print('{},{},{}'.format(x, y, int(count)), file = outfile)
 
+    with open('data.txt', 'w') as outfile:
+        for i in range(len(xs)):
+            print('{} {}'.format(xs[i], ys[i]), file=outfile)
+
 if __name__ == '__main__':
     main()
 
