@@ -1,4 +1,3 @@
-TEST_N=100
 echo "Downloading GIST..."
 #wget "ftp://ftp.irisa.fr/local/texmex/corpus/gist.tar.gz" -O gist.tar.gz
 echo "Extracting GIST..."
