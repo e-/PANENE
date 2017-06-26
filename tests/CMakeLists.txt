@@ -5,8 +5,9 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories ("${CMAKE_SOURCE_DIR}")
 include_directories ("include")
-file(GLOB SourceFiles *.cpp)
-add_executable (tests ${SourceFiles} )
-target_link_libraries (tests LINK_PUBLIC panene)
+set(tests progressive_kd_tree_index_benchmark progressive_knn_table_benchmark)
 
-add_test (NAME MyTest COMMAND tests)
+foreach (test ${tests})
+  add_executable (${test} ${test}.cpp)
+  target_link_libraries (${test} LINK_PUBLIC panene)
+endforeach (test ${tests})
