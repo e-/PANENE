@@ -43,7 +43,7 @@ public:
     fclose(fd);
   }
 
-  ElementType get(const IDType &id, const IDType &dim) const {
+  inline ElementType get(const IDType &id, const IDType &dim) const {
     return *(data + id * d + dim);
   }
 

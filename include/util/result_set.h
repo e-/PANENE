@@ -66,7 +66,7 @@ struct ResultSet {
     return os;  
   }
 
-  void operator<<( const Neighbor<IDType, DistanceType> neighbor ) {
+  void operator<<( const Neighbor<IDType, DistanceType> &neighbor ) {
     if(neighbor.dist >= worstDist) return;
 
     int i;
