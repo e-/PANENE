@@ -9,6 +9,7 @@
 #include <iostream>
 #include <queue>
 #include <cassert>
+#include <map>
 
 #include <progressive_base_index.h>
 
@@ -74,37 +75,135 @@ protected:
     int depth;
     
     InsertionLog() = default;
-  };
+  };  
 
   typedef Node* NodePtr;
   typedef BranchStruct<NodePtr, DistanceType> BranchSt;
   typedef BranchSt* Branch;
 
-public:
-  ProgressiveKDTreeIndex(int trees_, Distance distance_ = Distance()): trees(trees_), distance(distance_)
+  struct KDTree 
   {
-    insertionLogs.resize(trees); 
-    imbalances.resize(trees);
-    sizes.resize(trees);
+    NodePtr root;
+    size_t size;
+    size_t maxSize;
+    int countSum = 0;
+    float cost;
+    std::vector<InsertionLog> insertionLog;
+
+    KDTree() {
+      size = 0;
+      countSum = 0;
+      cost = 0;
+    }
+
+    ~KDTree() {
+      root->~Node();
+    }
+
+    void setMaxSize(size_t maxSize) {
+      this->maxSize = maxSize;
+      insertionLog.resize(maxSize);
+    }
+
+    float computeCost() {
+      float cost = 0;
+      
+      for(size_t i = 0; i < maxSize; ++i) {
+        cost += (float)insertionLog[i].count / countSum * insertionLog[i].depth;
+      }
+      return cost;
+    }
+
+    float computeImbalance() {
+      float ideal = log((float)size) / log(2);
+      return computeCost() / ideal;
+    }
+    
+    size_t computeMaxDepth() {
+      size_t maxDepth = 0;
+      for(size_t i = 0; i < maxSize; ++i) {
+        if(maxDepth < insertionLog[i].depth)
+          maxDepth = insertionLog[i].depth;
+      }
+      return maxDepth;
+    }
+
+    void setInsertionLog(const size_t id, const size_t count, const size_t depth) {
+      countSum = countSum - insertionLog[id].count + count;
+      insertionLog[id].count = count;
+      insertionLog[id].depth = depth;
+    }
+
+    float getCachedImbalance() {
+      float ideal = log((float)size) / log(2);
+      return cost / ideal;
+    }
+
+    void updateInsertionLog(const size_t id, const size_t count, const size_t depth) {
+      if(count > 0 && countSum > 0) {
+        auto& prevLog = insertionLog[id];
+
+//        std::cout << cost << " " << countSum << " " << count << " " << depth << std::endl; 
+
+        cost = (cost
+          -(float)prevLog.count / countSum * prevLog.depth)
+          * countSum / (countSum - prevLog.count + count) 
+          +(float)count / (countSum - prevLog.count + count) * depth;
+      }
+      
+      countSum = countSum - insertionLog[id].count + count;
+      insertionLog[id].count = count;
+      insertionLog[id].depth = depth;
+    }
+
+    void markSplit(const size_t id) {
+      size_t count = insertionLog[id].count;
+      size_t depth = insertionLog[id].depth;
+      updateInsertionLog(id, count + 1, depth + 1);
+    }
+    
+    std::map<size_t, size_t> computeCountDistribution() {
+      std::map<size_t, size_t> dict;
+
+      for(const auto& leaf : insertionLog) {
+        if(dict.count(leaf.count) == 0)
+          dict[leaf.count] = 0;
+        dict[leaf.count]++;
+      }
+      
+      return dict;
+    }
+  };
+
+public:
+  ProgressiveKDTreeIndex(int numTrees_, Distance distance_ = Distance()): numTrees(numTrees_), distance(distance_)
+  {
+    trees.resize(numTrees);
+    for(size_t i = 0; i < numTrees; ++i) {
+      trees[i] = new KDTree();
+    }
   }
 
   ProgressiveKDTreeIndex(IndexParams indexParams_, Distance distance_ = Distance()): distance(distance_) {
-    trees = indexParams_.trees;
-    insertionLogs.resize(trees); 
-    imbalances.resize(trees);
-    sizes.resize(trees);
+    numTrees = indexParams_.trees;
+    trees.resize(numTrees);
+    for(size_t i = 0; i < numTrees; ++i) {
+      trees[i] = new KDTree();
+    }
   }
 
   ~ProgressiveKDTreeIndex() {
+    for(size_t i = 0; i < numTrees; ++i) {
+      delete trees[i];
+    }
   }
 
   void setDataSource(DataSource *dataSource_) {
     dataSource = dataSource_;
     dim = dataSource -> dim();
     size_t maxSize = dataSource -> size();
-    for(size_t i = 0; i < trees; ++i) {
-      imbalances[i] = 0;
-      insertionLogs[i].resize(maxSize);
+    for(size_t i = 0; i < numTrees; ++i) {
+      trees[i]->setMaxSize(maxSize);
     }
   }
 
@@ -120,12 +219,10 @@ public:
     }
     else {
       for(size_t i = oldSize; i < size; ++i) {
-        for(int j = 0; j < trees; ++j) {
-          addPointToTree(j, treeRoots[j], i, 0);
+        for(int j = 0; j < numTrees; ++j) {
+          trees[j]->size++;
+          addPointToTree(trees[j], trees[j] -> root, i, 0);
         }
-      }
-      for(int j = 0; j < trees; ++j) {
-        sizes[j] += (size - oldSize);
       }
       return size - oldSize;
     }
@@ -192,20 +289,22 @@ public:
     }
 
     if(queue.empty()) { //finished creating a new tree
-      
+      size_t victimId = replaced % numTrees;
+
       // get the victim
-      NodePtr victim = treeRoots[replaced % trees];
+      KDTree* victim = trees[victimId];
       
       // replace the victim with the newly created tree
-      treeRoots[replaced % trees]  = ongoingTree;
+      
+      //treeRo[replaced % numTrees]  = ongoingTree;
       replaced++;
 
       // free the victim
-      victim -> ~Node();
+      delete victim;
       
-      insertionLogs[replaced % trees] = ongoingLogs;
-      imbalances[replaced % trees] = computeImbalance(ongoingLogs, sizeAtUpdate);
-      sizes[replaced % trees] = sizeAtUpdate;
+/*      insertionLogs[replaced % numTrees] = ongoingLogs;
+      imbalances[replaced % numTrees] = computeImbalance(ongoingLogs, sizeAtUpdate);
+      sizes[replaced % numTrees] = sizeAtUpdate;*/
 
       // reset the sizeAtUpdate
       sizeAtUpdate = 0;
@@ -395,23 +494,22 @@ protected:
       ids[i] = IDType(i);
     }
 
-    treeRoots.resize(trees);
-
-    for(int i = 0; i < trees; ++i) {
+    for(int i = 0; i < numTrees; ++i) {
       std::random_shuffle(ids.begin(), ids.end());
-      treeRoots[i] = divideTree(&ids[0], int(size), insertionLogs[i], 1);
-      sizes[i] = size;
+      trees[i]->root = divideTree(trees[i], &ids[0], size, 1);
+      trees[i]->size = size;
+      trees[i]->cost = trees[i]->computeCost();
     }
   }
 
   void freeIndex() {
-    for(size_t i=0; i < treeRoots.size(); ++i) {
-      if(treeRoots[i] != nullptr) treeRoots[i]->~Node();
+    for(size_t i=0; i < numTrees; ++i) {
+      if(trees[i] != nullptr) trees[i]->~KDTree();
     }
     pool.free();
   }
   
-  void addPointToTree(size_t treeId, NodePtr node, IDType id, int depth) {
+  void addPointToTree(KDTree* tree, NodePtr node, IDType id, int depth) {
     if ((node->child1==NULL) && (node->child2==NULL)) {
       // if leaf
 
@@ -445,31 +543,20 @@ protected:
 
       // incrementally update imbalance
       
-      insertionLogs[treeId][id].count = 0;
-      insertionLogs[treeId][id].depth = depth + 1;
-      
-      auto& prevLog = insertionLogs[treeId][nodeId];
-      
-     
-      imbalances[treeId] = 
-        imbalances[treeId] * id / (id + 1)
-        -(float)prevLog.count / id * prevLog.depth
-        +(float)(prevLog.count + 1) / (id + 1) * (prevLog.depth + 1);
-
-      prevLog.count += 1;
-      prevLog.depth = depth + 1;
+      tree->setInsertionLog(id, 0, depth + 1);
+      tree->markSplit(nodeId);
     }
     else {
       if (dataSource->get(id, node->divfeat) < node->divval) {
-          addPointToTree(treeId, node->child1, id, depth + 1);
+          addPointToTree(tree, node->child1, id, depth + 1);
       }
       else {
-          addPointToTree(treeId, node->child2, id, depth + 1);
+          addPointToTree(tree, node->child2, id, depth + 1);
       }
     }
   }
 
-  NodePtr divideTree(IDType *ids, int count, std::vector<InsertionLog>& insertionLog, int depth) {
+  NodePtr divideTree(KDTree* tree, IDType *ids, size_t count, size_t depth) {
     NodePtr node = new(pool) Node();
     
     /* If too few exemplars remain, then make this a leaf node. */
@@ -478,8 +565,7 @@ protected:
         node->divfeat = -1; // a leaf node
         IDType id = ids[0];
         node->id = id;
-        insertionLog[id].count = 1;
-        insertionLog[id].depth = depth;
+        tree->setInsertionLog(id, 1, depth);
     }
     else {
         int idx;
@@ -489,8 +575,8 @@ protected:
 
         node->divfeat = cutfeat;
         node->divval = cutval;
-        node->child1 = divideTree(ids, idx, insertionLog, depth + 1);
-        node->child2 = divideTree(ids+idx, count-idx, insertionLog, depth + 1);
+        node->child1 = divideTree(tree, ids, idx, depth + 1);
+        node->child2 = divideTree(tree, ids+idx, count-idx, depth + 1);
     }
 
     return node;
@@ -599,11 +685,11 @@ protected:
   template<bool with_removed>
   void getExactNeighbors(const IDType &qid, ResultSet<IDType, DistanceType> &result, float epsError) const
   {
-    if (trees > 1) {
+    if (numTrees > 1) {
       fprintf(stderr,"It doesn't make any sense to use more than one tree for exact search");
     }
-    if (trees > 0) {
-      searchLevelExact<with_removed>(qid, result, treeRoots[0], 0.0, epsError);
+    if (numTrees > 0) {
+      searchLevelExact<with_removed>(qid, result, trees[0]->root, 0.0, epsError);
     }
   }
 
@@ -623,8 +709,8 @@ protected:
     DynamicBitset checked(size);
 
     /* Search once through each tree down to root. */
-    for (i = 0; i < trees; ++i) {
-      searchLevel<with_removed>(qid, result, treeRoots[i], 0, checkCount, maxCheck, epsError, heap, checked);
+    for (i = 0; i < numTrees; ++i) {
+      searchLevel<with_removed>(qid, result, trees[i]->root, 0, checkCount, maxCheck, epsError, heap, checked);
     }
 
     /* Keep searching other branches from heap until finished. */
@@ -646,8 +732,8 @@ protected:
     DynamicBitset checked(size);
 
     /* Search once through each tree down to root. */
-    for (i = 0; i < trees; ++i) {
-      searchLevel<with_removed>(vec, result, treeRoots[i], 0, checkCount, maxCheck, epsError, heap, checked);
+    for (i = 0; i < numTrees; ++i) {
+      searchLevel<with_removed>(vec, result, trees[i]->root, 0, checkCount, maxCheck, epsError, heap, checked);
     }
 
     /* Keep searching other branches from heap until finished. */
@@ -679,7 +765,7 @@ protected:
 /*      if (with_removed) {
         if (removed_points_.test(index)) return;
       }*/
-      /*  Do not check same node more than once when searching multiple trees. */
+      /*  Do not check same node more than once when searching multiple numTrees. */
       if ( checked.test(id) || ((checkCount>=maxCheck)&& result_set.full()) ) return;
       checked.set(id);
       checkCount++;
@@ -734,7 +820,7 @@ protected:
 /*      if (with_removed) {
         if (removed_points_.test(index)) return;
       }*/
-      /*  Do not check same node more than once when searching multiple trees. */
+      /*  Do not check same node more than once when searching multiple numTrees. */
       if ( checked.test(id) || ((checkCount>=maxCheck)&& result_set.full()) ) return;
       checked.set(id);
       checkCount++;
@@ -829,34 +915,20 @@ protected:
     }*/
   }
 
- 
-
-  float computeImbalance(const std::vector<InsertionLog>& insertionLogs, size_t size) {
-    float ideal = log((float)size) / log(2);
-    float quality = 0;
-    const float log2 = log(2);
-
-    for(size_t i = 0; i < size; ++i) {
-      quality += (float)insertionLogs[i].count / size * insertionLogs[i].depth;
-    }
-    return quality / ideal;
-  }
-
 public:
-  const std::vector<float>& getImbalances() {
+  std::vector<float> getCachedImbalances() {
+    std::vector<float> imbalances;
+    for(size_t i = 0; i < numTrees; ++i) {
+      imbalances.push_back(trees[i]->getCachedImbalance());
+    }
     return imbalances;
   }
 
-  const std::vector<std::vector<InsertionLog>>& getInsertionLogs() {
-    return insertionLogs;
-  }
- 
   std::vector<float> recomputeImbalances() {
     std::vector<float> imbalances;
 
-    for(size_t i = 0; i < trees; ++i) {
-      float imbalance = computeImbalance(insertionLogs[i], sizes[i]);
-      imbalances.push_back(imbalance);
+    for(size_t i = 0; i < numTrees; ++i) {
+      imbalances.push_back(trees[i]->computeImbalance());
     }
     
     return imbalances;
@@ -864,15 +936,27 @@ public:
 
   size_t computeMaxDepth() {
     size_t maxDepth = 0;
-    for(size_t j = 0; j < trees; ++j) {
-      for(size_t i = 0; i < size; ++i) {
-        if(maxDepth < insertionLogs[j][i].depth)
-          maxDepth = insertionLogs[j][i].depth;
-      }
+    for(size_t j = 0; j < numTrees; ++j) {
+      size_t depth = trees[j]->computeMaxDepth();
+      if(maxDepth < depth)
+        maxDepth = depth;
     }
     return maxDepth;
   }
 
+
+  std::map<size_t, size_t> computeCountDistribution() {
+    std::map<size_t, size_t> dict;
+    for(size_t i = 0 ; i < numTrees; ++i) {
+      const auto& partial = trees[i]->computeCountDistribution();
+      for(const auto& tuple : partial) {
+        if(dict.count(tuple.first) == 0)
+          dict[tuple.first] = 0;
+        dict[tuple.first] += tuple.second;
+      }
+    }
+    return dict;
+  }  
 private:
   enum 
   {
@@ -880,14 +964,14 @@ private:
     RAND_DIM = 5
   };
 
-  int trees;
+  int numTrees;
   Distance distance;
   size_t size = 0;
   size_t sizeAtUpdate = 0;
   size_t dim;
   DataSource *dataSource;
 
-  std::vector<NodePtr> treeRoots;
+  std::vector<KDTree*> trees;
   NodePtr ongoingTree;
   
   std::vector<IDType> ids;
@@ -897,10 +981,6 @@ private:
   
   std::vector<InsertionLog> ongoingLogs;
   float ongoingImbalance;
-  std::vector<std::vector<InsertionLog>> insertionLogs;
-  std::vector<float> imbalances;
-
-  std::vector<size_t> sizes;
 };
 
 }

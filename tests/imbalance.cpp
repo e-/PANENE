@@ -73,7 +73,7 @@ void run() {
   };
   
   const int k = 20;
-  const int maxOps = 1024;
+  const int maxOps = 10; //24;
   const int maxRepeat = 10; //0; //5;
   const int maxIter = 1000;
   
@@ -146,6 +146,18 @@ void run() {
           } 
           std::cerr << progressiveIndex.computeMaxDepth() << std::endl;
 
+          for(auto imbalance : imbalances) {
+            std::cout << imbalance << "\t";
+          } 
+          std::cout << std::endl;
+
+          auto imbalances2 = progressiveIndex.getCachedImbalances();
+
+          for(auto imbalance : imbalances2) {
+            std::cout << imbalance << "\t";
+          } 
+          std::cout << std::endl;
+
           continue;
 
   /*        std::cout << "maintain: " << std::endl;
@@ -189,16 +201,7 @@ void run() {
             << updateIndexResult << "\t" << updateIndexElapsed << "\t"
             << searchElapsed << "\t" << accuracy << "\t" << meanDistError << std::endl;*/
         }
-        auto logs = progressiveIndex.getInsertionLogs();
-        std::map<int, int> dict;
-
-        for(auto& log: logs) {
-          for(auto& leaf: log){ 
-            if(dict.count(leaf.count) == 0)
-              dict[leaf.count] = 0;
-            dict[leaf.count]++;
-          }
-        }
+        const auto dict = progressiveIndex.computeCountDistribution();
 
         for (auto& iter : dict) {
           std::cout << iter.first << " : " << iter.second << std::endl;
