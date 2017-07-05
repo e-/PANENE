@@ -46,8 +46,9 @@ protected:
     struct Node *node;
     IDType *begin;
     int count;
+    int depth;
     
-    NodeSplit(Node* node_, IDType *begin_, int count_) : node(node_), begin(begin_), count(count_) {}
+    NodeSplit(Node* node_, IDType *begin_, int count_, int depth_) : node(node_), begin(begin_), count(count_), depth(depth_) {}
   };
 
   template <typename T, typename DistanceType>
@@ -67,6 +68,14 @@ protected:
 
   };
 
+  struct InsertionLog
+  {
+    float count;
+    int depth;
+    
+    InsertionLog() = default;
+  };
+
   typedef Node* NodePtr;
   typedef BranchStruct<NodePtr, DistanceType> BranchSt;
   typedef BranchSt* Branch;
@@ -74,10 +83,16 @@ protected:
 public:
   ProgressiveKDTreeIndex(int trees_, Distance distance_ = Distance()): trees(trees_), distance(distance_)
   {
+    insertionLogs.resize(trees); 
+    imbalances.resize(trees);
+    sizes.resize(trees);
   }
 
   ProgressiveKDTreeIndex(IndexParams indexParams_, Distance distance_ = Distance()): distance(distance_) {
     trees = indexParams_.trees;
+    insertionLogs.resize(trees); 
+    imbalances.resize(trees);
+    sizes.resize(trees);
   }
 
   ~ProgressiveKDTreeIndex() {
@@ -86,6 +101,11 @@ public:
   void setDataSource(DataSource *dataSource_) {
     dataSource = dataSource_;
     dim = dataSource -> dim();
+    size_t maxSize = dataSource -> size();
+    for(size_t i = 0; i < trees; ++i) {
+      imbalances[i] = 0;
+      insertionLogs[i].resize(maxSize);
+    }
   }
 
   size_t addPoints(size_t newPoints) {
@@ -101,8 +121,11 @@ public:
     else {
       for(size_t i = oldSize; i < size; ++i) {
         for(int j = 0; j < trees; ++j) {
-          addPointToTree(treeRoots[j], i);
+          addPointToTree(j, treeRoots[j], i, 0);
         }
+      }
+      for(int j = 0; j < trees; ++j) {
+        sizes[j] += (size - oldSize);
       }
       return size - oldSize;
     }
@@ -117,7 +140,14 @@ public:
       std::random_shuffle(ids.begin(), ids.end());
       
       ongoingTree = new(pool) Node();
-      queue.push(NodeSplit(ongoingTree, &ids[0], sizeAtUpdate));
+      queue.push(NodeSplit(ongoingTree, &ids[0], sizeAtUpdate, 1));
+
+      ongoingImbalance = 0;
+      ongoingLogs.resize(dataSource->size());
+      for(size_t i = 0; i < ongoingLogs.size(); ++i) {
+        ongoingLogs[i].count = 0;
+        ongoingLogs[i].depth = 0;
+      }
     }
     
     int updatedCount = 0;
@@ -131,36 +161,37 @@ public:
       NodePtr node = nodeSplit.node;
       IDType *begin = nodeSplit.begin;
       int count = nodeSplit.count;
+      int depth = nodeSplit.depth;
 
 //      std::cerr << begin << " " << count << std::endl;
 
       // At this point, nodeSplit the two children of nodeSplit are nullptr
       if (count == 1) {
-          node->child1 = node->child2 = NULL;    /* Mark as leaf node. */
-          node->id = *begin;    /* Store index of this vec. */ // TODO id of vec
+        node->child1 = node->child2 = NULL;    /* Mark as leaf node. */
+        node->id = *begin;    /* Store index of this vec. */ // TODO id of vec
+        ongoingLogs[node->id].count = 1;
+        ongoingLogs[node->id].depth = depth; 
       }
       else {
-          int idx;
-          int cutfeat;
-          DistanceType cutval;
-          meanSplit(begin, count, idx, cutfeat, cutval);
-          
+        int idx;
+        int cutfeat;
+        DistanceType cutval;
+        meanSplit(begin, count, idx, cutfeat, cutval);
+        
 //          std::cerr << "cut index: " << idx << " cut count: " << count << std::endl;
 
-          node->divfeat = cutfeat;
-          node->divval = cutval;
-          node->child1 = new(pool) Node();
-          node->child2 = new(pool) Node();
-          
-          queue.push(NodeSplit(node->child1, begin, idx));
-          queue.push(NodeSplit(node->child2, begin + idx, count - idx));
+        node->divfeat = cutfeat;
+        node->divval = cutval;
+        node->child1 = new(pool) Node();
+        node->child2 = new(pool) Node();
+        
+        queue.push(NodeSplit(node->child1, begin, idx, depth + 1));
+        queue.push(NodeSplit(node->child2, begin + idx, count - idx, depth + 1));
       }
       updatedCount++;
     }
 
     if(queue.empty()) { //finished creating a new tree
-      // reset the sizeAtUpdate
-      sizeAtUpdate = 0;
       
       // get the victim
       NodePtr victim = treeRoots[replaced % trees];
@@ -171,6 +202,14 @@ public:
 
       // free the victim
       victim -> ~Node();
+      
+      insertionLogs[replaced % trees] = ongoingLogs;
+      imbalances[replaced % trees] = computeImbalance(ongoingLogs, sizeAtUpdate);
+      sizes[replaced % trees] = sizeAtUpdate;
+
+      // reset the sizeAtUpdate
+      sizeAtUpdate = 0;
+
     }
 
     return updatedCount;
@@ -360,7 +399,8 @@ protected:
 
     for(int i = 0; i < trees; ++i) {
       std::random_shuffle(ids.begin(), ids.end());
-      treeRoots[i] = divideTree(&ids[0], int(size));
+      treeRoots[i] = divideTree(&ids[0], int(size), insertionLogs[i], 1);
+      sizes[i] = size;
     }
   }
 
@@ -371,13 +411,12 @@ protected:
     pool.free();
   }
   
-  void addPointToTree(NodePtr node, IDType id) {
-//    ElementType* point = dataSource->get(id); // TODO
-
+  void addPointToTree(size_t treeId, NodePtr node, IDType id, int depth) {
     if ((node->child1==NULL) && (node->child2==NULL)) {
-//      ElementType *leafPoint = node->point;
+      // if leaf
 
-      size_t divfeat = dataSource->findDimWithMaxSpan(id, node->id);
+      size_t nodeId = node->id;
+      size_t divfeat = dataSource->findDimWithMaxSpan(id, nodeId);
       
       NodePtr left = new(pool) Node();
       left->child1 = left->child2 = NULL;
@@ -387,7 +426,7 @@ protected:
 
       ElementType pointValue = dataSource -> get(id, divfeat);
       ElementType leafValue = dataSource -> get(node->id, divfeat);
-
+      
       if (pointValue < leafValue) {
           left->id = id;
           right->id = node->id;
@@ -402,26 +441,45 @@ protected:
       node->divfeat = divfeat;
       node->divval = (pointValue + leafValue)/2;
       node->child1 = left;
-      node->child2 = right;            
+      node->child2 = right;
+
+      // incrementally update imbalance
+      
+      insertionLogs[treeId][id].count = 0;
+      insertionLogs[treeId][id].depth = depth + 1;
+      
+      auto& prevLog = insertionLogs[treeId][nodeId];
+      
+     
+      imbalances[treeId] = 
+        imbalances[treeId] * id / (id + 1)
+        -(float)prevLog.count / id * prevLog.depth
+        +(float)(prevLog.count + 1) / (id + 1) * (prevLog.depth + 1);
+
+      prevLog.count += 1;
+      prevLog.depth = depth + 1;
     }
     else {
       if (dataSource->get(id, node->divfeat) < node->divval) {
-          addPointToTree(node->child1, id);
+          addPointToTree(treeId, node->child1, id, depth + 1);
       }
       else {
-          addPointToTree(node->child2, id);                
+          addPointToTree(treeId, node->child2, id, depth + 1);
       }
     }
   }
 
-  NodePtr divideTree(IDType *ids, int count) {
+  NodePtr divideTree(IDType *ids, int count, std::vector<InsertionLog>& insertionLog, int depth) {
     NodePtr node = new(pool) Node();
     
     /* If too few exemplars remain, then make this a leaf node. */
     if (count == 1) {
         node->child1 = node->child2 = NULL;    /* Mark as leaf node. */
         node->divfeat = -1; // a leaf node
-        node->id = ids[0];
+        IDType id = ids[0];
+        node->id = id;
+        insertionLog[id].count = 1;
+        insertionLog[id].depth = depth;
     }
     else {
         int idx;
@@ -431,8 +489,8 @@ protected:
 
         node->divfeat = cutfeat;
         node->divval = cutval;
-        node->child1 = divideTree(ids, idx);
-        node->child2 = divideTree(ids+idx, count-idx);
+        node->child1 = divideTree(ids, idx, insertionLog, depth + 1);
+        node->child2 = divideTree(ids+idx, count-idx, insertionLog, depth + 1);
     }
 
     return node;
@@ -771,6 +829,50 @@ protected:
     }*/
   }
 
+ 
+
+  float computeImbalance(const std::vector<InsertionLog>& insertionLogs, size_t size) {
+    float ideal = log((float)size) / log(2);
+    float quality = 0;
+    const float log2 = log(2);
+
+    for(size_t i = 0; i < size; ++i) {
+      quality += (float)insertionLogs[i].count / size * insertionLogs[i].depth;
+    }
+    return quality / ideal;
+  }
+
+public:
+  const std::vector<float>& getImbalances() {
+    return imbalances;
+  }
+
+  const std::vector<std::vector<InsertionLog>>& getInsertionLogs() {
+    return insertionLogs;
+  }
+ 
+  std::vector<float> recomputeImbalances() {
+    std::vector<float> imbalances;
+
+    for(size_t i = 0; i < trees; ++i) {
+      float imbalance = computeImbalance(insertionLogs[i], sizes[i]);
+      imbalances.push_back(imbalance);
+    }
+    
+    return imbalances;
+  }
+
+  size_t computeMaxDepth() {
+    size_t maxDepth = 0;
+    for(size_t j = 0; j < trees; ++j) {
+      for(size_t i = 0; i < size; ++i) {
+        if(maxDepth < insertionLogs[j][i].depth)
+          maxDepth = insertionLogs[j][i].depth;
+      }
+    }
+    return maxDepth;
+  }
+
 private:
   enum 
   {
@@ -787,10 +889,18 @@ private:
 
   std::vector<NodePtr> treeRoots;
   NodePtr ongoingTree;
+  
   std::vector<IDType> ids;
   PooledAllocator pool;
   std::queue<NodeSplit> queue;
   size_t replaced = 0;
+  
+  std::vector<InsertionLog> ongoingLogs;
+  float ongoingImbalance;
+  std::vector<std::vector<InsertionLog>> insertionLogs;
+  std::vector<float> imbalances;
+
+  std::vector<size_t> sizes;
 };
 
 }

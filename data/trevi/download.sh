@@ -6,6 +6,8 @@ unzip -q trevi.zip -d patches
 echo "Converting Trevi..."
 python2 ../binary_converter.py patches/ data.bin
 python2 ../binary_converter.py --sample data.bin train.bin test.bin $TEST_N 4096
+python2 ../preprocess.py data.bin 1000000 4096 trevi
+
 if [ "$REMOVE_DOWNLOADED" = true ]; then
     rm -r patches
     rm trevi.zip

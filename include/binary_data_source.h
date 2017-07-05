@@ -6,6 +6,8 @@
 #include <vector>
 #include <cmath>
 #include <cstdlib>
+#include <utility>
+#include <sys/stat.h>
 
 namespace panene
 {
@@ -19,19 +21,14 @@ public:
   typedef float ElementType;
   typedef float DistanceType;
 
-  BinaryDataSource() {
+  BinaryDataSource(const std::string& name_ = "data") : name(name_) {
   }
 
   ~BinaryDataSource() {
     if(opened) delete[] data;
   }
 
-  void open(const std::string& path, size_t n_, size_t d_) {
-    n = n_;
-    d = d_;
-    data = new ElementType[n * d];    
-    opened = true;
-
+  size_t open(const std::string& path, size_t n_, size_t d_) {
     FILE *fd;
     fd = fopen(path.c_str(), "rb"); 
     if(!fd) {
@@ -39,8 +36,17 @@ public:
       throw;
     }
 
-    fread(data, sizeof(ElementType), n * d, fd);
+    struct stat sb;
+    stat(path.c_str(), &sb);
+    n = std::min(sb.st_size / (sizeof(float) * d_), n_);
+    d = d_;
+
+    data = new ElementType[n * d];    
+    opened = true;
+
+    auto ret = fread(data, sizeof(ElementType), n * d, fd);
     fclose(fd);
+    return n;
   }
 
   inline ElementType get(const IDType &id, const IDType &dim) const {
@@ -120,6 +126,8 @@ public:
   size_t n;
   size_t d;
   bool opened = false;
+  std::string name;
+
 protected:  
   ElementType* data;
 };
