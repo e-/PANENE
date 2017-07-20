@@ -71,8 +71,8 @@ protected:
 
   struct InsertionLog
   {
-    float count;
-    int depth;
+    size_t count;
+    size_t depth;
     
     InsertionLog() = default;
   };  
@@ -115,7 +115,7 @@ protected:
     }
 
     float computeImbalance() {
-      float ideal = log((float)size) / log(2);
+      float ideal = (float)(log(size) / log(2));
       return computeCost() / ideal;
     }
     
@@ -135,7 +135,7 @@ protected:
     }
 
     float getCachedImbalance() {
-      float ideal = log((float)size) / log(2);
+      float ideal = (float)(log(size) / log(2));
       return cost / ideal;
     }
 
@@ -219,7 +219,7 @@ public:
     }
     else {
       for(size_t i = oldSize; i < size; ++i) {
-        for(int j = 0; j < numTrees; ++j) {
+        for(size_t j = 0; j < numTrees; ++j) {
           trees[j]->size++;
           addPointToTree(trees[j], trees[j] -> root, i, 0);
         }
@@ -364,7 +364,7 @@ public:
 #pragma omp parallel num_threads(params.cores)
       {
 #pragma omp for schedule(static)
-        for (size_t i = 0; i < qids.size(); i++) {
+        for (int i = 0; i < (int)qids.size(); i++) {
           findNeighbors(qids[i], resultSets[i], params);
           //ids_to_ids(ids[i], ids[i], n);
         }
@@ -374,7 +374,7 @@ public:
 #pragma omp parallel num_threads(params.cores)
       {
 #pragma omp for schedule(static)
-        for (size_t i = 0; i < qids.size(); i++) {
+        for (int i = 0; i < (int)qids.size(); i++) {
           findNeighbors(qids[i], resultSets[i], params);
           //ids_to_ids(ids[i], ids[i], n);
         }
@@ -494,7 +494,7 @@ protected:
       ids[i] = IDType(i);
     }
 
-    for(int i = 0; i < numTrees; ++i) {
+    for(size_t i = 0; i < numTrees; ++i) {
       std::random_shuffle(ids.begin(), ids.end());
       trees[i]->root = divideTree(trees[i], &ids[0], size, 1);
       trees[i]->size = size;
@@ -701,7 +701,6 @@ protected:
   template<bool with_removed>
   void getNeighbors(const IDType &qid, ResultSet<IDType, DistanceType> &result, int maxCheck, float epsError) const
   {
-    int i;
     BranchSt branch;
 
     int checkCount = 0;
@@ -709,7 +708,7 @@ protected:
     DynamicBitset checked(size);
 
     /* Search once through each tree down to root. */
-    for (i = 0; i < numTrees; ++i) {
+    for (size_t i = 0; i < numTrees; ++i) {
       searchLevel<with_removed>(qid, result, trees[i]->root, 0, checkCount, maxCheck, epsError, heap, checked);
     }
 
@@ -964,7 +963,7 @@ private:
     RAND_DIM = 5
   };
 
-  int numTrees;
+  size_t numTrees;
   Distance distance;
   size_t size = 0;
   size_t sizeAtUpdate = 0;

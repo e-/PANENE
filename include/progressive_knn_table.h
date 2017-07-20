@@ -8,6 +8,7 @@
 
 #include <progressive_kd_tree_index.h>
 #include <scheduler/scheduler.h>
+#include <functional>
 
 //#define DEBUG 1
 

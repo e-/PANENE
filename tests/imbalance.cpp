@@ -34,7 +34,7 @@ void getExactNN(const BinaryDataSource &train,
   size_t testN = test.size();
 
 #pragma omp parallel for
-  for(size_t q = 0; q < testN; q++) {
+  for(int q = 0; q < (int)testN; q++) {
     auto &result = exactResults[q];
 
     for(size_t i = 0; i < trainN; i++) {
@@ -61,7 +61,8 @@ void run() {
   Timer timer;
 
   std::vector<Dataset> datasets = {
-    Dataset("glove", "original", "../../data/glove/glove.original.bin", 1100000, 100),
+    Dataset("glove", "original", "D:\\G\\work\\panene\\PANENE\\data\\glove\\glove.original.bin", 1100000, 100),
+    /*Dataset("glove", "original", "../../../data/glove/glove.original.bin", 1100000, 100),
     Dataset("glove", "shuffled", "../../data/glove/glove.shuffled.bin", 1100000, 100),
     Dataset("glove", "sorted", "../../data/glove/glove.sorted.bin", 1100000, 100),
     Dataset("sift", "original", "../../data/sift/sift.original.bin", 1000000, 128),
@@ -69,7 +70,7 @@ void run() {
     Dataset("sift", "sorted", "../../data/sift/sift.sorted.bin", 1000000, 128),
     Dataset("gist", "original", "../../data/gist/gist.original.bin", 1000000, 960),
     Dataset("gist", "shuffled", "../../data/gist/gist.shuffled.bin", 1000000, 960),
-    Dataset("gist", "sorted", "../../data/gist/gist.sorted.bin", 1000000, 960)
+    Dataset("gist", "sorted", "../../data/gist/gist.sorted.bin", 1000000, 960)*/
   };
   
   const int k = 20;
@@ -111,14 +112,14 @@ void run() {
 
     size_t trainN = trainDataSource.open(dataset.path, dataset.n, dataset.dim);
 
-    for(int w = 0; w < weightN; ++w) {
+    for(size_t w = 0; w < weightN; ++w) {
       float weight = addPointWeights[w];
       if(maxOps * weight * maxIter < trainN ) {
         std::cout << "weight " << weight << " is too small. Some points may not be indexed" << std::endl;
       }
     } 
 
-    for(int w = 0; w < weightN; ++w) {
+    for(size_t w = 0; w < weightN; ++w) {
       float addPointWeight = addPointWeights[w];
 
       for(int repeat = 0; repeat < maxRepeat; ++repeat) {
@@ -130,7 +131,7 @@ void run() {
           // update the index with the given number operations
 
           timer.begin();
-          size_t addNewPointResult = progressiveIndex.addPoints(maxOps * addPointWeight);
+          size_t addNewPointResult = progressiveIndex.addPoints((size_t)(maxOps * addPointWeight));
           double addNewPointElapsed = timer.end();
           if(addNewPointResult == 0) break;
           
