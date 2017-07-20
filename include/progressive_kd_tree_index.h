@@ -236,15 +236,12 @@ public:
       for(size_t i = 0; i < sizeAtUpdate; ++i) ids[i] = int(i);
       std::random_shuffle(ids.begin(), ids.end());
       
-      ongoingTree = new(pool) Node();
-      queue.push(NodeSplit(ongoingTree, &ids[0], sizeAtUpdate, 1));
+      ongoingTree = new KDTree();
+      ongoingTree->root = new(pool) Node();
+      queue.push(NodeSplit(ongoingTree->root, &ids[0], sizeAtUpdate, 1));
 
-      ongoingImbalance = 0;
-      ongoingLogs.resize(dataSource->size());
-      for(size_t i = 0; i < ongoingLogs.size(); ++i) {
-        ongoingLogs[i].count = 0;
-        ongoingLogs[i].depth = 0;
-      }
+      ongoingTree->size = sizeAtUpdate;
+      ongoingTree->setMaxSize(dataSource->size());
     }
     
     int updatedCount = 0;
@@ -266,8 +263,7 @@ public:
       if (count == 1) {
         node->child1 = node->child2 = NULL;    /* Mark as leaf node. */
         node->id = *begin;    /* Store index of this vec. */ // TODO id of vec
-        ongoingLogs[node->id].count = 1;
-        ongoingLogs[node->id].depth = depth; 
+        ongoingTree->setInsertionLog(node->id, 1, depth);
       }
       else {
         int idx;
@@ -289,26 +285,30 @@ public:
     }
 
     if(queue.empty()) { //finished creating a new tree
-      size_t victimId = replaced % numTrees;
+      ongoingTree->cost = ongoingTree->computeCost();
 
+      size_t victimId = 0;
+      float maxImbalance = trees[0] -> computeImbalance();
+      
+      for(size_t i = 0; i < numTrees; ++i) {
+        float imbalance = trees[i] -> computeImbalance();
+
+        if(maxImbalance < imbalance) {
+          maxImbalance = imbalance;
+          victimId = i;
+        }
+      }
+      
       // get the victim
       KDTree* victim = trees[victimId];
       
       // replace the victim with the newly created tree
-      
-      //treeRo[replaced % numTrees]  = ongoingTree;
-      replaced++;
-
-      // free the victim
       delete victim;
-      
-/*      insertionLogs[replaced % numTrees] = ongoingLogs;
-      imbalances[replaced % numTrees] = computeImbalance(ongoingLogs, sizeAtUpdate);
-      sizes[replaced % numTrees] = sizeAtUpdate;*/
 
+      trees[victimId] = ongoingTree;
+      
       // reset the sizeAtUpdate
       sizeAtUpdate = 0;
-
     }
 
     return updatedCount;
@@ -972,15 +972,11 @@ private:
   DataSource *dataSource;
 
   std::vector<KDTree*> trees;
-  NodePtr ongoingTree;
+  KDTree* ongoingTree;
   
   std::vector<IDType> ids;
   PooledAllocator pool;
   std::queue<NodeSplit> queue;
-  size_t replaced = 0;
-  
-  std::vector<InsertionLog> ongoingLogs;
-  float ongoingImbalance;
 };
 
 }
