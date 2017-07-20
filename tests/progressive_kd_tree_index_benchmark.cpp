@@ -33,7 +33,7 @@ void getExactNN(const BinaryDataSource &train,
   size_t testN = test.size();
 
 #pragma omp parallel for
-  for(size_t q = 0; q < testN; q++) {
+  for(int q = 0; q < (int)testN; q++) {
     auto &result = exactResults[q];
 
     for(size_t i = 0; i < trainN; i++) {

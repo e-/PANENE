@@ -162,7 +162,7 @@ public:
 #pragma omp parallel num_threads(params.cores)
       {
 #pragma omp for schedule(static)
-        for (size_t i = 0; i < qids.size(); i++) {
+        for (int i = 0; i < (int)qids.size(); i++) {
           findNeighbors(qids[i], resultSets[i], params);
           //ids_to_ids(ids[i], ids[i], n);
         }
@@ -172,7 +172,7 @@ public:
 #pragma omp parallel num_threads(params.cores)
       {
 #pragma omp for schedule(static)
-        for (size_t i = 0; i < qids.size(); i++) {
+        for (int i = 0; i < (int)qids.size(); i++) {
           findNeighbors(qids[i], resultSets[i], params);
           //ids_to_ids(ids[i], ids[i], n);
         }
@@ -199,7 +199,7 @@ public:
 #pragma omp parallel num_threads(params.cores)
       {
 #pragma omp for schedule(static)
-        for (size_t i = 0; i < vectors.size(); i++) {
+        for (int i = 0; i < (int)vectors.size(); i++) {
           findNeighbors(vectors[i], resultSets[i], params);
           //ids_to_ids(ids[i], ids[i], n);
         }
@@ -209,7 +209,7 @@ public:
 #pragma omp parallel num_threads(params.cores)
       {
 #pragma omp for schedule(static)
-        for (size_t i = 0; i < vectors.size(); i++) {
+        for (int i = 0; i < (int)vectors.size(); i++) {
           findNeighbors(vectors[i], resultSets[i], params);
           //ids_to_ids(ids[i], ids[i], n);
         }

@@ -63,7 +63,7 @@ public:
   double end() {
     ff = GetTimeMs64();
     
-    double elapsed = (ff - bb) / 1000000.0;
+    double elapsed = (ff - bb) / 1000.0;
     return elapsed;
   }
 
