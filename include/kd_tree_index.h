@@ -11,6 +11,7 @@
 #include <cassert>
 
 #include <progressive_base_index.h>
+#include <kd_tree.h>
 
 namespace panene
 {
@@ -46,8 +47,9 @@ protected:
     struct Node *node;
     IDType *begin;
     int count;
+    int depth;
     
-    NodeSplit(Node* node_, IDType *begin_, int count_) : node(node_), begin(begin_), count(count_) {}
+    NodeSplit(Node* node_, IDType *begin_, int count_, int depth_) : node(node_), begin(begin_), count(count_), depth(depth_) {}
   };
 
   template <typename T, typename DistanceType>
@@ -72,12 +74,20 @@ protected:
   typedef BranchSt* Branch;
 
 public:
-  KDTreeIndex(int trees_, Distance distance_ = Distance()): trees(trees_), distance(distance_)
+  KDTreeIndex(int trees_, Distance distance_ = Distance()): numTrees(trees_), distance(distance_)
   {
+    trees.resize(numTrees);
+    for (size_t i = 0; i < numTrees; ++i) {
+      trees[i] = new KDTree<NodePtr>();
+    }
   }
 
   KDTreeIndex(IndexParams indexParams_, Distance distance_ = Distance()): distance(distance_) {
-    trees = indexParams_.trees;
+    numTrees = indexParams_.trees;
+    trees.resize(numTrees);
+    for (size_t i = 0; i < numTrees; ++i) {
+      trees[i] = new KDTree<NodePtr>();
+    }
   }
 
   ~KDTreeIndex() {
@@ -86,11 +96,16 @@ public:
   void setDataSource(DataSource *dataSource_) {
     dataSource = dataSource_;
     dim = dataSource -> dim();
+
+    size_t maxSize = dataSource->size();
+    for (size_t i = 0; i < numTrees; ++i) {
+      trees[i]->setMaxSize(maxSize);
+    }
   }
 
-  size_t addPoints(size_t end) {
+  size_t addPoints(size_t newPoints) {
     size_t oldSize = size;
-    size = end;
+    size += newPoints;
 
     if(size > dataSource -> loaded())
       size = dataSource -> loaded();
@@ -100,12 +115,12 @@ public:
     }
     else {
       for(size_t i = oldSize; i < size; ++i) {
-        for(int j = 0; j < trees; ++j) {
-          addPointToTree(treeRoots[j], i);
+        for(int j = 0; j < numTrees; ++j) {
+          addPointToTree(trees[j], trees[j] -> root, i, 0);
         }
       }
     }
-    return end - oldSize;
+    return size - oldSize;
   }
 
   size_t update(int ops) {
@@ -293,27 +308,30 @@ protected:
       ids[i] = IDType(i);
     }
 
-    treeRoots.resize(trees);
+    trees.resize(numTrees);
 
-    for(int i = 0; i < trees; ++i) {
-      std::random_shuffle(ids.begin(), ids.end());
-      treeRoots[i] = divideTree(&ids[0], int(size));
+    freeIndex();
+    for(int i = 0; i < numTrees; ++i) {
+      std::random_shuffle(ids.begin(), ids.end());            
+      trees[i] = new KDTree<NodePtr>();
+      trees[i]->setMaxSize(dataSource->size());
+      trees[i]->root = divideTree(trees[i], &ids[0], size, 1);
+      trees[i]->size = size;
+      trees[i]->cost = trees[i]->computeCost();
     }
   }
 
   void freeIndex() {
-    for(size_t i=0; i < treeRoots.size(); ++i) {
-      if(treeRoots[i] != nullptr) treeRoots[i]->~Node();
+    for(size_t i=0; i < numTrees; ++i) {
+      if(trees[i] != nullptr) trees[i]->~KDTree();
     }
     pool.free();
   }
   
-  void addPointToTree(NodePtr node, IDType id) {
-//    ElementType* point = dataSource->get(id); // TODO
-
+  void addPointToTree(KDTree<NodePtr>* tree, NodePtr node, IDType id, int depth) {
     if ((node->child1==NULL) && (node->child2==NULL)) {
-//      ElementType *leafPoint = node->point;
 
+      size_t nodeId = node->id;
       size_t divfeat = dataSource->findDimWithMaxSpan(id, node->id);
       
       NodePtr left = new(pool) Node();
@@ -340,25 +358,31 @@ protected:
       node->divval = (pointValue + leafValue)/2;
       node->child1 = left;
       node->child2 = right;            
+
+      // incrementally update imbalance      
+      tree->setInsertionLog(id, 0, depth + 1);
+      tree->markSplit(nodeId);
     }
     else {
       if (dataSource->get(id, node->divfeat) < node->divval) {
-          addPointToTree(node->child1, id);
+        addPointToTree(tree, node->child1, id, depth + 1);
       }
       else {
-          addPointToTree(node->child2, id);                
+        addPointToTree(tree, node->child2, id, depth + 1);
       }
     }
   }
 
-  NodePtr divideTree(IDType *ids, int count) {
+  NodePtr divideTree(KDTree<NodePtr>* tree, IDType *ids, size_t count, size_t depth) {
     NodePtr node = new(pool) Node();
     
     /* If too few exemplars remain, then make this a leaf node. */
     if (count == 1) {
         node->child1 = node->child2 = NULL;    /* Mark as leaf node. */
         node->divfeat = -1; // a leaf node
-        node->id = ids[0];
+        IDType id = ids[0];
+        node->id = id;
+        tree->setInsertionLog(id, 1, depth);
     }
     else {
         int idx;
@@ -368,8 +392,8 @@ protected:
 
         node->divfeat = cutfeat;
         node->divval = cutval;
-        node->child1 = divideTree(ids, idx);
-        node->child2 = divideTree(ids+idx, count-idx);
+        node->child1 = divideTree(tree, ids, idx, depth + 1);
+        node->child2 = divideTree(tree, ids + idx, count - idx, depth + 1);
     }
 
     return node;
@@ -482,7 +506,7 @@ protected:
       fprintf(stderr,"It doesn't make any sense to use more than one tree for exact search");
     }
     if (trees > 0) {
-      searchLevelExact<with_removed>(qid, result, treeRoots[0], 0.0, epsError);
+      searchLevelExact<with_removed>(qid, result, trees[0], 0.0, epsError);
     }
   }
 
@@ -502,8 +526,8 @@ protected:
     DynamicBitset checked(size);
 
     /* Search once through each tree down to root. */
-    for (i = 0; i < trees; ++i) {
-      searchLevel<with_removed>(qid, result, treeRoots[i], 0, checkCount, maxCheck, epsError, heap, checked);
+    for (i = 0; i < numTrees; ++i) {
+      searchLevel<with_removed>(qid, result, trees[i]->root, 0, checkCount, maxCheck, epsError, heap, checked);
     }
 
     /* Keep searching other branches from heap until finished. */
@@ -525,8 +549,8 @@ protected:
     DynamicBitset checked(size);
 
     /* Search once through each tree down to root. */
-    for (i = 0; i < trees; ++i) {
-      searchLevel<with_removed>(vec, result, treeRoots[i], 0, checkCount, maxCheck, epsError, heap, checked);
+    for (i = 0; i < numTrees; ++i) {
+      searchLevel<with_removed>(vec, result, trees[i]->root, 0, checkCount, maxCheck, epsError, heap, checked);
     }
 
     /* Keep searching other branches from heap until finished. */
@@ -708,6 +732,48 @@ protected:
     }*/
   }
 
+public:
+  std::vector<float> getCachedImbalances() {
+    std::vector<float> imbalances;
+    for (size_t i = 0; i < numTrees; ++i) {
+      imbalances.push_back(trees[i]->getCachedImbalance());
+    }
+    return imbalances;
+  }
+
+  std::vector<float> recomputeImbalances() {
+    std::vector<float> imbalances;
+
+    for (size_t i = 0; i < numTrees; ++i) {
+      imbalances.push_back(trees[i]->computeImbalance());
+    }
+
+    return imbalances;
+  }
+
+  size_t computeMaxDepth() {
+    size_t maxDepth = 0;
+    for (size_t j = 0; j < numTrees; ++j) {
+      size_t depth = trees[j]->computeMaxDepth();
+      if (maxDepth < depth)
+        maxDepth = depth;
+    }
+    return maxDepth;
+  }
+
+  std::map<size_t, size_t> computeCountDistribution() {
+    std::map<size_t, size_t> dict;
+    for (size_t i = 0; i < numTrees; ++i) {
+      const auto& partial = trees[i]->computeCountDistribution();
+      for (const auto& tuple : partial) {
+        if (dict.count(tuple.first) == 0)
+          dict[tuple.first] = 0;
+        dict[tuple.first] += tuple.second;
+      }
+    }
+    return dict;
+  }
+
 private:
   enum 
   {
@@ -715,20 +781,17 @@ private:
     RAND_DIM = 5
   };
 
-  int trees;
+  int numTrees;
   Distance distance;
   size_t size = 0;
-  size_t sizeAtUpdate = 0;
   size_t sizeAtBuild = 0;
   size_t dim;
   DataSource *dataSource;
 
-  std::vector<NodePtr> treeRoots;
-  NodePtr ongoingTree;
+  std::vector<KDTree<NodePtr>*> trees;
+
   std::vector<IDType> ids;
   PooledAllocator pool;
-  std::queue<NodeSplit> queue;
-  size_t replaced = 0;
 };
 
 }

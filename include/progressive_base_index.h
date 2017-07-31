@@ -46,17 +46,17 @@ public:
 
   virtual int usedMemory() const = 0;
 
-  virtual void knnSearch(
+  /*virtual void knnSearch(
       const IDType &qid,
       ResultSet<IDType, DistanceType> &resultSet,
       size_t knn,
-      const SearchParams& params) const = 0;
+      const SearchParams& params) const = 0;*/
 
-  virtual void knnSearch(
+  /*virtual void knnSearch(
       const std::vector<IDType> qids,
       std::vector<ResultSet<IDType, DistanceType>> &resultSet,
       size_t knn,
-      const SearchParams& params) const = 0;
+      const SearchParams& params) const = 0;*/
 
   virtual void freeIndex() = 0;
 };

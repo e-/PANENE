@@ -63,9 +63,9 @@ struct Dataset {
 #define GLOVE_QUERY_PATH BASE "/glove/test.bin"
 #define GLOVE_ANSWER_PATH(v) BASE "/glove/glove." #v ".answer.txt"
 
-#define SIFT_TRAIN_PATH(v) "../../data/sift/sift." #v ".bin"
-#define SIFT_QUERY_PATH "../../data/sift/test.bin"
-#define SIFT_ANSWER_PATH(v) "../../data/sift/sift." #v ".answer.bin"
+#define SIFT_TRAIN_PATH(v) BASE "/data/sift." #v ".bin"
+#define SIFT_QUERY_PATH BASE "/data/test.bin"
+#define SIFT_ANSWER_PATH(v) BASE "/data/sift." #v ".answer.txt"
 
 void run() {
   Timer timer;
@@ -75,12 +75,12 @@ void run() {
         GLOVE_TRAIN_PATH(shuffled),
         GLOVE_QUERY_PATH,
         GLOVE_ANSWER_PATH(shuffled),
-        1100000, 100)/*,
+        1000000, 100),
     Dataset("glove", "original", 
         GLOVE_TRAIN_PATH(original),
         GLOVE_QUERY_PATH,
         GLOVE_ANSWER_PATH(original),
-        1100000, 100),
+        1000000, 100),
     Dataset("sift", "shuffled", 
         SIFT_TRAIN_PATH(shuffled),
         SIFT_QUERY_PATH,
@@ -90,7 +90,7 @@ void run() {
         SIFT_TRAIN_PATH(original),
         SIFT_QUERY_PATH,
         SIFT_ANSWER_PATH(original),
-        1000000, 128)*/
+        1000000, 128)
   };
   
   const int maxOps = 1024;

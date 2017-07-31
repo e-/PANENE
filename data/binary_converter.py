@@ -138,6 +138,7 @@ def sample_test_set(fname, out1, out2, n, dim):
     sz = os.path.getsize(fname)
     N = sz / (4 * dim)
     pos = set(random.sample(range(N), n))
+    
     with open(fname, 'rb') as f:
         with open(out1, 'wb') as outfile1:
             with open(out2, 'wb') as outfile2:
