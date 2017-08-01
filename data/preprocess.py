@@ -2,8 +2,6 @@
 import os
 import array
 import struct
-import numpy as np
-from sklearn.decomposition import PCA
 
 def main(fname, num, dim, prefix = "data"):
     import random
@@ -29,17 +27,6 @@ def main(fname, num, dim, prefix = "data"):
                 _write_floats(data[i], outfile1)
                 _write_floats(data[indices[i]], outfile2)
     
-    pca = PCA(1)
-        
-    nparr = np.array(data)
-    x_new = pca.fit_transform(nparr)
-
-    x_sorted = map(lambda x: x[0], sorted(zip(data, x_new), key=lambda x:x[1]))
-
-    with open("{}.sorted.bin".format(prefix), 'wb') as outfile:
-        for i in range(num):
-            _write_floats(x_sorted[i], outfile)
-
 def _write_floats(floats, outfile):
     float_arr = array.array('d', floats)
     s = struct.pack('f' * len(float_arr), *float_arr)

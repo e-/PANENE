@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
 
-#REMOVE_DOWNLOADED=true # remove downloaded datasets after they've been converted
-TEST_N=100 # number of test queries
-DATASETS="trevi stl10 mnist" #" sift glove gist"
+remove_downloaded=false 
+test_n=1000 # number of test queries
+datasets="sift glove gist trevi stl10 mnist" 
 
-export REMOVE_DOWNLOADED
-export TEST_N
+declare -A dims
+dims=(["glove"]="100")
 
-for dataset in $DATASETS
-do
-  echo "Working on $dataset"
-  (cd $dataset && ./download.sh)
-done
+declare -A train_ns
+train_ns=(["glove"]="1000000")
+
+name=$1
+
+dim="${dims[$name]}"
+train_n="${train_ns[$name]}"
+
+echo "Downloading $name with $dim dimensions"
+
+(cd $name && ./download.sh $train_n $dim $test_n $remove_downloaded)
 
