@@ -1,6 +1,4 @@
-# PANENE
-
----
+PANENE
 
 PANENE (Progressive Approximate k-NEarest NEighbors) is a novel algorithm for the k-nearest neighbor (KNN) problem. In contrast to previous algorithms such as [Annoy](https://github.com/spotify/annoy), [FLANN](http://www.cs.ubc.ca/research/flann/), and many others from [Benchmark](https://github.com/erikbern/ann-benchmarks#evaluated), it is *progressive*: it can process multiple mini-batches *online* while keeping each iteration bounded in time.
 
