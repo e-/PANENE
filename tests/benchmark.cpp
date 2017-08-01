@@ -58,7 +58,7 @@ struct Dataset {
 };
 
 // for test
-#define BASE "D:\\G\\work\\panene\\PANENE\\data"
+#define BASE "../../data"
 
 #define GLOVE_TRAIN_PATH(v) BASE "/glove/glove." #v ".bin"
 #define GLOVE_QUERY_PATH BASE "/glove/test.bin"
@@ -108,11 +108,11 @@ void run() {
         SIFT_QUERY_PATH,
         SIFT_ANSWER_PATH(shuffled),
         pointsN, 128),*/
-    Dataset("sift", "original", 
+    /*Dataset("sift", "original", 
         SIFT_TRAIN_PATH(original),
         SIFT_QUERY_PATH,
         SIFT_ANSWER_PATH(original),
-        pointsN, 128)
+        pointsN, 128)*/
   };
   
   const int maxRepeat = 1; //5;
@@ -125,7 +125,12 @@ void run() {
   searchParam.cores = 8;
 
   std::fstream log;
-  log.open(BASE "/log.tsv", std::fstream::out);
+
+#ifdef _WIN32
+  log.open(BASE "./log.tsv", std::fstream::out);
+#else
+  log.open("./log.tsv", std::fstream::out);
+#endif
 
   log <<
     "method\tdata\tversion\trepeat\tmaxOp\titer\tnumPointsInserted\timbalance1\timbalance2\timbalance3\timbalance4\tmax_depth\tQPS\tAccuracy\tmeanDistError\taddNewPointElapsed\tupdateIndexElapsed" << std::endl;

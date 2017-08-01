@@ -1,22 +1,16 @@
 #!/usr/bin/env bash
 
-DATASETS="sift gist glove"
-VERSIONS="original shuffled sorted"
-DIMS=(128 960 100)
-K=20
-TRAIN_N=1000000
-TEST_N=10000
+. ./metadata.sh
 
-index=0
-for dataset in $DATASETS
+name=$1
+dim="${dims[$name]}"
+train_n="${train_ns[$name]}"
+
+for version in $versions
 do
-  for version in $VERSIONS
-  do
-    echo "Working on ${dataset}.${version}"
-    args="${dataset}/${dataset}.${version}.bin ${dataset}/test.bin ${dataset}/${dataset}.${version}.answer.bin ${TRAIN_N} ${TEST_N} ${DIMS[${index}]} ${K}"
-    ./answer $args
-  done
-
-  index=$(expr $index + 1)
+  echo "Working on ${name}.${version}"
+  args="${name}/${name}.${version}.bin ${name}/test.bin ${name}/${name}.${version}.answer.txt ${train_n} ${test_n} ${dim} ${k}"
+  
+  echo ./answer $args
+  ./answer $args
 done
-
