@@ -12,3 +12,5 @@ foreach (test ${tests})
   add_executable (${test} ${test}.cpp)
   target_link_libraries (${test} LINK_PUBLIC panene)
 endforeach (test ${tests})
+
+add_custom_command(TARGET answer POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:answer> ../../data)

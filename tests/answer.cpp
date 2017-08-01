@@ -81,17 +81,17 @@ int main(int argc, char *argv[])
   getExactNN(trainSource, testSource, exactResults, k);
   
   std::cout << "exact neighbors computation done" << std::endl;
-  
+
   std::cout << "writing to " << answerPath << std::endl;
   
-  std::ofstream out(answerPath, std::ios::out | std::ios::binary);
+  std::ofstream out(answerPath, std::ios::out);
   
-  out.write((char *)&k, sizeof (k));
+  out << k << std::endl;
   for (size_t i = 0; i < testN; ++i) {
     for (const auto& neighbor : exactResults[i].neighbors) {
-      out.write((char *)&neighbor.id, sizeof (neighbor.id));
-      out.write((char *)&neighbor.dist, sizeof (neighbor.dist));
+      out << neighbor.id << " " << neighbor.dist << " ";
     }
+    out << std::endl;
   }
 
   out.close();
