@@ -12,13 +12,11 @@ PANENE is based on [the FLANN library](https://github.com/mariusmuja/flann) and 
 
 The source code was tested on Ubuntu 16.04, macOS, and Windows 10 (with Visual Studio 2017). However, shell scripts in this instruction will not run on Windows so use PowerShell instead or change them appropriately.
 
-## Ubuntu or macOS
-
 Prerequisites:
 - A C++ compiler with OpenMP and C++11 support
-- 
 - Python 2.7
- 
+- CMake or Visual Studio 2017 on Windows
+
 Download the source code:
 ```bash
 git clone https://github.com/e-/PANENE.git
@@ -52,27 +50,3 @@ cd build/tests
 ./benchmark
 cat log.tsv
 ```
-
-## Windows
-
-Prerequisites:
-- A C++ compiler with OpenMP and C++11 support
-- Python 2.7
-- [https://cmake.org/download/](https://cmake.org/download/)
-- [http://mingw-w64.yaxm.org/doku.php/download/mingw-builds](http://mingw-w64.yaxm.org/doku.php/download/mingw-builds)
-
- 
-
-
-Download the source code:
-```bash
-git clone https://github.com/e-/PANENE.git
-```
-
-Run Visual Studio 2017 and click on [File] -> [Open] -> [Folder] -> select the "PANENE" directory.
-
-Change the build type to "x64-Release" or "x86-Release" depending on your machine and set "tests\answer.exe" as the startup item.
-
-[
-
-- CMake or Visual Studio 2017 on Windows
