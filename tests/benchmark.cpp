@@ -58,7 +58,7 @@ struct Dataset {
 };
 
 // for test
-#define BASE "../../data"
+#define BASE "D:\\G\\work\\panene\\PANENE\\data"
 
 #define GLOVE_TRAIN_PATH(v) BASE "/glove/glove." #v ".bin"
 #define GLOVE_QUERY_PATH BASE "/glove/test.bin"
@@ -122,7 +122,7 @@ void run() {
   const size_t maxQueryN = 1000;
 
   SearchParams searchParam(4096);
-  searchParam.cores = 8;
+  searchParam.cores = 1;
 
   std::fstream log;
 
@@ -175,7 +175,7 @@ void run() {
         {
           KDTreeIndex<L2<float>, BinaryDataSource> onlineIndex(indexParam);
           onlineIndex.setDataSource(&trainDataSource);
-
+          
           size_t numPointsInserted = 0;       
 
           for (int r = 0; r < maxIter; ++r) {
