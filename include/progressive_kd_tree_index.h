@@ -16,17 +16,15 @@
 namespace panene
 {
 
+enum UpdateStatus {
+  NoUpdate,
+  BuildingTree,
+  InsertingPoints
+};
+
 template <typename Distance, typename DataSource>
 class ProgressiveKDTreeIndex : public BaseIndex<Distance, DataSource>
 {
-public:
-
-  enum UpdateStatus {
-    NoUpdate,
-    BuildingTree,
-    InsertingPoints
-  };
-
 public:
 
   ProgressiveKDTreeIndex(IndexParams indexParams_, Distance distance_ = Distance()) : BaseIndex<Distance, DataSource>(indexParams_, distance_) {
@@ -196,17 +194,44 @@ public:
 
   void knnSearch(
     const IDType &qid,
+    ResultSet<IDType, DistanceType> &resultSet,
+    size_t knn,
+    const SearchParams& params)
+  {
+    std::vector<ElementType> vector(dim);
+
+    for (size_t i = 0; i < dim; ++i)
+      vector[i] = dataSource->get(qid, i);
+
+    findNeighbors(vector, resultSet, params);
+  }
+
+  // this needs to be improved
+  void knnSearch(
+    const std::vector<IDType> qids,
     std::vector<ResultSet<IDType, DistanceType>> &resultSets,
     size_t knn,
     const SearchParams& params)
   {
-    std::vector<std::vector<ElementType>> vectors(1);
+    accumulateLoss(qids.size());
 
-    vectors[0].resize(dim);
-    for (size_t i = 0; i < dim; ++i)
-      vecdtors[0][i] = dataSoruce->get(qid, i);
+    std::vector<std::vector<ElementType>> vectors(qids.size());
 
-    knnSearch(qid, resultsSets, knn, params);
+    for (int i = 0; i < qids.size(); ++i) {
+      vectors[i].resize(dim);
+      for (int j = 0; j < dim; ++j) {
+        vectors[i][j] = dataSource->get(qids[i], j);
+      }
+    }
+
+#pragma omp parallel num_threads(params.cores)
+    {
+#pragma omp for schedule(static)
+      for (int i = 0; i < (int)qids.size(); i++) {
+        findNeighbors(vectors[i], resultSets[i], params);
+        //ids_to_ids(ids[i], ids[i], n);
+      }
+    }
   }
 
   void knnSearch(

@@ -172,6 +172,10 @@ public:
     else {
       getNeighbors<false>(vec, result, maxChecks, epsError);
     }
+
+    for (auto &neighbor : result.neighbors) {
+      neighbor.dist = sqrt(neighbor.dist);
+    }
   }
 
   /**
@@ -301,7 +305,7 @@ public:
     sampled to get a good estimate.
     */
 
-    int sampleCount = std::min((int)SAMPLE_MEAN + 1, count);
+    int sampleCount = (std::min)((int)SAMPLE_MEAN + 1, count);
     std::vector<DistanceType> mean(dim), var(dim);
 
     dataSource->computeMeanAndVar(ids, sampleCount, mean, var);

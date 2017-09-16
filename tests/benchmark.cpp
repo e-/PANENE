@@ -1,128 +1,47 @@
-#include <iostream>
 #include <vector>
-#include <algorithm>
 #include <map>
-#include <fstream>
 
+#include <tests/metadata.h>
 #include <progressive_knn_table.h>
 #include <kd_tree_index.h>
-#include <binary_data_source.h>
-#include <util/result_set.h>
-#include <util/timer.h>
-#include <util/matrix.h>
 
 using namespace panene;
-
-void readAnswers(const std::string &path, size_t queryN, size_t &k, std::vector<std::vector<Neighbor<size_t, float>>> &neighbors){
-  std::ifstream infile;
-
-  infile.open(path);
-
-  if (!infile.is_open()) {
-    std::cerr << "file " << path << " does not exist" << std::endl;
-    throw;
-  }
-
-  infile >> k;
-  
-  std::cout << "K = " << k << std::endl;
-
-  neighbors.resize(queryN);
-  for(size_t i = 0; i < queryN; ++i) {
-    neighbors[i].resize(k);
-
-    for(size_t j = 0 ; j < k; ++j) {
-      infile >> neighbors[i][j].id >> neighbors[i][j].dist;
-    }
-  }
-
-  infile.close();
-}
-
-struct Dataset {
-  std::string name;
-  std::string version;
-  std::string path;
-  std::string queryPath;
-  std::string answerPath;
-
-  size_t n;
-  size_t dim;
-
-  Dataset() = default;
-  Dataset(std::string name_, std::string version_, std::string path_, 
-      std::string queryPath_, std::string answerPath_,
-      size_t n_, size_t dim_) : name(name_), version(version_), path(path_), 
-  queryPath(queryPath_), answerPath(answerPath_),
-  n(n_), dim(dim_) {  }
-};
-
-// for test
-#define BASE "D:\\G\\work\\panene\\PANENE\\data"
-
-#define GLOVE_TRAIN_PATH(v) BASE "/glove/glove." #v ".bin"
-#define GLOVE_QUERY_PATH BASE "/glove/test.bin"
-#define GLOVE_ANSWER_PATH(v) BASE "/glove/glove." #v ".answer.txt"
-
-#define SIFT_TRAIN_PATH(v) BASE "/sift/sift." #v ".bin"
-#define SIFT_QUERY_PATH BASE "/sift/test.bin"
-#define SIFT_ANSWER_PATH(v) BASE "/sift/sift." #v ".answer.txt"
-
-void measureMeanDistError(size_t queryN, size_t k, std::vector<std::vector<Neighbor<size_t, float>>> exactResults,
-  std::vector<ResultSet<size_t, float>> results, float &meanDistError, float &accuracy) {
-
-  meanDistError = 0;
-  accuracy = 0;
-
-  for (size_t i = 0; i < queryN; ++i) {
-    meanDistError += results[i][k - 1].dist / exactResults[i][k - 1].dist;
-
-    for (size_t j = 0; j < k; ++j) {
-      for (size_t l = 0; l < k; ++l) {
-        if (results[i][j] == exactResults[i][l]) accuracy += 1;
-      }
-    }
-  }
-
-  meanDistError /= queryN;
-  accuracy /= queryN * k;
-}
 
 void run() {
   Timer timer;
 
   const size_t pointsN = 1000000;
   std::vector<Dataset> datasets = {    
-    /*Dataset("glove", "shuffled", 
+    Dataset("sift", "shuffled",
+      SIFT_TRAIN_PATH(shuffled),
+      SIFT_QUERY_PATH,
+      SIFT_ANSWER_PATH(shuffled),
+      pointsN, 128),
+    Dataset("sift", "original",
+      SIFT_TRAIN_PATH(original),
+      SIFT_QUERY_PATH,
+      SIFT_ANSWER_PATH(original),
+      pointsN, 128),
+    Dataset("glove", "shuffled", 
         GLOVE_TRAIN_PATH(shuffled),
         GLOVE_QUERY_PATH,
         GLOVE_ANSWER_PATH(shuffled),
-        pointsN, 100),*/
+        pointsN, 100),
     Dataset("glove", "original", 
         GLOVE_TRAIN_PATH(original),
         GLOVE_QUERY_PATH,
         GLOVE_ANSWER_PATH(original),
-        pointsN, 100),
-    /*Dataset("sift", "shuffled", 
-        SIFT_TRAIN_PATH(shuffled),
-        SIFT_QUERY_PATH,
-        SIFT_ANSWER_PATH(shuffled),
-        pointsN, 128),*/
-    /*Dataset("sift", "original", 
-        SIFT_TRAIN_PATH(original),
-        SIFT_QUERY_PATH,
-        SIFT_ANSWER_PATH(original),
-        pointsN, 128)*/
+        pointsN, 100)    
   };
   
-  const int maxRepeat = 1; //5;
-  const int queryRepeat = 5;
+  const int maxRepeat = 5; //5;
+  const int queryRepeat = 1; // 5;
   const IndexParams indexParam(4);  
-  const size_t maxIter = 1500; // if all data is read, it stops
+  const size_t maxIter = 2500; // if all data is read, it stops
   const size_t maxQueryN = 1000;
 
-  SearchParams searchParam(4096);
-  searchParam.cores = 1;
+  SearchParams searchParam(1000); // 4096);
+  searchParam.cores = 0;
 
   std::fstream log;
 
@@ -135,17 +54,18 @@ void run() {
   log <<
     "method\tdata\tversion\trepeat\tmaxOp\titer\tnumPointsInserted\timbalance1\timbalance2\timbalance3\timbalance4\tmax_depth\tQPS\tAccuracy\tmeanDistError\taddNewPointElapsed\tupdateIndexElapsed" << std::endl;
 
-  float addPointWeights[] = { 0.1, 0.2, 0.3 }; // {0.25, 0.5, 0.75};
-  size_t weightN = sizeof(addPointWeights) / sizeof(float);
-
   size_t maxOps[] = { 5000 };// , 10000 };
   size_t maxOpsN = sizeof(maxOps) / sizeof(size_t);
+
+  float addPointWeights[] = { 0.1, 0.2, 0.3 }; // {0.25, 0.5, 0.75};
+  size_t weightN = sizeof(addPointWeights) / sizeof(float);
 
   for(const auto& dataset: datasets) {
     panene::BinaryDataSource trainDataSource(dataset.path);
 
     size_t trainN = trainDataSource.open(dataset.path, dataset.n, dataset.dim);
     
+
     // read query set
     panene::BinaryDataSource queryDataSource(dataset.queryPath);
     
@@ -167,7 +87,7 @@ void run() {
     readAnswers(dataset.answerPath, queryN, k, exactResults);
 
     std::cout << "testing dataset [" << dataset.name << "], loading completed" << std::endl;
-
+    
     for (int repeat = 0; repeat < maxRepeat; ++repeat) {
       for(const size_t maxOp: maxOps) {
        
@@ -214,7 +134,7 @@ void run() {
             // check the result
             float meanDistError = 0;
             float accuracy = 0;
-
+            
             measureMeanDistError(queryN, k, exactResults, results, meanDistError, accuracy);
 
             float qps = 1.0 / (searchElapsed / queryN / queryRepeat);
@@ -250,7 +170,7 @@ void run() {
 
             size_t addPointOps;
 
-            if (progressiveIndex.updateStatus != progressiveIndex.NoUpdate) {
+            if (progressiveIndex.updateStatus != NoUpdate) {
               addPointOps = maxOp * addPointWeight;
             }
             else {
@@ -268,7 +188,7 @@ void run() {
             
             double updateIndexElapsed = 0;
 
-            if (progressiveIndex.updateStatus != progressiveIndex.NoUpdate) {
+            if (progressiveIndex.updateStatus != NoUpdate) {
               std::cout << "progressiveIndex.update called() " << maxOp - addNewPointResult << std::endl;
               timer.begin();
               progressiveIndex.update(maxOp - addNewPointResult);
@@ -313,11 +233,11 @@ void run() {
             }
             std::cout << "updateCost: " << progressiveIndex.getSize() * std::log2(progressiveIndex.getSize()) << std::endl;
             std::cout << "queryLoss: " << progressiveIndex.queryLoss << std::endl;
-            if (progressiveIndex.updateStatus == progressiveIndex.BuildingTree) {
+            if (progressiveIndex.updateStatus == BuildingTree) {
               std::cout << "building a tree backstage" << std::endl;
               progressiveIndex.printBackstage();
             }
-            if (progressiveIndex.updateStatus == progressiveIndex.InsertingPoints) {
+            if (progressiveIndex.updateStatus == InsertingPoints) {
               progressiveIndex.printBackstage();
             }
           }          

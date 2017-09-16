@@ -42,7 +42,7 @@ struct ResultSet {
   ResultSet() = default;
   ResultSet(size_t size_) : size(size_) {
     neighbors.resize(size);
-    worstDist = std::numeric_limits<DistanceType>::max();
+    worstDist = (std::numeric_limits<DistanceType>::max)();
 
     for(size_t i = 0; i < size; ++i) {
       neighbors[i].id = 0;
@@ -56,7 +56,7 @@ struct ResultSet {
 
   bool full() const
   {
-      return worstDist < std::numeric_limits<DistanceType>::max();
+      return worstDist < (std::numeric_limits<DistanceType>::max)();
   }
 
   friend std::ostream& operator<<( std::ostream& os, const ResultSet<IDType, DistanceType> &obj ) {

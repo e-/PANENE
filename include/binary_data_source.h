@@ -1,6 +1,7 @@
 #ifndef panene_binary_data_source_h
 #define panene_binary_data_source_h
 
+#include <algorithm>
 #include <string>
 #include <fstream>
 #include <vector>
@@ -38,7 +39,7 @@ public:
 
     struct stat sb;
     stat(path.c_str(), &sb);
-    n = std::min((size_t)sb.st_size / (sizeof(float) * d_), n_);
+    n = (std::min)((size_t)sb.st_size / (sizeof(float) * d_), n_);
     d = d_;
 
     data = new ElementType[n * d];    

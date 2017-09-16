@@ -17,7 +17,7 @@ inline float distance(const BinaryDataSource &a, const size_t i,
     float y = b.get(j, k);
     sum += (x - y) * (x - y);
   }
-  return sum;
+  return sqrt(sum);
 }
 
 void getExactNN(const BinaryDataSource &train, 
@@ -31,7 +31,7 @@ void getExactNN(const BinaryDataSource &train,
   size_t count = 0;
 
 #pragma omp parallel for
-  for(size_t q = 0; q < testN; q++) {
+  for(int q = 0; q < (int)testN; q++) {
     count ++ ;
     if(count % 500 == 0) 
       std::cerr << count << " ";
