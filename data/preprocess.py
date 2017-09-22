@@ -14,6 +14,9 @@ def main(fname, num, dim, prefix = "data"):
 
     with open(fname, 'rb') as inf:
         for i in range(num):
+            if i % 1000 == 0:
+                print(i, num)
+
             inf.seek(i * 4 * dim)
             floats = struct.unpack('f'*dim, inf.read(dim * 4))
             data.append(floats)
@@ -24,6 +27,9 @@ def main(fname, num, dim, prefix = "data"):
     with open("{}.original.bin".format(prefix), 'wb') as outfile1:
         with open("{}.shuffled.bin".format(prefix), 'wb') as outfile2:
             for i in range(num):
+                if i % 1000 == 0:
+                    print(i, num)
+
                 _write_floats(data[i], outfile1)
                 _write_floats(data[indices[i]], outfile2)
     

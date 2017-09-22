@@ -18,6 +18,9 @@ namespace panene
 template <typename Distance, typename DataSource>
 class KDTreeIndex : public BaseIndex<Distance, DataSource>
 {
+  USE_BASECLASS_SYMBOLS
+
+
 public:
   KDTreeIndex(IndexParams indexParams_, Distance distance_ = Distance()) : BaseIndex<Distance, DataSource>(indexParams_, distance_) {
   }
@@ -56,9 +59,9 @@ public:
 
     vectors[0].resize(dim);
     for (size_t i = 0; i < dim; ++i)
-      vecdtors[0][i] = dataSoruce->get(qid, i);
+      vectors[0][i] = dataSource->get(qid, i);
 
-    knnSearch(vectors, resultsSets, knn, params);
+    knnSearch(vectors, resultSets, knn, params);
   }
 
   void knnSearch(

@@ -15,6 +15,25 @@
 
 #include <kd_tree.h>
 
+#define USE_BASECLASS_SYMBOLS public: \
+  typedef typename BaseIndex<Distance, DataSource>::IDType IDType;\
+  typedef typename BaseIndex<Distance, DataSource>::DistanceType DistanceType;\
+  typedef typename BaseIndex<Distance, DataSource>::ElementType ElementType;\
+  typedef typename BaseIndex<Distance, DataSource>::Node Node;\
+  typedef typename BaseIndex<Distance, DataSource>::NodePtr NodePtr;\
+  typedef typename BaseIndex<Distance, DataSource>::BranchSt BranchSt;\
+  typedef typename BaseIndex<Distance, DataSource>::Branch Branch;\
+  typedef typename BaseIndex<Distance, DataSource>::NodeSplit NodeSplit;\
+  using BaseIndex<Distance, DataSource>::size;\
+  using BaseIndex<Distance, DataSource>::dataSource;\
+  using BaseIndex<Distance, DataSource>::numTrees;\
+  using BaseIndex<Distance, DataSource>::trees;\
+  using BaseIndex<Distance, DataSource>::pool;\
+  using BaseIndex<Distance, DataSource>::dim;\
+  using BaseIndex<Distance, DataSource>::meanSplit;\
+  using BaseIndex<Distance, DataSource>::divideTree;\
+  using BaseIndex<Distance, DataSource>::findNeighbors;
+
 namespace panene
 {
 
@@ -41,7 +60,7 @@ public:
   typedef typename DataSource::DistanceType DistanceType;
   typedef typename DataSource::IDType IDType;
 
-protected:
+public:
   struct Node {
     int divfeat;
     DistanceType divval;
@@ -393,8 +412,7 @@ public:
 
   virtual void freeIndex() = 0;
 
-
-protected:
+public:
   enum
   {
     SAMPLE_MEAN = 100,

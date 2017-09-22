@@ -25,6 +25,8 @@ enum UpdateStatus {
 template <typename Distance, typename DataSource>
 class ProgressiveKDTreeIndex : public BaseIndex<Distance, DataSource>
 {
+  USE_BASECLASS_SYMBOLS
+
 public:
 
   ProgressiveKDTreeIndex(IndexParams indexParams_, Distance distance_ = Distance()) : BaseIndex<Distance, DataSource>(indexParams_, distance_) {
@@ -386,7 +388,6 @@ private:
 
   std::queue<NodeSplit> queue;
   std::vector<size_t> ids;
-
 public:
   UpdateStatus updateStatus = UpdateStatus::NoUpdate;
   KDTree<NodePtr>* ongoingTree;

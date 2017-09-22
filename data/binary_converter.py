@@ -57,6 +57,7 @@ def fvecs_to_binary(fname, out, n=-1):
 
     with open(fname, 'rb') as inp:
         rows = sz / (dim + 1) / 4
+        print(rows)
         with open(out, 'wb') as outfile:
             for i in xrange(rows):
                 if i == n: break

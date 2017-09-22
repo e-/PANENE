@@ -6,9 +6,9 @@ echo "Extracting SIFT..."
 tar -xzf sift.tar.gz
 echo "Converting SIFT..."
 #python convert_texmex_fvec.py sift/sift_base.fvecs >> sift.txt
-python2 ../binary_converter.py sift/sift_base.fvecs data.bin 2500000
-python2 ../binary_converter.py --sample data.bin train.bin test.bin $TEST_N 128
-python2 ../preprocess.py data.bin 1000000 128 sift
+python2 ../binary_converter.py sift/sift_base.fvecs train.bin 1000000
+python2 ../binary_converter.py sift/sift_query.fvecs test.bin 10000
+python2 ../preprocess.py train.bin 1000000 128 sift
 
 #wget "ftp://ftp.irisa.fr/local/texmex/corpus/bigann_learn.bvecs.gz" -O bigann_learn.bvecs.gz
 #echo "Extracting SIFT..."
