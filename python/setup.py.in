@@ -1,0 +1,39 @@
+from setuptools import setup
+from setuptools.extension import Extension
+from Cython.Build import cythonize
+import numpy as np
+
+extensions = [
+    Extension(
+        "pynene.panene",
+        ["${CMAKE_CURRENT_SOURCE_DIR}/pynene/panene.pyx"],
+        include_dirs= ['../include', np.get_include(),],
+        extra_compile_args=['-Wfatal-errors'],
+        language="c++",
+    ),
+]
+
+setup(name='panene',
+      version='@PANENE_VERSION@',
+      description='Progressive Library for Approximate Nearest Neighbors',
+      author='Jaemin Jo',
+      author_email='jmjo@hcil.snu.ac.kr',
+      license='BSD',
+      url='https://github.com/e-/PANENE',
+      package_dir={ '': '${CMAKE_CURRENT_SOURCE_DIR}' },
+      packages=['pynene'],
+      classifiers=[
+          "Development Status :: 2 - PRe-Alpha",
+          "Topic :: Scientific/Engineering :: Visualization",
+          "Topic :: Scientific/Engineering :: Information Analysis",
+          "License :: OSI Approved :: BSD License",
+      ],
+    platforms='any',
+    install_requires = [
+        "numpy>=1.11.3",
+        "scipy>=0.18.1",
+        "cython>=0.25.1",
+    ],
+    test_suite='tests',
+    ext_modules = cythonize(extensions),
+)
