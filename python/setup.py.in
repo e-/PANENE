@@ -3,12 +3,18 @@ from setuptools.extension import Extension
 from Cython.Build import cythonize
 import numpy as np
 
+extra_link_args = []
+if "${OpenMP_EXE_LINKER_FLAGS}":
+    extra_link_args = ["${OpenMP_EXE_LINKER_FLAGS}"]
+    
+
 extensions = [
     Extension(
         "pynene.panene",
         ["${CMAKE_CURRENT_SOURCE_DIR}/pynene/panene.pyx"],
-        include_dirs= ['../include', np.get_include(),],
-        extra_compile_args=['-Wfatal-errors'],
+        include_dirs= ["${CMAKE_SOURCE_DIR}/include", np.get_include(),],
+        extra_compile_args=["${CMAKE_CXX11_STANDARD_COMPILE_OPTION}", "${OpenMP_CXX_FLAGS}"],
+        extra_link_args=extra_link_args,
         language="c++",
     ),
 ]

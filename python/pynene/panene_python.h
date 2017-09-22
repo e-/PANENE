@@ -3,44 +3,42 @@
 #include <progressive_knn_table.h>
 #include <naive_data_source.h>
 
-namespace panene;
-
 class PythonDataSource
 {
-public:
+ public:
 
   typedef size_t IDType;
   typedef float ElementType;
   typedef float DistanceType;
 
   PythonDataSource() {
+    object = Py_None;
   }
 
   ~PythonDataSource() {
-  ElementType get(const IDType &id, const IDType &dim) const {
-    return *(data + id * d + dim);
+    set_array(Py_None);
   }
 
-  void open(const char* path, size_t n_, size_t d_) {
-    n = n_;
-    d = d_;
-    data = new ElementType[n * d];    
-    opened = true;
-    
-    std::ifstream ifs(path);
+  void set_array(PyObject * o) {
+    if (o == object) return;
+    Py_XINCREF(o);
+    Py_XDECREF(object);
+    object = o;
+  }
 
-    if(!ifs) {
-      std::cerr << "file " << path << " does not exist" << std::endl;
-      throw;
-    }
-
-    for(size_t i = 0; i < n * d; ++i) {
-      ifs >> data[i]; 
-    }
+  PyObject * get_array() const {
+    return object;
   }
 
   ElementType get(const IDType &id, const IDType &dim) const {
-    return *(data + id * d + dim);
+    PyObject *key1 = PyInt_FromLong(id);
+    PyObject *key2 = PyInt_FromLong(dim);
+    PyObject *tuple = PyTuple_Pack(2, key1, key2);
+    PyObject *pf = PyObject_GetItem(object, tuple);
+    ElementType ret = (ElementType)PyFloat_AsDouble(pf);
+    Py_DECREF(tuple);
+    Py_DECREF(pf);
+    return ret;
   }
 
   IDType findDimWithMaxSpan(const IDType &id1, const IDType &id2) {
@@ -116,8 +114,7 @@ public:
   size_t n;
   size_t d;
   bool opened = false;
-protected:  
-  ElementType* data;
-  }
-
+ protected:  
+  PyObject * object;
 };
+
