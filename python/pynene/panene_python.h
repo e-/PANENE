@@ -3,6 +3,8 @@
 #include <progressive_knn_table.h>
 #include <naive_data_source.h>
 
+using namespace panene;
+
 class PythonDataSource
 {
  public:
@@ -118,3 +120,4 @@ class PythonDataSource
   PyObject * object;
 };
 
+typedef ProgressiveKDTreeIndex<L2<float>, PythonDataSource> IndexL2;
