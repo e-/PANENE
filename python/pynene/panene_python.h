@@ -5,7 +5,7 @@
 
 using namespace panene;
 
-class PythonDataSource
+class PyDataSource
 {
  public:
 
@@ -13,11 +13,11 @@ class PythonDataSource
   typedef float ElementType;
   typedef float DistanceType;
 
-  PythonDataSource() {
+  PyDataSource() {
     object = Py_None;
   }
 
-  ~PythonDataSource() {
+  ~PyDataSource() {
     set_array(Py_None);
   }
 
@@ -120,4 +120,8 @@ class PythonDataSource
   PyObject * object;
 };
 
-typedef ProgressiveKDTreeIndex<L2<float>, PythonDataSource> IndexL2;
+typedef Neighbor<size_t, float> PyNeighbor;
+
+typedef ResultSet<size_t, float> PyResultSet;
+
+typedef ProgressiveKDTreeIndex<L2<float>, PyDataSource> PyIndexL2;

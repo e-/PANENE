@@ -5,8 +5,8 @@ from numpy cimport int64_t, int32_t, uint32_t, float64_t
 ctypedef unsigned long size_t
 
 cdef extern from "panene_python.h":
-    cdef cppclass PythonDataSource:
-        PythonDataSource()
+    cdef cppclass PyDataSource:
+        PyDataSource()
         void set_array(object array)
         object get_array() const
 
@@ -21,12 +21,28 @@ cdef extern from "panene_python.h":
         int sorted
         int cores
 
-    cdef cppclass IndexL2:
-        IndexL2(IndexParams ip)
-        void setDataSource(PythonDataSource  * ds)
-        size_t addPoint(size_t end)
+    cdef cppclass PyNeighbor:
+        PyNeighbor()
+        int id
+        float dist
+
+    cdef cppclass PyResultSet:
+        PyResultSet()
+        PyResultSet(size_t)
+        PyNeighbor operator[](size_t) const
+        bint full() const
+        size_t size
+        float worstDist
+
+
+    cdef cppclass PyIndexL2:
+        PyIndexL2(IndexParams ip)
+        void setDataSource(PyDataSource  * ds)
+        size_t addPoints(size_t end)
+        void beginUpdate()
         size_t update(int ops)
         void removePoint(size_t id)
         size_t getSize()
         int usedMemory()
-
+        void knnSearch(size_t id, PyResultSet results, size_t knn, SearchParams params)
+        
