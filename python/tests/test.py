@@ -8,6 +8,10 @@ class Test_Panene(unittest.TestCase):
         index = Index(x)
         self.assertIs(x, index.array)
         index.add_points(100)
+        for i in range(100):
+            ids, dists = index.knn_search(i, 5)
+            self.assertEqual(len(ids), 5)
+            self.assertEqual(len(dists), 5)
 
 if __name__ == '__main__':
     unittest.main()
