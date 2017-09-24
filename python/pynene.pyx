@@ -6,10 +6,6 @@ from numpy cimport *
 import numpy as np
 
 cimport cython
-cimport numpy as cnp
-
-cnp.import_array()
-cnp.import_ufunc()
 
 cdef inline check_array(arr):
     if len(arr.shape)!=2: # add more tests
