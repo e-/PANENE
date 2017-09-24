@@ -1,10 +1,19 @@
 #include <Python.h>
-
+#include "numpy/arrayobject.h"
+#include "numpy/ufuncobject.h"
 #include <progressive_knn_table.h>
 #include <naive_data_source.h>
+
+#ifndef NDEBUG
 #include <iostream>
+#define DBG(x) x
+#else
+#define DBG(x)
+#endif
+
 
 using namespace panene;
+
 
 class PyDataSource
 {
@@ -20,12 +29,16 @@ class PyDataSource
   }
 
   ~PyDataSource() {
-    Py_DECREF(_object);
+    std::cerr << "calling destructor" << std::endl;
+    if (_object != nullptr) {
+      std::cerr << "_object refcount: " << _object->ob_refcnt << std::endl;
+      Py_DECREF(_object);
+    }
     _object = nullptr;
   }
 
   void set_array(PyObject * o) {
-    std::cerr << "set_array(" << o << ")" << std::endl;
+    DBG(std::cerr << "set_array(" << o << ")" << std::endl;)
     if (o == _object) return;
     Py_INCREF(o);
     Py_DECREF(_object);
@@ -38,19 +51,24 @@ class PyDataSource
   }
 
   ElementType get(const IDType &id, const IDType &dim) const {
-    std::cerr << "Starting get(" << id << "," << dim << ")" << std::endl;
+    DBG(std::cerr << "Starting get(" << id << "," << dim << ")" << std::endl;)
     PyObject *key1 = PyInt_FromLong(id);
-    std::cerr << "Created key1" << std::endl;
+    //DBG(std::cerr << "Created key1" << std::endl;)
     PyObject *key2 = PyInt_FromLong(dim);
-    std::cerr << "Created key2" << std::endl;
+    //DBG(std::cerr << "Created key2" << std::endl;)
     PyObject *tuple = PyTuple_Pack(2, key1, key2);
     PyObject *pf = PyObject_GetItem(_object, tuple);
     ElementType ret = 0;
-    std::cerr << "Got item " << pf << std::endl;
+    DBG(std::cerr << "Got item " << pf;)
     if (pf != nullptr) {
-      ElementType ret = (ElementType)PyFloat_AsDouble(pf);
+      DBG(std::cerr << " type: " << pf->ob_type->tp_name << std::endl;)
+      ret = (ElementType)PyFloat_AsDouble(pf);
       Py_DECREF(pf);
     }
+    else {
+      DBG(std::cerr << " not a number " << std::endl;)
+    }
+    DBG(std::cerr << " value is: " << ret << std::endl;)
     Py_DECREF(tuple);
     return ret;
   }
@@ -117,14 +135,15 @@ class PyDataSource
   }
 
   size_t size() const {
-    std::cerr << "Size called " << std::endl;
-    std::cerr << " _object refcount: " << _object->ob_refcnt << std::endl;
+    DBG(std::cerr << "Size called " << std::endl;)
+    DBG(std::cerr << " _object refcount: " << _object->ob_refcnt << std::endl;)
     if (_object==Py_None) {
-      std::cerr << "Size return 0" << std::endl;
+      DBG(std::cerr << "Size return 0" << std::endl;)
       return 0;
     }
     size_t s = PyObject_Length(_object);
-    std::cerr << "Size return " << s << std::endl;    
+    DBG(std::cerr << "Size return " << s << std::endl;)
+    std::cerr << "size _object refcount: " << _object->ob_refcnt << std::endl;
     return s;
   }
 
@@ -145,18 +164,19 @@ class PyDataSource
       _d = 0;
     }
     else {
-      std::cerr << "Getting shape" << std::endl;
+      DBG(std::cerr << "Getting shape" << std::endl;)
       PyObject * shape = PyObject_GetAttrString(_object, "shape");
-      std::cerr << "Got shape, getting dim" << std::endl;
+      DBG(std::cerr << "Got shape, getting dim" << std::endl;)
       PyObject * dim = PyTuple_GetItem(shape, 1);
-      std::cerr << "Got dim" << std::endl;
+      DBG(std::cerr << "Got dim" << std::endl;)
       if (dim == nullptr || !PyLong_Check(dim))
         _d = 0;
       else 
         _d = (int)PyLong_AsLong(dim);
-      std::cerr << "dim is: " << _d << std::endl;
+      DBG(std::cerr << "dim is: " << _d << std::endl;)
       Py_DECREF(shape);
     }
+    std::cerr << "set_dim _object refcount: " << _object->ob_refcnt << std::endl;
   }
 
 };

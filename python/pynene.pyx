@@ -15,19 +15,18 @@ cdef inline check_array(arr):
         raise TypeError('value is %s not an array', arr)
 
 cdef class Index:
-    cdef PyDataSource *c_src
-    cdef IndexParams c_indexParams
-    cdef PyIndexL2 * c_index
+    cdef PyDataSource * c_src
+    cdef IndexParams    c_indexParams
+    cdef PyIndexL2    * c_index
 
     def __cinit__(self, array):
         check_array(array)
         self.c_src = new PyDataSource(array)
-        #self.c_src.set_array(array)
         self.c_index = new PyIndexL2(self.c_indexParams)
         self.c_index.setDataSource(self.c_src)
 
     def __dealloc__(self):
-        del self.c_src
+        #del self.c_src FIXME core dumps
         del self.c_index
 
     @property
