@@ -14,9 +14,9 @@ class PyDataSource
   typedef float ElementType;
   typedef float DistanceType;
 
-  PyDataSource()
+  PyDataSource(PyObject * o)
     : _d(0), _object(Py_None) {
-    Py_INCREF(_object);
+    set_array(o);
   }
 
   ~PyDataSource() {
@@ -25,6 +25,7 @@ class PyDataSource
   }
 
   void set_array(PyObject * o) {
+    std::cerr << "set_array(" << o << ")" << std::endl;
     if (o == _object) return;
     Py_INCREF(o);
     Py_DECREF(_object);
@@ -37,13 +38,20 @@ class PyDataSource
   }
 
   ElementType get(const IDType &id, const IDType &dim) const {
+    std::cerr << "Starting get(" << id << "," << dim << ")" << std::endl;
     PyObject *key1 = PyInt_FromLong(id);
+    std::cerr << "Created key1" << std::endl;
     PyObject *key2 = PyInt_FromLong(dim);
+    std::cerr << "Created key2" << std::endl;
     PyObject *tuple = PyTuple_Pack(2, key1, key2);
     PyObject *pf = PyObject_GetItem(_object, tuple);
-    ElementType ret = (ElementType)PyFloat_AsDouble(pf);
+    ElementType ret = 0;
+    std::cerr << "Got item " << pf << std::endl;
+    if (pf != nullptr) {
+      ElementType ret = (ElementType)PyFloat_AsDouble(pf);
+      Py_DECREF(pf);
+    }
     Py_DECREF(tuple);
-    Py_DECREF(pf);
     return ret;
   }
 
@@ -109,8 +117,15 @@ class PyDataSource
   }
 
   size_t size() const {
-    if (_object==Py_None) return 0;
-    return PyObject_Length(_object);
+    std::cerr << "Size called " << std::endl;
+    std::cerr << " _object refcount: " << _object->ob_refcnt << std::endl;
+    if (_object==Py_None) {
+      std::cerr << "Size return 0" << std::endl;
+      return 0;
+    }
+    size_t s = PyObject_Length(_object);
+    std::cerr << "Size return " << s << std::endl;    
+    return s;
   }
 
   size_t loaded() const {
@@ -130,16 +145,16 @@ class PyDataSource
       _d = 0;
     }
     else {
-      //std::cerr << "Getting shape" << std::endl;
+      std::cerr << "Getting shape" << std::endl;
       PyObject * shape = PyObject_GetAttrString(_object, "shape");
-      //std::cerr << "Got shape, getting dim" << std::endl;
+      std::cerr << "Got shape, getting dim" << std::endl;
       PyObject * dim = PyTuple_GetItem(shape, 1);
-      //std::cerr << "Got dim" << std::endl;
+      std::cerr << "Got dim" << std::endl;
       if (dim == nullptr || !PyLong_Check(dim))
         _d = 0;
       else 
         _d = (int)PyLong_AsLong(dim);
-      //std::cerr << "dim is: " << _d << std::endl;
+      std::cerr << "dim is: " << _d << std::endl;
       Py_DECREF(shape);
     }
   }

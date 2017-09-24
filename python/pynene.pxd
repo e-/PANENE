@@ -5,7 +5,7 @@ ctypedef unsigned long size_t
 
 cdef extern from "panene_python.h":
     cdef cppclass PyDataSource:
-        PyDataSource()
+        PyDataSource(object array)
         void set_array(object array)
         object get_array() const
 
