@@ -7,6 +7,9 @@ import numpy as np
 
 cimport cython
 
+cdef char* version = '0.0.1'
+cdef object __version__ = version
+
 cdef inline check_array(arr):
     if len(arr.shape)!=2: # add more tests
         raise TypeError('value is %s not an array', arr)
@@ -17,6 +20,7 @@ cdef class Index:
     cdef PyIndexL2 * c_index
 
     def __cinit__(self, array):
+        check_array(array)
         self.c_src = PyDataSource()
         self.c_src.set_array(array)
         self.c_index = new PyIndexL2(self.c_indexParams)

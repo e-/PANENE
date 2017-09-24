@@ -2,6 +2,7 @@
 
 #include <progressive_knn_table.h>
 #include <naive_data_source.h>
+#include <iostream>
 
 using namespace panene;
 
@@ -15,10 +16,12 @@ class PyDataSource
 
   PyDataSource()
     : _d(0), _object(Py_None) {
+    Py_INCREF(_object);
   }
 
   ~PyDataSource() {
-    set_array(Py_None);
+    Py_DECREF(_object);
+    _object = nullptr;
   }
 
   void set_array(PyObject * o) {
@@ -127,13 +130,16 @@ class PyDataSource
       _d = 0;
     }
     else {
-      PyObject * shape = PyObject_CallMethod(_object, "shape", NULL);
+      //std::cerr << "Getting shape" << std::endl;
+      PyObject * shape = PyObject_GetAttrString(_object, "shape");
+      //std::cerr << "Got shape, getting dim" << std::endl;
       PyObject * dim = PyTuple_GetItem(shape, 1);
-      if (!PyLong_Check(dim))
+      //std::cerr << "Got dim" << std::endl;
+      if (dim == nullptr || !PyLong_Check(dim))
         _d = 0;
-      else {
+      else 
         _d = (int)PyLong_AsLong(dim);
-      }
+      //std::cerr << "dim is: " << _d << std::endl;
       Py_DECREF(shape);
     }
   }

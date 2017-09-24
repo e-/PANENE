@@ -1,5 +1,4 @@
 from cpython cimport PyObject
-from libcpp.string cimport string
 from numpy cimport int64_t, int32_t, uint32_t, float64_t
 
 ctypedef unsigned long size_t
