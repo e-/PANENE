@@ -7,31 +7,62 @@
 
 using namespace panene;
 
-void run() {
+void readAnswers(const std::string &path, size_t queryN, size_t &k, std::vector<std::vector<Neighbor<size_t, float>>> &neighbors) {
+  std::ifstream infile;
+
+  infile.open(path);
+
+  if (!infile.is_open()) {
+    std::cerr << "file " << path << " does not exist" << std::endl;
+    throw;
+  }
+
+  infile >> k;
+
+  std::cout << "K = " << k << std::endl;
+
+  neighbors.resize(queryN);
+  for (size_t i = 0; i < queryN; ++i) {
+    neighbors[i].resize(k);
+
+    for (size_t j = 0; j < k; ++j) {
+      infile >> neighbors[i][j].id >> neighbors[i][j].dist;
+    }
+  }
+
+  infile.close();
+}
+
+void measureMeanDistError(size_t queryN, size_t k, std::vector<std::vector<Neighbor<size_t, float>>> exactResults,
+  std::vector<ResultSet<size_t, float>> results, float &meanDistError, float &accuracy) {
+
+  meanDistError = 0;
+  accuracy = 0;
+
+  for (size_t i = 0; i < queryN; ++i) {
+    meanDistError += results[i][k - 1].dist / exactResults[i][k - 1].dist;
+    
+    for (size_t j = 0; j < k; ++j) {
+      for (size_t l = 0; l < k; ++l) {
+        if (results[i][j] == exactResults[i][l]) accuracy += 1;
+      }
+    }
+  }
+
+  meanDistError /= queryN;
+  accuracy /= queryN * k;
+}
+
+void run(const char* base_) {
+  const std::string base(base_);
   Timer timer;
 
   const size_t pointsN = 1000000;
   std::vector<Dataset> datasets = {    
-    Dataset("sift", "shuffled",
-      SIFT_TRAIN_PATH(shuffled),
-      SIFT_QUERY_PATH,
-      SIFT_ANSWER_PATH(shuffled),
-      pointsN, 128),
-    Dataset("sift", "original",
-      SIFT_TRAIN_PATH(original),
-      SIFT_QUERY_PATH,
-      SIFT_ANSWER_PATH(original),
-      pointsN, 128),
-    Dataset("glove", "shuffled", 
-        GLOVE_TRAIN_PATH(shuffled),
-        GLOVE_QUERY_PATH,
-        GLOVE_ANSWER_PATH(shuffled),
-        pointsN, 100),
-    Dataset("glove", "original", 
-        GLOVE_TRAIN_PATH(original),
-        GLOVE_QUERY_PATH,
-        GLOVE_ANSWER_PATH(original),
-        pointsN, 100)    
+    Dataset(base, "sift", "shuffled", pointsN, 128),
+    Dataset(base, "sift", "original", pointsN, 128),
+    Dataset(base, "glove", "shuffled", pointsN, 100),
+    Dataset(base, "glove", "original", pointsN, 100)    
   };
   
   const int maxRepeat = 5; //5;
@@ -46,7 +77,7 @@ void run() {
   std::fstream log;
 
 #ifdef _WIN32
-  log.open(BASE "./log.tsv", std::fstream::out);
+  log.open(base + "./log.tsv", std::fstream::out);
 #else
   log.open("./log.tsv", std::fstream::out);
 #endif
@@ -60,21 +91,24 @@ void run() {
   float addPointWeights[] = { 0.1, 0.2, 0.3 }; // {0.25, 0.5, 0.75};
   size_t weightN = sizeof(addPointWeights) / sizeof(float);
 
-  for(const auto& dataset: datasets) {
-    panene::BinaryDataSource trainDataSource(dataset.path);
+  typedef size_t IDType;
+  typedef float ElementType;
+  using Source = panene::BinaryDataSource<IDType, L2<ElementType>>;
 
-    size_t trainN = trainDataSource.open(dataset.path, dataset.n, dataset.dim);
-    
+  for(const auto& dataset: datasets) {
+    Source trainDataSource(dataset.path);
+
+    size_t trainN = trainDataSource.open(dataset.path, dataset.n, dataset.dim);    
 
     // read query set
-    panene::BinaryDataSource queryDataSource(dataset.queryPath);
+    Source queryDataSource(dataset.queryPath);
     
     size_t queryN = queryDataSource.open(dataset.queryPath, maxQueryN, dataset.dim);
 
-    std::vector<std::vector<float>> queryPoints(queryN);
+    std::vector<std::vector<Source::ElementType>> queryPoints(queryN);
 
     for(size_t i = 0; i < queryN; ++i) {
-      std::vector<float> point(dataset.dim);
+      std::vector<ElementType> point(dataset.dim);
 
       for(size_t j = 0; j < dataset.dim; ++j) point[j] = queryDataSource.get(i, j);
       queryPoints[i] = point;
@@ -82,7 +116,7 @@ void run() {
 
     // read k and answers
     size_t k;
-    std::vector<std::vector<Neighbor<size_t, float>>> exactResults;
+    std::vector<std::vector<Neighbor<IDType, ElementType>>> exactResults;
     
     readAnswers(dataset.answerPath, queryN, k, exactResults);
 
@@ -93,7 +127,7 @@ void run() {
        
         // online first
         {
-          KDTreeIndex<L2<float>, BinaryDataSource> onlineIndex(indexParam);
+          KDTreeIndex<Source> onlineIndex(indexParam);
           onlineIndex.setDataSource(&trainDataSource);
           
           size_t numPointsInserted = 0;       
@@ -117,11 +151,11 @@ void run() {
 
             double searchElapsed = 0;
 
-            std::vector<ResultSet<size_t, float>> results(queryN);
+            std::vector<ResultSet<IDType, ElementType>> results(queryN);
 
             for (int qr = 0; qr < queryRepeat; ++qr) {
               for (size_t i = 0; i < queryN; ++i) {
-                results[i] = ResultSet<size_t, float>(k);
+                results[i] = ResultSet<IDType, ElementType>(k);
               }
 
               std::cout << "onlineIndex.knnSearch called()" << std::endl;
@@ -161,7 +195,7 @@ void run() {
           float addPointWeight = addPointWeights[w];
           size_t numPointsInserted = 0;
 
-          ProgressiveKDTreeIndex<L2<float>, BinaryDataSource> progressiveIndex(indexParam);
+          ProgressiveKDTreeIndex<Source> progressiveIndex(indexParam);
           progressiveIndex.setDataSource(&trainDataSource);
 
           for (int r = 0; r < maxIter; ++r) {
@@ -198,11 +232,11 @@ void run() {
 
             double searchElapsed = 0;
 
-            std::vector<ResultSet<size_t, float>> results(queryN);
+            std::vector<ResultSet<IDType, ElementType>> results(queryN);
 
             for (int qr = 0; qr < queryRepeat; ++qr) {
               for (size_t i = 0; i < queryN; ++i) {
-                results[i] = ResultSet<size_t, float>(k);
+                results[i] = ResultSet<IDType, ElementType>(k);
               }
 
               std::cout << "progressiveIndex.knnSearch called()" << std::endl;
@@ -213,7 +247,7 @@ void run() {
             }
 
             // check the result
-            float meanDistError = 0;
+            ElementType meanDistError = 0;
             float accuracy = 0;
 
             measureMeanDistError(queryN, k, exactResults, results, meanDistError, accuracy);
@@ -249,7 +283,12 @@ void run() {
   log.close();
 }
 
-int main() {
-  run();
+int main(int argc, const char **argv) {
+  if(argc < 2) {
+    std::cout << argv[0] << " <dataset_base_path>" << std::endl;
+    return 1;
+  }
+
+  run(argv[1]);
   return 0;
 }

@@ -5,9 +5,59 @@
 
 #include <tests/metadata.h>
 #include <progressive_knn_table.h>
-#include <naive_data_source.h>
 
 using namespace panene;
+
+void getExactNN(BinaryDataSource &dataset, Matrix<float> &queryset, Matrix<float> &answers, int k) {
+  typedef float DistanceType;
+
+  int rows = dataset.size();
+  int n = k;
+  int d = dataset.dim();
+
+#pragma omp parallel for
+  for (int q = 0; q < (int)queryset.rows; q++) {
+    int* match = new int[n];
+    DistanceType* dists = new DistanceType[n];
+
+    float * query = queryset[q];
+
+    dists[0] = 0;
+    for (int j = 0; j < d; ++j) dists[0] += (dataset.get(0, j) - query[j]) * (dataset.get(0, j) - query[j]);
+    match[0] = 0;
+    int dcnt = 1;
+
+    for (int i = 1; i<rows; ++i) {
+      DistanceType tmp = 0;
+      for (int j = 0; j < d; ++j) tmp += (dataset.get(i, j) - query[j]) * (dataset.get(i, j) - query[j]);
+      
+      if (dcnt<n) {
+        match[dcnt] = i;
+        dists[dcnt++] = tmp;
+      }
+      else if (tmp < dists[dcnt - 1]) {
+        dists[dcnt - 1] = tmp;
+        match[dcnt - 1] = i;
+      }
+
+      int j = dcnt - 1;
+      // bubble up
+      while (j >= 1 && dists[j]<dists[j - 1]) {
+        std::swap(dists[j], dists[j - 1]);
+        std::swap(match[j], match[j - 1]);
+        j--;
+      }
+    }
+
+    for (int i = 0; i<n; ++i) {
+      answers[q][i] = sqrt(dists[i]);
+    }
+
+    delete[] match;
+    delete[] dists;
+  }
+}
+
 
 void run() {
   Timer timer;

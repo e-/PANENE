@@ -22,14 +22,14 @@ enum UpdateStatus {
   InsertingPoints
 };
 
-template <typename Distance, typename DataSource>
-class ProgressiveKDTreeIndex : public BaseIndex<Distance, DataSource>
+template <typename DataSource>
+class ProgressiveKDTreeIndex : public BaseIndex<DataSource>
 {
   USE_BASECLASS_SYMBOLS
 
 public:
 
-  ProgressiveKDTreeIndex(IndexParams indexParams_, Distance distance_ = Distance()) : BaseIndex<Distance, DataSource>(indexParams_, distance_) {
+  ProgressiveKDTreeIndex(IndexParams indexParams_, Distance distance_ = Distance()) : BaseIndex<DataSource>(indexParams_, distance_) {
   }
 
   size_t addPoints(size_t newPoints) {

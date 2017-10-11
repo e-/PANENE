@@ -9,8 +9,8 @@
 #include <tests/metadata.h>
 #endif
 
+#include <schedule.h>
 #include <progressive_kd_tree_index.h>
-#include <scheduler/scheduler.h>
 #include <functional>
 
 //#define DEBUG 1
@@ -329,7 +329,6 @@ private:
   std::vector<ResultSet<IDType, DistanceType>> neighbors;
   DataSource *dataSource;
   WeightSet weights;
-  //Scheduler *scheduler;
   size_t numPointsInserted;
 
   std::priority_queue<NeighborType, std::vector<NeighborType>, std::greater<NeighborType>> queue; // descending order

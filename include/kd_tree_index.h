@@ -15,14 +15,14 @@
 namespace panene
 {
 
-template <typename Distance, typename DataSource>
-class KDTreeIndex : public BaseIndex<Distance, DataSource>
+template <typename DataSource>
+class KDTreeIndex : public BaseIndex<DataSource>
 {
   USE_BASECLASS_SYMBOLS
 
 
 public:
-  KDTreeIndex(IndexParams indexParams_, Distance distance_ = Distance()) : BaseIndex<Distance, DataSource>(indexParams_, distance_) {
+  KDTreeIndex(IndexParams indexParams_, Distance distance_ = Distance()) : BaseIndex<DataSource>(indexParams_, distance_) {
   }
 
   size_t addPoints(size_t newPoints) {

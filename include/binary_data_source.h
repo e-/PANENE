@@ -13,16 +13,17 @@
 namespace panene
 {
 
+template<typename T, class D>
 class BinaryDataSource
 {
 
 public:
+  typedef T IDType;
+  typedef D Distance;
+  typedef typename D::ElementType ElementType;
+  typedef typename D::ResultType DistanceType;
 
-  typedef size_t IDType;
-  typedef float ElementType;
-  typedef float DistanceType;
-
-  BinaryDataSource(const std::string& name_ = "data") : name(name_) {
+  BinaryDataSource(const std::string& name_ = "data") : name(name_), distance(Distance()) {
   }
 
   ~BinaryDataSource() {
@@ -101,15 +102,8 @@ public:
     }
   }  
 
-  DistanceType distL2Squared(const IDType &id1, const IDType &id2) const {
-    DistanceType sum = 0;
-
-    for(size_t i = 0; i < d; ++i) {
-      ElementType v1 = this->get(id1, i), v2 = this->get(id2, i);
-      sum += (v1 - v2) * (v1 - v2);
-    }
-    
-    return sum;
+  DistanceType getSquaredDistance(const IDType &id1, const IDType &id2) const {
+    return distance.squared(data + id1 * d, data + id2 * d, d);
   }
 
   size_t size() const {
@@ -131,6 +125,7 @@ public:
 
 protected:  
   ElementType* data;
+  Distance distance;
 };
 
 }

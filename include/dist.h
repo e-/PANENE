@@ -28,8 +28,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *************************************************************************/
 
-#ifndef PAKNN_DIST_H_
-#define PAKNN_DIST_H_
+#ifndef panene_dist_h
+#define panene_dist_h
 
 #include <cmath>
 #include <cstdlib>
@@ -143,7 +143,7 @@ struct L2
      *	efficiency.
      */
     template <typename Iterator1, typename Iterator2>
-    ResultType operator()(Iterator1 a, Iterator2 b, size_t size, ResultType worst_dist = -1) const
+    ResultType squared(Iterator1 a, Iterator2 b, size_t size, ResultType worst_dist = -1) const
     {
         ResultType result = ResultType();
         ResultType diff0, diff1, diff2, diff3;
@@ -170,6 +170,12 @@ struct L2
             result += diff0 * diff0;
         }
         return result;
+    }
+
+    template <typename Iterator1, typename Iterator2>
+    ResultType operator()(Iterator1 a, Iterator2 b, size_t size, ResultType worst_dist = -1) const
+    {
+      return sqrt(squared<Iterator1, Iterator2>(a, b, size, worst_dist));
     }
 
     /**
