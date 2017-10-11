@@ -18,12 +18,10 @@
 namespace panene {
 
 struct WeightSet {
-  float addPointsWeight;
-  float updateIndexWeight;
-  float updateTableWeight;
+  float insertionWeight;
+  float tableWeight;
 
-  WeightSet(float addPointsWeight_, float updateIndexWeight_) : addPointsWeight(addPointsWeight_), updateIndexWeight(updateIndexWeight_) {
-    this->updateTableWeight = 1 - addPointsWeight - updateIndexWeight;
+  WeightSet(float insertionWeight_, float tableWeight_) : insertionWeight(insertionWeight_), tableWeight(tableWeight_) {
   }
 };
 
@@ -118,11 +116,11 @@ public:
 #endif
    
     if (indexer.updateStatus == NoUpdate) {
-      addPointsOps = maxOps * (weights.addPointsWeight + weights.updateIndexWeight);
+      addPointsOps = maxOps * (1 - weights.tableWeight);
     }
     else {
-      addPointsOps = maxOps * weights.addPointsWeight;
-      updateIndexOps = maxOps * weights.updateIndexWeight;
+      addPointsOps = maxOps * (1 - weights.tableWeight) * weights.insertionWeight;
+      updateIndexOps = maxOps * (1 - weights.tableWeight) * (1 - weights.insertionWeight);
     }    
 
 #if DEBUG
@@ -137,10 +135,8 @@ public:
     }
 
 
-    if (addPointsResult == 0) { // all points are inserted to the index
-      weights.updateIndexWeight += weights.addPointsWeight / 2;
-      weights.addPointsWeight = 0;
-      weights.updateTableWeight = 1 - weights.updateTableWeight;
+    if (addPointsResult == 0) { // all points are inserted to the index      
+      weights.insertionWeight = 0;
     }
 
 #if DEBUG

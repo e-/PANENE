@@ -1,39 +1,75 @@
 #include <string>
 #include <vector>
 
-#define BENCHMARK
-
 #include <tests/metadata.h>
 #include <progressive_knn_table.h>
-#include <naive_data_source.h>
 
 using namespace panene;
+typedef size_t IDType;
+typedef float ElementType;
+using Source = panene::BinaryDataSource<IDType, L2<ElementType>>;
+typedef typename Source::DistanceType DistanceType;
 
-void run() {
+void getExactNN(Source &dataset, Matrix<ElementType> &queryset, Matrix<ElementType> &answers, size_t k) {
+  int rows = dataset.size();
+  int n = k;
+  int d = dataset.dim();
+
+#pragma omp parallel for
+  for (int q = 0; q < (int)queryset.rows; q++) {
+    int* match = new int[n];
+    DistanceType* dists = new DistanceType[n];
+
+    float * query = queryset[q];
+
+    dists[0] = 0;
+    for (int j = 0; j < d; ++j) dists[0] += (dataset.get(0, j) - query[j]) * (dataset.get(0, j) - query[j]);
+    match[0] = 0;
+    int dcnt = 1;
+
+    for (int i = 1; i<rows; ++i) {
+      DistanceType tmp = 0;
+      for (int j = 0; j < d; ++j) tmp += (dataset.get(i, j) - query[j]) * (dataset.get(i, j) - query[j]);
+      
+      if (dcnt<n) {
+        match[dcnt] = i;
+        dists[dcnt++] = tmp;
+      }
+      else if (tmp < dists[dcnt - 1]) {
+        dists[dcnt - 1] = tmp;
+        match[dcnt - 1] = i;
+      }
+
+      int j = dcnt - 1;
+      // bubble up
+      while (j >= 1 && dists[j]<dists[j - 1]) {
+        std::swap(dists[j], dists[j - 1]);
+        std::swap(match[j], match[j - 1]);
+        j--;
+      }
+    }
+
+    for (int i = 0; i<n; ++i) {
+      answers[q][i] = sqrt(dists[i]);
+    }
+
+    delete[] match;
+    delete[] dists;
+  }
+}
+
+
+void run(const char* base_) {
+  const std::string base(base_);
+
   Timer timer;
 
   const size_t pointsN = 1000000;
   std::vector<Dataset> datasets = {
-    Dataset("sift", "shuffled",
-    SIFT_TRAIN_PATH(shuffled),
-    SIFT_QUERY_PATH,
-    SIFT_ANSWER_PATH(shuffled),
-    pointsN, 128),
-    Dataset("sift", "original",
-    SIFT_TRAIN_PATH(original),
-    SIFT_QUERY_PATH,
-    SIFT_ANSWER_PATH(original),
-    pointsN, 128),
-    Dataset("glove", "shuffled",
-    GLOVE_TRAIN_PATH(shuffled),
-    GLOVE_QUERY_PATH,
-    GLOVE_ANSWER_PATH(shuffled),
-    pointsN, 100),
-    Dataset("glove", "original",
-    GLOVE_TRAIN_PATH(original),
-    GLOVE_QUERY_PATH,
-    GLOVE_ANSWER_PATH(original),
-    pointsN, 100)
+    Dataset(base, "sift", "shuffled", pointsN, 128),
+    Dataset(base, "sift", "original", pointsN, 128),
+    Dataset(base, "glove", "shuffled", pointsN, 100),
+    Dataset(base, "glove", "original", pointsN, 100)    
   };
 
   const int maxRepeat = 1; //5;
@@ -73,7 +109,7 @@ void run() {
     */
 
   for (const auto& dataset : datasets) {
-    panene::BinaryDataSource trainDataSource(dataset.path);
+    Source trainDataSource(dataset.path);
 
     size_t trainN = trainDataSource.open(dataset.path, dataset.n, dataset.dim);
 
@@ -105,7 +141,7 @@ void run() {
           float addPointWeight = addPointWeights[w];
           size_t numPointsInserted = 0;
 
-          ProgressiveKNNTable<ProgressiveKDTreeIndex<L2<float>, BinaryDataSource>, BinaryDataSource> table(k, dataset.dim, IndexParams(4), searchParam,
+          ProgressiveKNNTable<ProgressiveKDTreeIndex<Source>, Source> table(k, dataset.dim, IndexParams(4), searchParam,
             WeightSet(addPointWeight, 0.3));
 
           table.setDataSource(&trainDataSource);
@@ -177,8 +213,12 @@ void run() {
   log.close();
 }
 
+int main(int argc, const char **argv) {
+  if(argc < 2) {
+    std::cout << argv[0] << " <dataset_base_path>" << std::endl;
+    return 1;
+  }
 
-int main(){
-  run();
+  run(argv[1]);
   return 0;
 }

@@ -17,7 +17,7 @@ echo "Data sampling"
 python2 ../binary_converter.py --sample data.bin train.bin test.bin $test_n $dim
 
 echo "Data shuffling"
-python2 ../preprocess.py data.bin $train_n $dim glove
+python2 ../shuffle.py data.bin $train_n $dim glove
 
 if [ "$remove_downloaded" = true ]; then
     rm glove.txt

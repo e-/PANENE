@@ -2,14 +2,16 @@
 #include <vector>
 #include <fstream>
 
+#include <dist.h>
 #include <util/result_set.h>
 #include <binary_data_source.h>
 #include <cstdlib>
 
 using namespace panene;
+using Source = BinaryDataSource<size_t, L2<float>>;
 
-inline float distance(const BinaryDataSource &a, const size_t i,
-                      const BinaryDataSource &b, const size_t j) {
+inline float distance(const Source &a, const size_t i,
+                      const Source &b, const size_t j) {
   int d = a.dim();
   float sum = 0;
   for(int k = 0; k < d; ++k) {
@@ -20,9 +22,9 @@ inline float distance(const BinaryDataSource &a, const size_t i,
   return sqrt(sum);
 }
 
-void getExactNN(const BinaryDataSource &train, 
-                const BinaryDataSource &test, 
-                std::vector<ResultSet<size_t, float>> &exactResults, 
+void getExactNN(const Source &train, 
+                const Source &test, 
+                std::vector<ResultSet<Source::IDType, Source::DistanceType>> &exactResults, 
                 size_t k) {
 
   size_t trainN = train.size();
@@ -40,7 +42,7 @@ void getExactNN(const BinaryDataSource &train,
     for(size_t i = 0; i < trainN; i++) {
       float dist = distance(train, i, test, q);
       if(!result.full() || result.worstDist > dist) {
-        result << Neighbor<size_t, float>(i, dist);
+        result << Neighbor<Source::IDType, Source::DistanceType>(i, dist);
       }
     }
   }
@@ -48,6 +50,12 @@ void getExactNN(const BinaryDataSource &train,
 
 int main(int argc, char *argv[]) 
 {
+  if(argc < 8) {
+    std::cout << "compute the exact neighbors of query points from train points" << std::endl;
+    std::cout << argv[0] << " <trainPath> <queryPath> <answerPath> <trainN> <testN> <dim> <k>" << std::endl;    
+    return 1;
+  }
+
   std::string trainPath = std::string(argv[1]);
   std::string testPath = std::string(argv[2]);
   std::string answerPath = std::string(argv[3]);
@@ -64,17 +72,17 @@ int main(int argc, char *argv[])
   std::cout << "dim: " << dim << std::endl;
   std::cout << "k: " << k << std::endl;
 
-  panene::BinaryDataSource trainSource;
-  panene::BinaryDataSource testSource;
+  Source trainSource;
+  Source testSource;
   
   trainN = trainSource.open(trainPath, trainN, dim);
   testN = testSource.open(testPath, testN, dim);
 
   std::cout << "computing exact neighbors for test points (N = " << testN << ") from training points (N = " << trainN << ")" << std::endl;
   
-  std::vector<ResultSet<size_t, float>> exactResults(testN);
+  std::vector<ResultSet<Source::IDType, Source::DistanceType>> exactResults(testN);
   for(size_t i = 0; i < testN; ++i) {
-    exactResults[i] = ResultSet<size_t, float>(k);
+    exactResults[i] = ResultSet<Source::IDType, Source::DistanceType>(k);
   }
 
 

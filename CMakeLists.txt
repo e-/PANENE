@@ -11,6 +11,7 @@ set(PANENE_VERSION 0.0.1)
 
 option(BUILD_STATIC "Build a static library" OFF)
 option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
+option(COMPILE_FOR_BENCHMARK "Compile for benchmark (e.g., profiling)" ON)
 
 FIND_PACKAGE( OpenMP REQUIRED )
 if(OPENMP_FOUND)
@@ -24,9 +25,13 @@ include_directories(include)
 
 # Require C++11 support, prefer ISO C++ over GNU variants,
 # as relying solely on ISO C++ is more portable.
-SET(CMAKE_CXX_STANDARD 11)
-SET(CMAKE_CXX_STANDARD_REQUIRED ON)
-SET(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+if (COMPILE_FOR_BENCHMARK)
+  add_definitions(-DBENCHMARK)
+endif()
 
 add_subdirectory(src)
 #add_subdirectory(examples)
@@ -44,10 +49,11 @@ if (BUILD_PYTHON_BINDINGS)
 endif()
 
 
-MESSAGE( STATUS "CMAKE_SYSTEM_PROCESSOR: " ${CMAKE_SYSTEM_PROCESSOR})
-MESSAGE( STATUS "CMAKE_BUILD_TYPE: " ${CMAKE_BUILD_TYPE} )
-MESSAGE( STATUS "CMAKE_CXX_COMPILER: " ${CMAKE_CXX_COMPILER} ) # important to know which compiler is used
-MESSAGE (STATUS "CMAKE_CXX_FLAGS: " ${CMAKE_CXX_FLAGS} ) # important to know the flags
-MESSAGE( STATUS "CMAKE_CXX_FLAGS_DEBUG: " ${CMAKE_CXX_FLAGS_DEBUG} )
-MESSAGE( STATUS "CMAKE_CXX_FLAGS_RELEASE: " ${CMAKE_CXX_FLAGS_RELEASE} )
+message( STATUS "CMAKE_SYSTEM_PROCESSOR: " ${CMAKE_SYSTEM_PROCESSOR})
+message( STATUS "CMAKE_BUILD_TYPE: " ${CMAKE_BUILD_TYPE} )
+message( STATUS "CMAKE_CXX_COMPILER: " ${CMAKE_CXX_COMPILER} ) # important to know which compiler is used
+message (STATUS "CMAKE_CXX_FLAGS: " ${CMAKE_CXX_FLAGS} ) # important to know the flags
+message( STATUS "CMAKE_CXX_FLAGS_DEBUG: " ${CMAKE_CXX_FLAGS_DEBUG} )
+message( STATUS "CMAKE_CXX_FLAGS_RELEASE: " ${CMAKE_CXX_FLAGS_RELEASE} )
 message( STATUS "Building python bindings: ${BUILD_PYTHON_BINDINGS}")
+message( STATUS "Compile for benchmark: " ${COMPILE_FOR_BENCHMARK})

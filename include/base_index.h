@@ -16,23 +16,24 @@
 #include <kd_tree.h>
 
 #define USE_BASECLASS_SYMBOLS public: \
-  typedef typename BaseIndex<Distance, DataSource>::IDType IDType;\
-  typedef typename BaseIndex<Distance, DataSource>::DistanceType DistanceType;\
-  typedef typename BaseIndex<Distance, DataSource>::ElementType ElementType;\
-  typedef typename BaseIndex<Distance, DataSource>::Node Node;\
-  typedef typename BaseIndex<Distance, DataSource>::NodePtr NodePtr;\
-  typedef typename BaseIndex<Distance, DataSource>::BranchSt BranchSt;\
-  typedef typename BaseIndex<Distance, DataSource>::Branch Branch;\
-  typedef typename BaseIndex<Distance, DataSource>::NodeSplit NodeSplit;\
-  using BaseIndex<Distance, DataSource>::size;\
-  using BaseIndex<Distance, DataSource>::dataSource;\
-  using BaseIndex<Distance, DataSource>::numTrees;\
-  using BaseIndex<Distance, DataSource>::trees;\
-  using BaseIndex<Distance, DataSource>::pool;\
-  using BaseIndex<Distance, DataSource>::dim;\
-  using BaseIndex<Distance, DataSource>::meanSplit;\
-  using BaseIndex<Distance, DataSource>::divideTree;\
-  using BaseIndex<Distance, DataSource>::findNeighbors;
+  typedef typename BaseIndex<DataSource>::Distance Distance;\
+  typedef typename BaseIndex<DataSource>::IDType IDType;\
+  typedef typename BaseIndex<DataSource>::DistanceType DistanceType;\
+  typedef typename BaseIndex<DataSource>::ElementType ElementType;\
+  typedef typename BaseIndex<DataSource>::Node Node;\
+  typedef typename BaseIndex<DataSource>::NodePtr NodePtr;\
+  typedef typename BaseIndex<DataSource>::BranchSt BranchSt;\
+  typedef typename BaseIndex<DataSource>::Branch Branch;\
+  typedef typename BaseIndex<DataSource>::NodeSplit NodeSplit;\
+  using BaseIndex<DataSource>::size;\
+  using BaseIndex<DataSource>::dataSource;\
+  using BaseIndex<DataSource>::numTrees;\
+  using BaseIndex<DataSource>::trees;\
+  using BaseIndex<DataSource>::pool;\
+  using BaseIndex<DataSource>::dim;\
+  using BaseIndex<DataSource>::meanSplit;\
+  using BaseIndex<DataSource>::divideTree;\
+  using BaseIndex<DataSource>::findNeighbors;
 
 namespace panene
 {
@@ -52,13 +53,14 @@ struct SearchParams {
   SearchParams(int checks_ = 32, float eps_ = 0, int sorted_ = 0, int cores_ = 0) : checks(checks_), eps(eps_), sorted(sorted_), cores(cores_) {}
 };
 
-template <typename Distance, typename DataSource>
+template <typename DataSource>
 class BaseIndex
 {
 public:
+  typedef typename DataSource::Distance Distance;
+  typedef typename DataSource::IDType IDType;
   typedef typename DataSource::ElementType ElementType;
   typedef typename DataSource::DistanceType DistanceType;
-  typedef typename DataSource::IDType IDType;
 
 public:
   struct Node {

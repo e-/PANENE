@@ -5,7 +5,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories ("${CMAKE_SOURCE_DIR}")
 include_directories ("include")
-set(tests answer benchmark progressive_knn_table_benchmark)
+set(tests answer kd_tree_benchmark knn_table_benchmark)
 
 foreach (test ${tests})
   add_executable (${test} ${test}.cpp)
