@@ -13,8 +13,6 @@
 #include <progressive_kd_tree_index.h>
 #include <functional>
 
-//#define DEBUG 1
-
 namespace panene {
 
 struct WeightSet {

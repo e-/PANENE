@@ -13,6 +13,13 @@
 
 #include <base_index.h>
 
+#ifdef BENCHMARK
+#include <util/timer.h>
+#define BENCH(x) x
+#else
+#define BENCH(x) ((void)0)
+#endif
+
 namespace panene
 {
 
@@ -22,25 +29,66 @@ enum UpdateStatus {
   InsertingPoints
 };
 
+struct Weight2 {
+  float addPointWeight;
+  float updateIndexWeight;
+
+  Weight2(float addPointWeight_, float updateIndexWeight_) : addPointWeight(addPointWeight_), updateIndexWeight(updateIndexWeight_) {
+  }
+};
+
+struct UpdateResult2 {
+  size_t numPointsInserted;
+
+  size_t addPointOps;
+  size_t updateIndexOps;
+
+  size_t addPointResult;
+  size_t updateIndexResult;
+
+  double addPointElapsed;
+  double updateIndexElapsed;
+
+  UpdateResult2(
+      size_t addPointOps_, size_t updateIndexOps_,
+      size_t addPointResult_, size_t updateIndexResult_, 
+      size_t numPointsInserted_,
+      double addPointElapsed_, double updateIndexElapsed_) :
+    addPointOps(addPointOps_),
+    updateIndexOps(updateIndexOps_),
+    addPointResult(addPointResult_), 
+    updateIndexResult(updateIndexResult_), 
+    numPointsInserted(numPointsInserted_), 
+    addPointElapsed(addPointElapsed_),
+    updateIndexElapsed(updateIndexElapsed_)
+  {
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const UpdateResult2& obj) {
+    os << "UpdateResult2(addPointOps: " << obj.addPointResult << "/" << obj.addPointOps << ", "
+      << "updateIndexOps: " << obj.updateIndexResult << "/" << obj.updateIndexOps << ")";
+    return os;
+  }
+};
+
 template <typename DataSource>
 class ProgressiveKDTreeIndex : public BaseIndex<DataSource>
 {
   USE_BASECLASS_SYMBOLS
 
 public:
-
-  ProgressiveKDTreeIndex(IndexParams indexParams_, Distance distance_ = Distance()) : BaseIndex<DataSource>(indexParams_, distance_) {
+  ProgressiveKDTreeIndex(IndexParams indexParams_, Weight2 weight_ = Weight2(0.3, 0.7), const float reconstructionWeight_ = .25f) : BaseIndex<DataSource>(indexParams_, Distance()), weight(weight_), reconstructionWeight(reconstructionWeight_) {
   }
 
-  size_t addPoints(size_t newPoints) {
+  size_t addPoints(size_t ops) {
     size_t oldSize = size;
-    size += newPoints;
+    size += ops;
     if(size > dataSource -> loaded())
       size = dataSource -> loaded();
 
     if(oldSize == 0) { // for the first time, build the index as we did in the non-progressive version.
       buildIndex();
-      return newPoints;
+      return ops;
     }
     else {
       for(size_t i = oldSize; i < size; ++i) {
@@ -177,6 +225,40 @@ public:
     return updatedCount;
   }  
 
+  UpdateResult2 run(size_t ops) {
+    size_t addPointOps = 0, updateIndexOps = 0;
+    size_t addPointResult = 0, updateIndexResult = 0;
+    double addPointElapsed = 0, updateIndexElapsed = 0;
+
+    if (updateStatus != UpdateStatus::NoUpdate) {
+      addPointOps = ops * weight.addPointWeight;
+      updateIndexOps = ops * weight.updateIndexWeight;
+    }
+    else {
+      addPointOps = ops;
+    }
+
+    BENCH(Timer timer);
+    BENCH(timer.begin());
+
+    addPointResult = addPoints(addPointOps);
+    size_t numPointsInserted = size;
+
+    BENCH(addPointElapsed = timer.end());
+    
+    if (updateStatus != NoUpdate) {
+      BENCH(timer.begin());
+      updateIndexResult = update(updateIndexOps);
+      BENCH(updateIndexElapsed = timer.end());
+    }
+
+    return UpdateResult2(
+        addPointOps, updateIndexOps,
+        addPointResult, updateIndexResult,
+        numPointsInserted,
+        addPointElapsed, updateIndexElapsed);
+  }
+
   void accumulateLoss(size_t n) {
     if (updateStatus == UpdateStatus::NoUpdate) {
       float lossDelta = 0;
@@ -188,7 +270,7 @@ public:
 
       float updateCost = std::log2(size) * size;
 
-      if (queryLoss > updateCost * updateCostWeight) {
+      if (queryLoss > updateCost * reconstructionWeight) {
         beginUpdate();
       }
     }
@@ -382,16 +464,18 @@ protected:
   }
 
 private:
-  const float updateCostWeight = 0.25; // lower -> more update
+  float reconstructionWeight; // lower => more update
 
   size_t sizeAtUpdate = 0;
 
   std::queue<NodeSplit> queue;
   std::vector<size_t> ids;
+
 public:
   UpdateStatus updateStatus = UpdateStatus::NoUpdate;
   KDTree<NodePtr>* ongoingTree;
   float queryLoss = 0.0;
+  Weight2 weight;
 };
 
 }

@@ -10,7 +10,6 @@ typedef size_t IDType;
 typedef float ElementType;
 using Source = panene::BinaryDataSource<IDType, L2<ElementType>>;
 
-
 void readAnswers(const std::string &path, size_t queryN, size_t &k, std::vector<std::vector<Neighbor<size_t, float>>> &neighbors) {
   std::ifstream infile;
 
@@ -69,8 +68,8 @@ void run(const char* base_) {
     Dataset(base, "glove", "original", pointsN, 100)    
   };
   
-  const int maxRepeat = 5; //5;
-  const int queryRepeat = 1; // 5;
+  const int maxRepeat = 3; //5;
+  const int queryRepeat = 5;
   const IndexParams indexParam(4);  
   const size_t maxIter = 2500; // if all data is read, it stops
   const size_t maxQueryN = 1000;
@@ -87,15 +86,18 @@ void run(const char* base_) {
 #endif
 
   log <<
-    "method\tdata\tversion\trepeat\tmaxOp\titer\tnumPointsInserted\timbalance1\timbalance2\timbalance3\timbalance4\tmax_depth\tQPS\tAccuracy\tmeanDistError\taddNewPointElapsed\tupdateIndexElapsed" << std::endl;
+    "method\tdata\tversion\trepeat\tmaxOp\titer\tnumPointsInserted\timbalance1\timbalance2\timbalance3\timbalance4\tmax_depth\tQPS\tAccuracy\tmeanDistError\taddPointElapsed\tupdateIndexElapsed" << std::endl;
 
-  size_t maxOps[] = { 5000 };// , 10000 };
+  size_t maxOps[] = { 5000 };
   size_t maxOpsN = sizeof(maxOps) / sizeof(size_t);
 
-  float addPointWeights[] = { 0.1, 0.2, 0.3 }; // {0.25, 0.5, 0.75};
+  float addPointWeights[] = { 0.2, 0.35, 0.5 };
   size_t weightN = sizeof(addPointWeights) / sizeof(float);
 
+  int datasetIndex = -1;
   for(const auto& dataset: datasets) {
+    datasetIndex++;
+
     Source trainDataSource(dataset.path);
 
     size_t trainN = trainDataSource.open(dataset.path, dataset.n, dataset.dim);    
@@ -133,7 +135,9 @@ void run(const char* base_) {
           size_t numPointsInserted = 0;       
 
           for (int r = 0; r < maxIter; ++r) {
-            std::cout << "(online) (" << repeat << "/" << maxRepeat << ") (" << r << "/" << maxIter << ")" << std::endl;
+            std::cout << "(" << datasetIndex << "/" << datasets.size() 
+                      << ") (online) (" << repeat << "/" << maxRepeat << ") (" << r 
+                      << "/" << maxIter << ")" << std::endl;
 
             // update the index with the given number operations
             size_t addPointOps;
@@ -195,40 +199,18 @@ void run(const char* base_) {
           float addPointWeight = addPointWeights[w];
           size_t numPointsInserted = 0;
 
-          ProgressiveKDTreeIndex<Source> progressiveIndex(indexParam);
+          ProgressiveKDTreeIndex<Source> progressiveIndex(indexParam, Weight2(addPointWeight, 1 - addPointWeight));
           progressiveIndex.setDataSource(&trainDataSource);
 
           for (int r = 0; r < maxIter; ++r) {
-            std::cout << "(" << w << "/" << weightN << ") (" << repeat << "/" << maxRepeat << ") (" << r << "/" << maxIter << ")" << std::endl;
+            std::cout << "(" << datasetIndex << "/" << datasets.size() 
+                      << ") (progressive" << w << "/" << weightN << ") (" << repeat 
+                      << "/" << maxRepeat << ") (" << r << "/" << maxIter << ")" << std::endl;
+
             // update the index with the given number operations
-
-            size_t addPointOps;
-
-            if (progressiveIndex.updateStatus != NoUpdate) {
-              addPointOps = maxOp * addPointWeight;
-            }
-            else {
-              addPointOps = maxOp;
-            }
-
-            std::cout << "progressiveIndex.addPoints called() " << addPointOps << std::endl;
-            timer.begin();
-            size_t addNewPointResult = progressiveIndex.addPoints(addPointOps);
-            double addNewPointElapsed = timer.end();
-            std::cout << "progressiveIndex.addPoints done" << std::endl;
-
-            if (addNewPointResult == 0) break;
-            numPointsInserted += addNewPointResult;
-            
-            double updateIndexElapsed = 0;
-
-            if (progressiveIndex.updateStatus != NoUpdate) {
-              std::cout << "progressiveIndex.update called() " << maxOp - addNewPointResult << std::endl;
-              timer.begin();
-              progressiveIndex.update(maxOp - addNewPointResult);
-              updateIndexElapsed = timer.end();
-              std::cout << "progressiveIndex.update done" << std::endl;
-            }
+            auto updateResult = progressiveIndex.run(maxOp);
+            if(updateResult.addPointResult == 0)
+              break;
 
             double searchElapsed = 0;
 
@@ -254,13 +236,13 @@ void run(const char* base_) {
 
             float qps = 1.0 / (searchElapsed / queryN / queryRepeat);
             log << "progressive" << addPointWeight << "\t";
-            log << dataset.name << "\t" << dataset.version << "\t" << repeat << "\t" << maxOp << "\t" << r << "\t" << numPointsInserted << "\t";
+            log << dataset.name << "\t" << dataset.version << "\t" << repeat << "\t" << maxOp << "\t" << r << "\t" << updateResult.numPointsInserted << "\t";
             auto imbalances = progressiveIndex.recomputeImbalances();
             for (auto imbalance : imbalances) {
               log << imbalance << "\t";
             }
             log << progressiveIndex.computeMaxDepth() << "\t" << qps << "\t" << accuracy << "\t" << meanDistError << "\t";
-            log << addNewPointElapsed << "\t" << updateIndexElapsed << std::endl;
+            log << updateResult.addPointElapsed << "\t" << updateResult.updateIndexElapsed << std::endl;
 
             for (size_t i = 0; i < 4; ++i) {
               std::cout << "tree" << i << " " << progressiveIndex.trees[i]->getCachedImbalance() << " " << progressiveIndex.trees[i]->size << std::endl;

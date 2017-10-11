@@ -1,8 +1,6 @@
 #include <string>
 #include <vector>
 
-#define BENCHMARK
-
 #include <tests/metadata.h>
 #include <progressive_knn_table.h>
 
