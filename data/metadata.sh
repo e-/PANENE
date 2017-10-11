@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 remove_downloaded=false 
-test_n=10000 # number of test queries
+test_n=1000 # number of test queries
 datasets="glove sift" #" gist trevi stl10 mnist" 
 
 declare -A dims

@@ -5,21 +5,23 @@ wget "ftp://ftp.irisa.fr/local/texmex/corpus/sift.tar.gz"
 echo "Extracting SIFT..."
 tar -xzf sift.tar.gz
 echo "Converting SIFT..."
-#python convert_texmex_fvec.py sift/sift_base.fvecs >> sift.txt
-python2 ../binary_converter.py sift/sift_base.fvecs train.bin 1000000
-python2 ../binary_converter.py sift/sift_query.fvecs test.bin 10000
-python2 ../preprocess.py train.bin 1000000 128 sift
 
-#wget "ftp://ftp.irisa.fr/local/texmex/corpus/bigann_learn.bvecs.gz" -O bigann_learn.bvecs.gz
-#echo "Extracting SIFT..."
-#gunzip bigann_learn.bvecs.gz
-#echo "Converting SIFT..."
-#python2 ../binary_converter.py bigann_learn.bvecs data.bin 2500000
-#python2 ../binary_converter.py --sample data.bin train.bin test.bin $TEST_N 128
-#python2 ../preprocess.py data.bin 1000000 128 sift
+train_n=$1
+dim=$2
+test_n=$3
+remove_downloaded=$4
 
-if [ "$REMOVE_DOWNLOADED" = true ]; then
-#rm bigann_learn.bvecs
+echo "Converting the data into a binary format"
+python2 ../binary_converter.py sift/sift_base.fvecs train.bin $train_n
+
+echo "Data sampling"
+python2 ../binary_converter.py sift/sift_query.fvecs test.bin $test_n
+
+echo "Data shuffling"
+python2 ../shuffle.py train.bin $train_n $dim sift
+
+if [ "$remove_downloaded" = true ]; then
+  rm -rf bigann_learn.bvecs
   rm -rf sift.tar.gz
   rm -rf sift
 fi
