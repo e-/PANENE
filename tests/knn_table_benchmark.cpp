@@ -7,10 +7,12 @@
 #include <progressive_knn_table.h>
 
 using namespace panene;
+typedef size_t IDType;
+typedef float ElementType;
+using Source = panene::BinaryDataSource<IDType, L2<ElementType>>;
+typedef typename Source::DistanceType DistanceType;
 
-void getExactNN(BinaryDataSource &dataset, Matrix<float> &queryset, Matrix<float> &answers, int k) {
-  typedef float DistanceType;
-
+void getExactNN(Source &dataset, Matrix<ElementType> &queryset, Matrix<ElementType> &answers, size_t k) {
   int rows = dataset.size();
   int n = k;
   int d = dataset.dim();
@@ -59,31 +61,17 @@ void getExactNN(BinaryDataSource &dataset, Matrix<float> &queryset, Matrix<float
 }
 
 
-void run() {
+void run(const char* base_) {
+  const std::string base(base_);
+
   Timer timer;
 
   const size_t pointsN = 1000000;
   std::vector<Dataset> datasets = {
-    Dataset("sift", "shuffled",
-    SIFT_TRAIN_PATH(shuffled),
-    SIFT_QUERY_PATH,
-    SIFT_ANSWER_PATH(shuffled),
-    pointsN, 128),
-    Dataset("sift", "original",
-    SIFT_TRAIN_PATH(original),
-    SIFT_QUERY_PATH,
-    SIFT_ANSWER_PATH(original),
-    pointsN, 128),
-    Dataset("glove", "shuffled",
-    GLOVE_TRAIN_PATH(shuffled),
-    GLOVE_QUERY_PATH,
-    GLOVE_ANSWER_PATH(shuffled),
-    pointsN, 100),
-    Dataset("glove", "original",
-    GLOVE_TRAIN_PATH(original),
-    GLOVE_QUERY_PATH,
-    GLOVE_ANSWER_PATH(original),
-    pointsN, 100)
+    Dataset(base, "sift", "shuffled", pointsN, 128),
+    Dataset(base, "sift", "original", pointsN, 128),
+    Dataset(base, "glove", "shuffled", pointsN, 100),
+    Dataset(base, "glove", "original", pointsN, 100)    
   };
 
   const int maxRepeat = 1; //5;
@@ -123,7 +111,7 @@ void run() {
     */
 
   for (const auto& dataset : datasets) {
-    panene::BinaryDataSource trainDataSource(dataset.path);
+    Source trainDataSource(dataset.path);
 
     size_t trainN = trainDataSource.open(dataset.path, dataset.n, dataset.dim);
 
@@ -155,7 +143,7 @@ void run() {
           float addPointWeight = addPointWeights[w];
           size_t numPointsInserted = 0;
 
-          ProgressiveKNNTable<ProgressiveKDTreeIndex<L2<float>, BinaryDataSource>, BinaryDataSource> table(k, dataset.dim, IndexParams(4), searchParam,
+          ProgressiveKNNTable<ProgressiveKDTreeIndex<Source>, Source> table(k, dataset.dim, IndexParams(4), searchParam,
             WeightSet(addPointWeight, 0.3));
 
           table.setDataSource(&trainDataSource);
@@ -227,8 +215,12 @@ void run() {
   log.close();
 }
 
+int main(int argc, const char **argv) {
+  if(argc < 2) {
+    std::cout << argv[0] << " <dataset_base_path>" << std::endl;
+    return 1;
+  }
 
-int main(){
-  run();
+  run(argv[1]);
   return 0;
 }

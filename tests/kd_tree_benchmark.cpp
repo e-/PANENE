@@ -6,6 +6,10 @@
 #include <kd_tree_index.h>
 
 using namespace panene;
+typedef size_t IDType;
+typedef float ElementType;
+using Source = panene::BinaryDataSource<IDType, L2<ElementType>>;
+
 
 void readAnswers(const std::string &path, size_t queryN, size_t &k, std::vector<std::vector<Neighbor<size_t, float>>> &neighbors) {
   std::ifstream infile;
@@ -90,10 +94,6 @@ void run(const char* base_) {
 
   float addPointWeights[] = { 0.1, 0.2, 0.3 }; // {0.25, 0.5, 0.75};
   size_t weightN = sizeof(addPointWeights) / sizeof(float);
-
-  typedef size_t IDType;
-  typedef float ElementType;
-  using Source = panene::BinaryDataSource<IDType, L2<ElementType>>;
 
   for(const auto& dataset: datasets) {
     Source trainDataSource(dataset.path);
