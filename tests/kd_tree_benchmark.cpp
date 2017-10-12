@@ -91,7 +91,7 @@ void run(const char* base_) {
   size_t maxOps[] = { 5000 };
   size_t maxOpsN = sizeof(maxOps) / sizeof(size_t);
 
-  float addPointWeights[] = { 0.2, 0.35, 0.5 };
+  float addPointWeights[] = { 0.2f, 0.35f, 0.5f };
   size_t weightN = sizeof(addPointWeights) / sizeof(float);
 
   int datasetIndex = -1;
@@ -140,7 +140,6 @@ void run(const char* base_) {
                       << "/" << maxIter << ")" << std::endl;
 
             // update the index with the given number operations
-            size_t addPointOps;
 
             std::cout << "onlineIndex.addPoints called" << std::endl;
             timer.begin();
@@ -175,7 +174,7 @@ void run(const char* base_) {
             
             measureMeanDistError(queryN, k, exactResults, results, meanDistError, accuracy);
 
-            float qps = 1.0 / (searchElapsed / queryN / queryRepeat);
+            double qps = 1.0 / (searchElapsed / queryN / queryRepeat);
             log << "online" << "\t";
             log << dataset.name << "\t" << dataset.version << "\t" << repeat << "\t" << maxOp << "\t" << r << "\t" << numPointsInserted << "\t";
 
@@ -195,7 +194,7 @@ void run(const char* base_) {
         }       
 
         // then, test progressive trees
-        for (int w = 0; w < weightN; ++w) {
+        for (size_t w = 0; w < weightN; ++w) {
           float addPointWeight = addPointWeights[w];
           size_t numPointsInserted = 0;
 
@@ -234,7 +233,7 @@ void run(const char* base_) {
 
             measureMeanDistError(queryN, k, exactResults, results, meanDistError, accuracy);
 
-            float qps = 1.0 / (searchElapsed / queryN / queryRepeat);
+            double qps = 1.0 / (searchElapsed / queryN / queryRepeat);
             log << "progressive" << addPointWeight << "\t";
             log << dataset.name << "\t" << dataset.version << "\t" << repeat << "\t" << maxOp << "\t" << r << "\t" << updateResult.numPointsInserted << "\t";
             auto imbalances = progressiveIndex.recomputeImbalances();

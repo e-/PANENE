@@ -37,7 +37,7 @@ public:
     }
     else {
       for(size_t i = oldSize; i < size; ++i) {
-        for(int j = 0; j < numTrees; ++j) {
+        for(size_t j = 0; j < numTrees; ++j) {
           addPointToTree(trees[j], trees[j] -> root, i, 0);
         }
       }
@@ -93,7 +93,7 @@ protected:
     trees.resize(numTrees);
 
     freeIndex();
-    for(int i = 0; i < numTrees; ++i) {
+    for(size_t i = 0; i < numTrees; ++i) {
       std::random_shuffle(ids.begin(), ids.end());            
       trees[i] = new KDTree<NodePtr>();
       trees[i]->setMaxSize(dataSource->size());

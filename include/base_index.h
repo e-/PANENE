@@ -207,7 +207,6 @@ public:
   template<bool with_removed>
   void getNeighbors(const std::vector<ElementType> &vec, ResultSet<IDType, DistanceType> &result, int maxCheck, float epsError) const
   {
-    int i;
     BranchSt branch;
 
     int checkCount = 0;
@@ -215,7 +214,7 @@ public:
     DynamicBitset checked(size);
 
     /* Search once through each tree down to root. */
-    for (i = 0; i < numTrees; ++i) {
+    for (size_t i = 0; i < numTrees; ++i) {
       searchLevel<with_removed>(vec, result, trees[i]->root, 0, checkCount, maxCheck, epsError, heap, checked);
     }
 
@@ -421,7 +420,7 @@ public:
     RAND_DIM = 5
   };
 
-  int numTrees;
+  size_t numTrees;
   Distance distance;
   size_t size = 0; // the number of points loaded into trees
   size_t dim;

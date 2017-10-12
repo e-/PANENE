@@ -233,8 +233,8 @@ public:
     double addPointElapsed = 0, updateIndexElapsed = 0;
 
     if (updateStatus != UpdateStatus::NoUpdate) {
-      addPointOps = ops * weight.addPointWeight;
-      updateIndexOps = ops * weight.updateIndexWeight;
+      addPointOps = (size_t)(ops * weight.addPointWeight);
+      updateIndexOps = (size_t)(ops * weight.updateIndexWeight);
     }
     else {
       addPointOps = ops;
@@ -270,11 +270,11 @@ public:
       float lossDelta = 0;
 
       for (size_t i = 0; i < numTrees; ++i) {
-        lossDelta += n * (trees[i]->getCachedCost() - std::log2(size));
+        lossDelta += (float)(n * (trees[i]->getCachedCost() - std::log2(size)));
       }
       queryLoss += lossDelta;
 
-      float updateCost = std::log2(size) * size;
+      float updateCost = (float)std::log2(size) * size;
 
       if (queryLoss > updateCost * reconstructionWeight) {
         beginUpdate();

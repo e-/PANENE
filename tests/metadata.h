@@ -9,10 +9,11 @@
 #include <binary_data_source.h>
 #include <util/result_set.h>
 
-#define SEP "/"
 
 #ifdef _WIN32
 #define SEP "\\"
+#else
+#define SEP "/"
 #endif
 
 namespace panene
