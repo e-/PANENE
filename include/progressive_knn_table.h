@@ -5,52 +5,63 @@
 #include <iostream>
 #include <queue>
 
-#ifdef BENCHMARK
-#include <tests/metadata.h>
-#endif
-
-#include <schedule.h>
 #include <progressive_kd_tree_index.h>
 #include <functional>
 
+#ifdef BENCHMARK
+#include <util/timer.h>
+#define BENCH(x) x
+#else
+#define BENCH(x) ((void)0)
+#endif
+
 namespace panene {
 
-struct WeightSet {
-  float insertionWeight;
+struct TableWeight {
+  float treeWeight;
   float tableWeight;
 
-  WeightSet(float insertionWeight_, float tableWeight_) : insertionWeight(insertionWeight_), tableWeight(tableWeight_) {
+  TableWeight(float treeWeight_, float tableWeight_) : treeWeight(treeWeight_), tableWeight(tableWeight_) {
   }
 };
 
 struct UpdateResult {
-  Schedule schedule;
-  size_t addPointsResult;
+  size_t addPointOps;
+  size_t updateIndexOps;
+  size_t updateTableOps;
+
+  size_t addPointResult;
   size_t updateIndexResult;
   size_t updateTableResult;
-  size_t numPointsInserted;
 
-  double addPointsElapsed;
+  size_t numPointsInserted;
+  
+  double addPointElapsed;
   double updateIndexElapsed;
   double updateTableElapsed;
 
-  UpdateResult(const Schedule &schedule_, size_t addPointsResult_, size_t updateIndexResult_, size_t updateTableResult_, size_t numPointsInserted_,
-               double addPointsElapsed_, double updateIndexElapsed_, double updateTableElapsed_) :
-    schedule(schedule_), addPointsResult(addPointsResult_), updateIndexResult(updateIndexResult_), updateTableResult(updateTableResult_),
-    numPointsInserted(numPointsInserted_), addPointsElapsed(addPointsElapsed_), updateIndexElapsed(updateIndexElapsed_), updateTableElapsed(updateTableElapsed_)
+  UpdateResult(size_t addPointOps_, size_t updateIndexOps_, size_t updateTableOps_,
+               size_t addPointResult_, size_t updateIndexResult_, size_t updateTableResult_, 
+               size_t numPointsInserted_,
+               double addPointElapsed_, double updateIndexElapsed_, double updateTableElapsed_) :
+    addPointOps(addPointOps_), updateIndexOps(updateIndexOps_), updateTableOps(updateTableOps_),
+    addPointResult(addPointResult_), updateIndexResult(updateIndexResult_), updateTableResult(updateTableResult_),
+    numPointsInserted(numPointsInserted_), 
+    addPointElapsed(addPointElapsed_), updateIndexElapsed(updateIndexElapsed_), updateTableElapsed(updateTableElapsed_)
   {
   }
 
   friend std::ostream& operator<<(std::ostream& os, const UpdateResult& obj) {
-    os << "UpdateResult(addNewPointOps: " << obj.addPointsResult << " / " << obj.schedule.addNewPointOps << ", "
-      << "updateIndexOps: " << obj.updateIndexResult << " / " << obj.schedule.updateIndexOps << ", "
-      << "updateTableOps: " << obj.updateTableResult << " / " << obj.schedule.updateTableOps << ")";
+    os << "UpdateResult(addPointOps: " << obj.addPointResult << " / " << obj.addPointOps << ", "
+      << "updateIndexOps: " << obj.updateIndexResult << " / " << obj.updateIndexOps << ", "
+      << "updateTableOps: " << obj.updateTableResult << " / " << obj.updateTableOps << ")";
     return os;
   }
 };
 
-template <typename Indexer, typename DataSource>
+template <typename Indexer>
 class ProgressiveKNNTable {
+  typedef typename Indexer::DataSourceT DataSource;
   typedef typename DataSource::ElementType ElementType;
   typedef typename DataSource::DistanceType DistanceType;
   typedef typename DataSource::IDType IDType;
@@ -59,8 +70,8 @@ class ProgressiveKNNTable {
 
 public:  
 
-  ProgressiveKNNTable(size_t k_, size_t d_, IndexParams indexParams_, SearchParams searchParams_, WeightSet weights_) : 
-    d(d_), k(k_), indexer(Indexer(indexParams_)), weights(weights_), searchParams(searchParams_){
+  ProgressiveKNNTable(size_t k_, size_t d_, IndexParams indexParams_, SearchParams searchParams_, TreeWeight treeWeight_, TableWeight weight_) : 
+    d(d_), k(k_), indexer(Indexer(indexParams_)), weight(weight_), searchParams(searchParams_){
 
     numPointsInserted = 0;
   }
@@ -70,10 +81,6 @@ public:
     indexer.setDataSource(dataSource);
     queued = DynamicBitset(dataSource -> size());
   }
-
-  /*void setScheduler(Scheduler *scheduler) {
-    this -> scheduler = scheduler;
-  }*/
 
   size_t getSize() {
     return indexer.getSize();
@@ -100,75 +107,41 @@ public:
   Note that the three operations have different costs. 
   */
   
-  UpdateResult update(size_t maxOps) {
+  UpdateResult run(size_t ops) {
     // To avoid keeping a copy of the whole data, we need to use an abstract dataframe that grows in real time.
         
-    // 1. add new points to both index and table (addPointsOps)
+    // 1. add new points to both index and table (addPointOps)
+    // 2. update the index (updateIndexOps)
 
-    size_t addPointsOps = 0, updateIndexOps = 0;
-    double addPointsElapsed = 0;
-    
-#ifdef BENCHMARK
-    Timer timer;
-    timer.begin();
-#endif
-   
-    if (indexer.updateStatus == NoUpdate) {
-      addPointsOps = maxOps * (1 - weights.tableWeight);
-    }
-    else {
-      addPointsOps = maxOps * (1 - weights.tableWeight) * weights.insertionWeight;
-      updateIndexOps = maxOps * (1 - weights.tableWeight) * (1 - weights.insertionWeight);
-    }    
+    size_t updateTableOps = 0;
+    size_t updateTableResult = 0;
+    double updateTableElapsed = 0;
+  
+    size_t treeOps = ops * weight.treeWeight;
 
-#if DEBUG
-    std::cerr << "[PKNNTable] Adding points to the index" << std::endl;
-#endif
+    auto indexerResult = indexer.run(treeOps);
+    size_t addPointResult = indexerResult.addPointResult;
 
-    size_t addPointsResult = 0;
-    
-    if (addPointsOps > 0) {
-      addPointsResult = indexer.addPoints(addPointsOps);
-      numPointsInserted += addPointsResult;
-    }
-
-
-    if (addPointsResult == 0) { // all points are inserted to the index      
-      weights.insertionWeight = 0;
-    }
-
-#if DEBUG
-    std::cerr << "[PKNNTable] " << addNewPointResult << " points have been newly indexed. " << indexer.getSize() << " points exist in trees." << std::endl;
-#endif
+    numPointsInserted += addPointResult;
 
     size_t size = indexer.getSize();
-    size_t oldSize = size - addPointsResult;
+    size_t oldSize = size - addPointResult;
 
     // checks if points are added (if not, it means all points in the data have already been inserted)
-    
-    if(addPointsResult > 0) {  
-
-      std::vector<IDType> newPoints(addPointsResult);
+    if(addPointResult > 0) {
+      std::vector<IDType> newPoints(addPointResult);
       
-      for(size_t i = 0; i < addPointsResult; ++i) {
+      for(size_t i = 0; i < addPointResult; ++i) {
         newPoints[i] = oldSize + i;
       } 
 
-      std::vector<ResultSet<IDType, DistanceType>> results(addPointsResult);
-      for(size_t i = 0; i < addPointsResult; ++i)
+      std::vector<ResultSet<IDType, DistanceType>> results(addPointResult);
+      for(size_t i = 0; i < addPointResult; ++i)
         results[i] = ResultSet<IDType, DistanceType>(k);
-
-#if DEBUG
-      std::cerr << "[PKNNTable] Filling in thw rows of the new points in KNNTable" << std::endl;
-#endif 
 
       indexer.knnSearch(newPoints, results, k, searchParams);
 
-#if DEBUG
-      std::cerr << "[PKNNTable] KNNSearch Done" << std::endl;
-#endif 
-
-      for(size_t i = 0; i < addPointsResult; ++i) {
+      for(size_t i = 0; i < addPointResult; ++i) {
         IDType id = oldSize + i;
         queued.set(id);
 
@@ -176,71 +149,23 @@ public:
           if(!queued.test(results[i][j].id)) {
             queued.set(results[i][j].id);
             queue.push(results[i][j]);
-
-#if DEBUG
-            std::cerr << "[PKNNTable] Adding a dirty neighbor point to the queue " << nns[j] << std::endl;
-#endif
           }
         }
         
         neighbors.push_back(results[i]);
       }
     }
-#ifdef BENCHMARK
-    addPointsElapsed = timer.end();
-#endif
-
-    // 2. update the index (updateIndexOps)
-    
-#if DEBUG
-    std::cerr << "[PKNNTable] Updating the index" << std::endl;
-#endif
-    
-    size_t updateIndexResult = 0;
-    double updateIndexElapsed = 0;
-
-#ifdef BENCHMARK
-    timer.begin();
-#endif
-
-    if (updateIndexOps > 0) {
-      updateIndexResult = indexer.update(updateIndexOps);
-    }
 
     
-#if DEBUG
-    std::cerr << "[PKNNTable] Current cache table: " << std::endl;
-
-    for(unsigned int i = 0; i < neighbors.size(); ++i) {
-      for(unsigned int j = 0; j < k; ++j) {
-        std::cerr << neighbors[i][j] << ' ';
-      }
-      std::cerr << std::endl;
-    }
-
-    std::cerr << "[PKNNTable] Starting processing queue" << std::endl;
-#endif
-
-#ifdef BENCHMARK
-    updateIndexElapsed = timer.end();
-#endif
-
     // 3. process the queue (updateTableOps)
-
-    size_t updateTableOps = maxOps - addPointsOps - updateIndexOps;
-    double updateTableElapsed = 0;
-
-#ifdef BENCHMARK
-    timer.begin();
-#endif 
+    updateTableOps = ops - indexerResult.addPointOps - indexerResult.updateIndexOps;
+    
+    BENCH(Timer timer);
+    BENCH(timer.begin());
 
     int checkCount = 0;    
     while(checkCount < updateTableOps && !queue.empty()) {
       auto q = queue.top();
-
-#if DEBUG
-      std::cerr << "[PKNNTable] Got a dirty point from the queue: " << q << std::endl;
-#endif
 
       queue.pop();
 
@@ -251,13 +176,7 @@ public:
       
       // get the new NN of the dirty point
       ResultSet<IDType, DistanceType> result(k);
-#if DEBUG
-      std::cerr << "[PKNNTable] Starting KNN search for the dirty point" << std::endl;
-#endif
       indexer.knnSearch(q.id, result, k, searchParams);
-#if DEBUG
-      std::cerr << "[PKNNTable] KNN search done" << std::endl;
-#endif
 
       // check if there is a difference between previous NN and newly computed NN.      
       size_t i;
@@ -278,37 +197,16 @@ public:
           }
         }
       }
-
-#if DEBUG  
-      std::cerr << q << std::endl;
-      for(auto &x : neighbors[q.id]) {
-        std::cerr << x << ' ';
-      }
-      std::cerr << std::endl;
-
-      for(unsigned int i = 0; i < k; ++i) {
-        std::cerr << '(' << newIndices[0][i] << ", " << newDists[0][i] << ") ";
-      }
-      std::cerr << std::endl;
-#endif
     }
 
-#if DEBUG
-    std::cerr << "[PKNNTable] " << checkCount << " points have been updated." << std::endl;
-#endif
-    
-    size_t updateTableResult = checkCount;
-#ifdef BENCHMARK
-    updateTableElapsed = timer.end();
-#endif
+    updateTableResult = checkCount;
+    BENCH(updateTableElapsed = timer.end());
 
-#ifdef BENCHMARK
-    return UpdateResult(Schedule(addPointsOps, updateIndexOps, updateTableOps), addPointsResult, updateIndexResult, updateTableResult, numPointsInserted,
-      addPointsElapsed, updateIndexElapsed, updateTableElapsed);
-#else
-    return UpdateResult(Schedule(addPointsOps, updateIndexOps, updateTableOps), addPointsResult, updateIndexResult, updateTableResult, numPointsInserted, 0, 0, 0);
-#endif
-  };
+    return UpdateResult(indexerResult.addPointOps, indexerResult.updateIndexOps, updateTableOps, 
+                        addPointResult, indexerResult.updateIndexResult, updateTableResult, 
+                        numPointsInserted,
+                        indexerResult.addPointElapsed, indexerResult.updateIndexElapsed, updateTableElapsed);
+  }
 
   ResultSet<IDType, DistanceType> &getNeighbors(const IDType id) {
     return neighbors[id];
@@ -322,7 +220,7 @@ private:
   SearchParams searchParams;
   std::vector<ResultSet<IDType, DistanceType>> neighbors;
   DataSource *dataSource;
-  WeightSet weights;
+  TableWeight weight;
   size_t numPointsInserted;
 
   std::priority_queue<NeighborType, std::vector<NeighborType>, std::greater<NeighborType>> queue; // descending order

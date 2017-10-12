@@ -199,7 +199,7 @@ void run(const char* base_) {
           float addPointWeight = addPointWeights[w];
           size_t numPointsInserted = 0;
 
-          ProgressiveKDTreeIndex<Source> progressiveIndex(indexParam, Weight2(addPointWeight, 1 - addPointWeight));
+          ProgressiveKDTreeIndex<Source> progressiveIndex(indexParam, TreeWeight(addPointWeight, 1 - addPointWeight));
           progressiveIndex.setDataSource(&trainDataSource);
 
           for (int r = 0; r < maxIter; ++r) {

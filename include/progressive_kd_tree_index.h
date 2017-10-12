@@ -29,11 +29,11 @@ enum UpdateStatus {
   InsertingPoints
 };
 
-struct Weight2 {
+struct TreeWeight {
   float addPointWeight;
   float updateIndexWeight;
 
-  Weight2(float addPointWeight_, float updateIndexWeight_) : addPointWeight(addPointWeight_), updateIndexWeight(updateIndexWeight_) {
+  TreeWeight(float addPointWeight_, float updateIndexWeight_) : addPointWeight(addPointWeight_), updateIndexWeight(updateIndexWeight_) {
   }
 };
 
@@ -75,9 +75,11 @@ template <typename DataSource>
 class ProgressiveKDTreeIndex : public BaseIndex<DataSource>
 {
   USE_BASECLASS_SYMBOLS
+  
+  typedef DataSource DataSourceT;
 
 public:
-  ProgressiveKDTreeIndex(IndexParams indexParams_, Weight2 weight_ = Weight2(0.3, 0.7), const float reconstructionWeight_ = .25f) : BaseIndex<DataSource>(indexParams_, Distance()), weight(weight_), reconstructionWeight(reconstructionWeight_) {
+  ProgressiveKDTreeIndex(IndexParams indexParams_, TreeWeight weight_ = TreeWeight(0.3, 0.7), const float reconstructionWeight_ = .25f) : BaseIndex<DataSource>(indexParams_, Distance()), weight(weight_), reconstructionWeight(reconstructionWeight_) {
   }
 
   size_t addPoints(size_t ops) {
@@ -242,6 +244,10 @@ public:
     BENCH(timer.begin());
 
     addPointResult = addPoints(addPointOps);
+    if(addPointResult == 0) {
+      weight.updateIndexWeight += weight.addPointWeight;
+      weight.addPointWeight = 0;
+    }
     size_t numPointsInserted = size;
 
     BENCH(addPointElapsed = timer.end());
@@ -475,7 +481,7 @@ public:
   UpdateStatus updateStatus = UpdateStatus::NoUpdate;
   KDTree<NodePtr>* ongoingTree;
   float queryLoss = 0.0;
-  Weight2 weight;
+  TreeWeight weight;
 };
 
 }

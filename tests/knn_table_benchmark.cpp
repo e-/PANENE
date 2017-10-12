@@ -92,21 +92,14 @@ void run(const char* base_) {
   size_t maxOps[] = { 5000 };// , 10000 };
   size_t maxOpsN = sizeof(maxOps) / sizeof(size_t);
 
-  float addPointWeights[] = { 0.3, 0.5};
-  size_t weightN = sizeof(addPointWeights) / sizeof(float);
+  float treeWeights[] = { 0.3, 0.5 };
+  size_t weightN = sizeof(treeWeights) / sizeof(float);
   size_t k = 20;
 
-  log << "data\tversion\taddPointWeight\tmaxOp\tnumPointsInserted\t"
+  log << "data\tversion\ttreeWeight\tmaxOp\tnumPointsInserted\t"
     << "iteration\taddPointsRes\tupdateIndexRes\tupdateTableRes\t"
     << "addPointsElapsed\tupdateIndexElapsed\tupdateTableElapsed\t" 
     << "meanDistError\tupdateElapsed\tqueryElapsed\tQPS\tcoverage" << std::endl;
-
-  /*
-  std::cerr << dataset.name << "\t" << dataset.version << "\t" << addPointWeight << "\t" << maxOp << "\t" << numPointsInserted << "\t"
-              << r << "\t" << updateResult.addPointsResult << "\t" << updateResult.updateIndexResult << "\t" << updateResult.updateTableResult << "\t"
-              << updateResult.addPointsElapsed << "\t" << updateResult.updateIndexElapsed << "\t" << updateResult.updateTableElapsed << "\t"
-              << meanError << "\t" << updateElapsed << "\t" << queryElapsed << "\t" << qps << "\t" << coverage << std::endl;
-    */
 
   for (const auto& dataset : datasets) {
     Source trainDataSource(dataset.path);
@@ -138,11 +131,14 @@ void run(const char* base_) {
     for (int repeat = 0; repeat < maxRepeat; ++repeat) {
       for (const size_t maxOp : maxOps) {
         for (int w = 0; w < weightN; ++w) {
-          float addPointWeight = addPointWeights[w];
+          float treeWeight = treeWeights[w];
           size_t numPointsInserted = 0;
 
-          ProgressiveKNNTable<ProgressiveKDTreeIndex<Source>, Source> table(k, dataset.dim, IndexParams(4), searchParam,
-            WeightSet(addPointWeight, 0.3));
+          ProgressiveKNNTable<ProgressiveKDTreeIndex<Source>> table(k, dataset.dim, 
+              IndexParams(4),
+              searchParam,
+              TreeWeight(0.3, 0.7),
+              TableWeight(treeWeight, 1 - treeWeight));
 
           table.setDataSource(&trainDataSource);
 
@@ -152,11 +148,11 @@ void run(const char* base_) {
 
             std::cout << "table.update called() " << std::endl;
             timer.begin();
-            UpdateResult updateResult = table.update(maxOp);
+            UpdateResult updateResult = table.run(maxOp);
             double updateElapsed = timer.end();
             std::cout << "table.update done" << std::endl;
 
-            if (updateResult.addPointsResult == 0) break;            
+            if (updateResult.addPointResult == 0) break;            
 
             std::vector<ResultSet<size_t, float>> results(sample);
             size_t missing = 0;
@@ -197,9 +193,9 @@ void run(const char* base_) {
             float meanError = distSum / (queryRepeat * sample - missing);
             float coverage = 1 - (float)missing / queryRepeat / sample;
 
-            log << dataset.name << "\t" << dataset.version << "\t" << addPointWeight << "\t" << maxOp << "\t" << numPointsInserted << "\t"
-              << r << "\t" << updateResult.addPointsResult << "\t" << updateResult.updateIndexResult << "\t" << updateResult.updateTableResult << "\t"
-              << updateResult.addPointsElapsed << "\t" << updateResult.updateIndexElapsed << "\t" << updateResult.updateTableElapsed << "\t"
+            log << dataset.name << "\t" << dataset.version << "\t" << treeWeight << "\t" << maxOp << "\t" << numPointsInserted << "\t"
+              << r << "\t" << updateResult.addPointResult << "\t" << updateResult.updateIndexResult << "\t" << updateResult.updateTableResult << "\t"
+              << updateResult.addPointElapsed << "\t" << updateResult.updateIndexElapsed << "\t" << updateResult.updateTableElapsed << "\t"
               << meanError << "\t" << updateElapsed << "\t" << queryElapsed << "\t" << qps << "\t" << coverage << std::endl;
           }
         }
