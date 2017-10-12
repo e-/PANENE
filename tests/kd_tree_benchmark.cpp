@@ -62,20 +62,20 @@ void run(const char* base_) {
 
   const size_t pointsN = 1000000;
   std::vector<Dataset> datasets = {    
-    Dataset(base, "sift", "shuffled", pointsN, 128),
-    Dataset(base, "sift", "original", pointsN, 128),
     Dataset(base, "glove", "shuffled", pointsN, 100),
-    Dataset(base, "glove", "original", pointsN, 100)    
+    Dataset(base, "glove", "original", pointsN, 100),
+    Dataset(base, "sift", "shuffled", pointsN, 128),
+    Dataset(base, "sift", "original", pointsN, 128)    
   };
   
-  const int maxRepeat = 3; //5;
+  const int maxRepeat = 1; //5;
   const int queryRepeat = 5;
   const IndexParams indexParam(4);  
   const size_t maxIter = 2500; // if all data is read, it stops
   const size_t maxQueryN = 1000;
 
   SearchParams searchParam(1000); // 4096);
-  searchParam.cores = 0;
+  searchParam.cores = 4;
 
   std::fstream log;
 
@@ -265,11 +265,15 @@ void run(const char* base_) {
 }
 
 int main(int argc, const char **argv) {
+#ifdef _WIN32
+  run("D:\\G\\work\\panene\\PANENE\\data");
+#else 
   if(argc < 2) {
     std::cout << argv[0] << " <dataset_base_path>" << std::endl;
     return 1;
   }
 
   run(argv[1]);
+#endif
   return 0;
 }
