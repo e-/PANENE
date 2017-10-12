@@ -32,7 +32,13 @@ public:
 
   size_t open(const std::string& path, size_t n_, size_t d_) {
     FILE *fd;
+    
+#ifdef _WIN32
     auto err = fopen_s(&fd, path.c_str(), "rb"); 
+#else
+    fd = fopen(path.c_str(), "rb");
+#endif
+
     if(!fd) {
       std::cerr << "file " << path << " does not exist" << std::endl;
       throw;
