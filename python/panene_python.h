@@ -1,8 +1,9 @@
 #include <Python.h>
 #include "numpy/arrayobject.h"
+#include "numpy/ndarrayobject.h"
 #include "numpy/ufuncobject.h"
 #include <progressive_knn_table.h>
-#include <naive_data_source.h>
+#include <naive.h>
 
 #ifndef NDEBUG
 #include <iostream>
@@ -22,19 +23,23 @@ class PyDataSource
   typedef size_t IDType;
   typedef float ElementType;
   typedef float DistanceType;
+  typedef L2<float> Distance;
 
   PyDataSource(PyObject * o)
-    : _d(0), _object(Py_None) {
+    : _d(0), _object(Py_None), _array(nullptr) {
+    import_array(); // required to avoid core dumps from numpy
+    Py_INCREF(_object);
     set_array(o);
   }
 
   ~PyDataSource() {
-    std::cerr << "calling destructor" << std::endl;
+    DBG(std::cerr << "calling destructor" << std::endl);
     if (_object != nullptr) {
-      std::cerr << "_object refcount: " << _object->ob_refcnt << std::endl;
+      DBG(std::cerr << "~ _object refcount: " << _object->ob_refcnt << std::endl);
       Py_DECREF(_object);
     }
     _object = nullptr;
+    _array = nullptr;
   }
 
   void set_array(PyObject * o) {
@@ -43,14 +48,37 @@ class PyDataSource
     Py_INCREF(o);
     Py_DECREF(_object);
     _object = o;
+    _array = nullptr;
+    DBG(std::cerr << "set_array _object refcount: " << _object->ob_refcnt << std::endl);
+    if (_object != Py_None && PyArray_Check(_object)) {
+      DBG(std::cerr << "Object is an array..." << std::endl;)
+      PyArrayObject * array = (PyArrayObject*)_object;
+      if (PyArray_IS_C_CONTIGUOUS(array)
+          && (PyArray_TYPE(array) == NPY_FLOAT)) {
+        DBG(std::cerr << "acceptable for fast get" << std::endl;)
+        _array = array;
+      }
+      else {
+        DBG(std::cerr << "not acceptable for fast get" << std::endl;)
+      }
+    }
+    else {
+      DBG(std::cerr << "Object is not an array...";)
+    }
+
     set_dim();
   }
 
   PyObject * get_array() const {
+    Py_INCREF(_object); //TODO check that this is the right way to do it
     return _object;
   }
 
   ElementType get(const IDType &id, const IDType &dim) const {
+    if (_array != nullptr) {
+      //DBG(std::cerr << "get from array" << std::endl);
+      return *(float *) PyArray_GETPTR2(_array, id, dim);
+    }
     DBG(std::cerr << "Starting get(" << id << "," << dim << ")" << std::endl;)
     PyObject *key1 = PyInt_FromLong(id);
     //DBG(std::cerr << "Created key1" << std::endl;)
@@ -66,9 +94,9 @@ class PyDataSource
       Py_DECREF(pf);
     }
     else {
-      DBG(std::cerr << " not a number " << std::endl;)
+      DBG(std::cerr << " not a number " << std::endl);
     }
-    DBG(std::cerr << " value is: " << ret << std::endl;)
+    DBG(std::cerr << " value is: " << ret << std::endl);
     Py_DECREF(tuple);
     return ret;
   }
@@ -79,7 +107,7 @@ class PyDataSource
     size_t d = dim();
 
     for(size_t i = 0; i < d; ++i) {
-      ElementType span = std::abs(this->get(id1, i) - this->get(id2, i));
+      ElementType span = std::abs(get(id1, i) - get(id2, i));
       if(maxSpan < span) {
         maxSpan = span;
         dimension = i;
@@ -99,7 +127,7 @@ class PyDataSource
 
     for (int j = 0; j < count; ++j) {
       for (size_t i = 0; i < d; ++i) {
-        mean[i] += this->get(ids[j], i);
+        mean[i] += get(ids[j], i);
       }
     }
 
@@ -112,7 +140,7 @@ class PyDataSource
     /* Compute variances */
     for (int j = 0; j < count; ++j) {
       for (size_t i = 0; i < d; ++i) {
-        DistanceType dist = this->get(ids[j], i) - mean[i];
+        DistanceType dist = get(ids[j], i) - mean[i];
         var[i] += dist * dist;
       }
     }
@@ -127,7 +155,7 @@ class PyDataSource
     size_t d = dim();
 
     for(size_t i = 0; i < d; ++i) {
-      ElementType v1 = this->get(id1, i), v2 = this->get(id2, i);
+      ElementType v1 = get(id1, i), v2 = get(id2, i);
       sum += (v1 - v2) * (v1 - v2);
     }
     
@@ -135,15 +163,15 @@ class PyDataSource
   }
 
   size_t size() const {
-    DBG(std::cerr << "Size called " << std::endl;)
-    DBG(std::cerr << " _object refcount: " << _object->ob_refcnt << std::endl;)
+    DBG(std::cerr << "Size called " << std::endl);
+    DBG(std::cerr << "size _object refcount: " << _object->ob_refcnt << std::endl);
     if (_object==Py_None) {
-      DBG(std::cerr << "Size return 0" << std::endl;)
+      DBG(std::cerr << "Size return 0" << std::endl);
       return 0;
     }
     size_t s = PyObject_Length(_object);
-    DBG(std::cerr << "Size return " << s << std::endl;)
-    std::cerr << "size _object refcount: " << _object->ob_refcnt << std::endl;
+    DBG(std::cerr << "Size return " << s << std::endl);
+    DBG(std::cerr << "size _object refcount: " << _object->ob_refcnt << std::endl);
     return s;
   }
 
@@ -156,27 +184,40 @@ class PyDataSource
   }
 
  protected:  
-  int _d;
-  PyObject * _object;
+  long            _d;
+  PyObject      * _object;
+  PyArrayObject * _array;
 
   void set_dim() {
-    if (_object==Py_None) {
-      _d = 0;
+    _d = 0;
+    if (_object==Py_None) return;
+
+    DBG(std::cerr << "Getting shape" << std::endl);
+    PyObject * shape = PyObject_GetAttrString(_object, "shape");
+    DBG(std::cerr << "Got shape, getting dim" << std::endl);
+    if (PyTuple_Size(shape) != 2) {
+      return;
+    }
+    PyObject * dim = PyTuple_GetItem(shape, 1);
+    DBG(std::cerr << "Got dim" << std::endl);
+    _d = 0;
+    if (dim == nullptr) {
+      DBG(std::cerr << "dim is null" << std::endl);
+    }
+    else if (PyLong_Check(dim)) {
+      _d = PyLong_AsLong(dim);
+      DBG(std::cerr << "dim is a long" << std::endl);
+    }
+    else if (PyInt_Check(dim)) {
+      _d = PyInt_AsLong(dim);
+      DBG(std::cerr << "dim is an int" << std::endl);
     }
     else {
-      DBG(std::cerr << "Getting shape" << std::endl;)
-      PyObject * shape = PyObject_GetAttrString(_object, "shape");
-      DBG(std::cerr << "Got shape, getting dim" << std::endl;)
-      PyObject * dim = PyTuple_GetItem(shape, 1);
-      DBG(std::cerr << "Got dim" << std::endl;)
-      if (dim == nullptr || !PyLong_Check(dim))
-        _d = 0;
-      else 
-        _d = (int)PyLong_AsLong(dim);
-      DBG(std::cerr << "dim is: " << _d << std::endl;)
-      Py_DECREF(shape);
+      DBG(std::cerr << "dim is not a number" << std::endl);
     }
-    std::cerr << "set_dim _object refcount: " << _object->ob_refcnt << std::endl;
+    DBG(std::cerr << "dim is: " << _d << std::endl);
+    Py_DECREF(shape);
+    DBG(std::cerr << "set_dim _object refcount: " << _object->ob_refcnt << std::endl);
   }
 
 };
@@ -185,4 +226,4 @@ typedef Neighbor<size_t, float> PyNeighbor;
 
 typedef ResultSet<size_t, float> PyResultSet;
 
-typedef ProgressiveKDTreeIndex<L2<float>, PyDataSource> PyIndexL2;
+typedef ProgressiveKDTreeIndex<PyDataSource> PyIndexL2;

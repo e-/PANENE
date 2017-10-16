@@ -18,7 +18,7 @@ public:
   typedef float ElementType;
   typedef float DistanceType;
 
-  NaiveDataSource() {
+  NaiveDataSource() : data(nullptr) {
   }
 
   ~NaiveDataSource() {

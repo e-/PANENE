@@ -26,8 +26,8 @@ cdef class Index:
         self.c_index.setDataSource(self.c_src)
 
     def __dealloc__(self):
-        #del self.c_src FIXME core dumps
         del self.c_index
+        del self.c_src
 
     @property
     def array(self):
