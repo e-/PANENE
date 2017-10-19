@@ -9,6 +9,7 @@
 #include <iostream>
 #include <queue>
 #include <cassert>
+#include <map>
 
 #include <base_index.h>
 

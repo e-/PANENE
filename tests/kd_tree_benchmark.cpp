@@ -1,9 +1,6 @@
-#include <vector>
-#include <map>
-
 #include <tests/metadata.h>
-#include <progressive_knn_table.h>
 #include <kd_tree_index.h>
+#include <progressive_kd_tree_index.h>
 
 using namespace panene;
 typedef size_t IDType;

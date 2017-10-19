@@ -1,6 +1,3 @@
-#include <string>
-#include <vector>
-
 #include <tests/metadata.h>
 #include <progressive_knn_table.h>
 
