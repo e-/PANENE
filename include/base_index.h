@@ -15,6 +15,9 @@
 
 #include <kd_tree.h>
 
+#include <roaring/roaring.hh>
+#include <roaring/roaring.c>
+
 #define USE_BASECLASS_SYMBOLS public: \
   typedef typename BaseIndex<DataSource>::Distance Distance;\
   typedef typename BaseIndex<DataSource>::IDType IDType;\
@@ -49,7 +52,8 @@ struct SearchParams {
   float eps; // 0
   int sorted;
   int cores;
-  
+  Roaring *mask = nullptr;
+
   SearchParams(int checks_ = 32, float eps_ = 0, int sorted_ = 0, int cores_ = 0) : checks(checks_), eps(eps_), sorted(sorted_), cores(cores_) {}
 };
 
@@ -253,14 +257,7 @@ public:
       checked.set(id);
       checkCount++;
 
-      DistanceType dist = DistanceType(0);
-
-      for (size_t i = 0; i < dim; ++i) {
-        ElementType x = dataSource->get(id, i);
-        ElementType y = vec[i];
-
-        dist += (x - y) * (x - y);
-      }
+      DistanceType dist = dataSource->getSquaredDistance(id, vec);
       result_set << Neighbor<IDType, DistanceType>(id, dist);
       return;
     }

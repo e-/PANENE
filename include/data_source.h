@@ -1,6 +1,8 @@
 #ifndef panene_data_source_h
 #define panene_data_source_h
 
+#include <vector>
+
 #define USE_DATA_SOURCE_SYMBOLS public: \
   typedef T IDType;\
   typedef D Distance;\

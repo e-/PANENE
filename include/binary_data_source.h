@@ -117,6 +117,10 @@ public:
     return distance.squared(data + id1 * d, data + id2 * d, d);
   }
 
+  DistanceType getSquaredDistance(const IDType &id1, const std::vector<ElementType> &vec2) const {
+    return distance.squared(data + id1 * d, vec2.begin(), d);
+  }
+
   size_t size() const {
     return n;
   }
