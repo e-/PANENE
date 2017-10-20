@@ -1,35 +1,64 @@
-#ifndef panene_random_data_source_h
-#define panene_random_data_source_h
+#ifndef panene_binary_data_source_h
+#define panene_binary_data_source_h
 
-#include <cstdlib>
+#include <algorithm>
+#include <string>
+#include <fstream>
 #include <vector>
-#include <data_source.h>
+#include <cmath>
+#include <cstdlib>
+#include <utility>
+#include <sys/stat.h>
+#include <data_source/data_source.h>
 
 namespace panene
 {
 
 template<typename T, class D>
-class RandomDataSource : public DataSource<T, D>
+class BinaryDataSource : public DataSource<T, D>
 {
   USE_DATA_SOURCE_SYMBOLS
 
 public:
-  RandomDataSource(const size_t n_, const size_t d_) : n(n_), d(d_), distance(Distance()) {
-    generate();
+
+  BinaryDataSource(const std::string& name_ = "data") : name(name_), distance(Distance()) {
   }
 
-  void generate() {
-    data = new ElementType[n * d];    
+  ~BinaryDataSource() {
+    if(opened) delete[] data;
+  }
+
+  size_t open(const std::string& path, size_t n_, size_t d_) {
+    FILE *fd;
     
-    for(size_t i = 0; i < n * d; ++i) {
-      data[i] = static_cast <ElementType> (rand()) / static_cast <ElementType>(RAND_MAX);
+#ifdef _WIN32
+    auto err = fopen_s(&fd, path.c_str(), "rb"); 
+#else
+    fd = fopen(path.c_str(), "rb");
+#endif
+
+    if(!fd) {
+      std::cerr << "file " << path << " does not exist" << std::endl;
+      throw;
     }
+
+    struct stat sb;
+    stat(path.c_str(), &sb);
+    n = (std::min)((size_t)sb.st_size / (sizeof(float) * d_), n_);
+    d = d_;
+
+    data = new ElementType[n * d];    
+    opened = true;
+
+    auto ret = fread(data, sizeof(ElementType), n * d, fd);
+    fclose(fd);
+    return n;
   }
 
   inline ElementType get(const IDType &id, const IDType &dim) const {
     return *(data + id * d + dim);
   }
-
+  
   void get(const IDType &id, std::vector<ElementType> &result) const {
     result.resize(d);
     for(size_t i = 0; i < d; ++i) {
@@ -106,6 +135,8 @@ public:
 
   size_t n;
   size_t d;
+  bool opened = false;
+  std::string name;
 
 protected:  
   ElementType* data;

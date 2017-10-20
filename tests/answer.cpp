@@ -4,7 +4,7 @@
 
 #include <dist.h>
 #include <util/result_set.h>
-#include <binary_data_source.h>
+#include <data_source/binary_data_source.h>
 #include <cstdlib>
 
 using namespace panene;

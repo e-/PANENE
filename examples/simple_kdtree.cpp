@@ -1,5 +1,5 @@
 #include <progressive_kd_tree_index.h>
-#include <random_data_source.h>
+#include <data_source/random_data_source.h>
 #include <dist.h>
 
 using namespace panene;
