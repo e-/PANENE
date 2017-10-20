@@ -190,12 +190,13 @@ public:
   {
     int maxChecks = searchParams.checks;
     float epsError = 1 + searchParams.eps;
+    Roaring *mask = searchParams.mask;
 
     if (removed) {
-      getNeighbors<true>(vec, result, maxChecks, epsError);
+      getNeighbors<true>(vec, result, maxChecks, epsError, mask);
     }
     else {
-      getNeighbors<false>(vec, result, maxChecks, epsError);
+      getNeighbors<false>(vec, result, maxChecks, epsError, mask);
     }
 
     for (auto &neighbor : result.neighbors) {
@@ -209,7 +210,7 @@ public:
   * the tree.
   */
   template<bool with_removed>
-  void getNeighbors(const std::vector<ElementType> &vec, ResultSet<IDType, DistanceType> &result, int maxCheck, float epsError) const
+  void getNeighbors(const std::vector<ElementType> &vec, ResultSet<IDType, DistanceType> &result, int maxCheck, float epsError, Roaring *mask) const
   {
     BranchSt branch;
 
@@ -219,12 +220,12 @@ public:
 
     /* Search once through each tree down to root. */
     for (size_t i = 0; i < numTrees; ++i) {
-      searchLevel<with_removed>(vec, result, trees[i]->root, 0, checkCount, maxCheck, epsError, heap, checked);
+      searchLevel<with_removed>(vec, result, trees[i]->root, 0, checkCount, maxCheck, epsError, heap, checked, mask);
     }
 
     /* Keep searching other branches from heap until finished. */
     while (heap->popMin(branch) && (checkCount < maxCheck || !result.full())) {
-      searchLevel<with_removed>(vec, result, branch.node, branch.mindist, checkCount, maxCheck, epsError, heap, checked);
+      searchLevel<with_removed>(vec, result, branch.node, branch.mindist, checkCount, maxCheck, epsError, heap, checked, mask);
     }
 
     delete heap;
@@ -237,7 +238,7 @@ public:
   */
   template<bool with_removed>
   void searchLevel(const std::vector<ElementType> &vec, ResultSet<IDType, DistanceType> &result_set, NodePtr node, DistanceType mindist, int& checkCount, int maxCheck,
-    float epsError, Heap<BranchSt>* heap, DynamicBitset& checked) const
+    float epsError, Heap<BranchSt>* heap, DynamicBitset& checked, Roaring *mask) const
   {
     if (result_set.worstDist < mindist) {
       //      printf("Ignoring branch, too far\n");
@@ -246,11 +247,11 @@ public:
 
     /* If this is a leaf node, then do check and return. */
     if ((node->child1 == NULL) && (node->child2 == NULL)) {
-      int id = node->id;
+      IDType id = node->id;
 
-      if (with_removed) {
-        if (removedPoints.test(id)) return;
-      }
+      if (with_removed && removedPoints.test(id)) return;
+
+      if (mask != nullptr && mask->contains(id)) return;
 
       /*  Do not check same node more than once when searching multiple numTrees. */
       if (checked.test(id) || ((checkCount >= maxCheck) && result_set.full())) return;
@@ -283,7 +284,7 @@ public:
     }
 
     /* Call recursively to search next level down. */
-    searchLevel<with_removed>(vec, result_set, bestChild, mindist, checkCount, maxCheck, epsError, heap, checked);
+    searchLevel<with_removed>(vec, result_set, bestChild, mindist, checkCount, maxCheck, epsError, heap, checked, mask);
   }
 
   NodePtr divideTree(KDTree<NodePtr>* tree, IDType *ids, size_t count, size_t depth) {
