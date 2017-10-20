@@ -58,6 +58,13 @@ public:
   inline ElementType get(const IDType &id, const IDType &dim) const {
     return *(data + id * d + dim);
   }
+  
+  void get(const IDType &id, std::vector<ElementType> &result) const {
+    result.resize(d);
+    for(size_t i = 0; i < d; ++i) {
+      result[i] = get(id, i);
+    }
+  }
 
   IDType findDimWithMaxSpan(const IDType &id1, const IDType &id2) {
     size_t dim = 0;

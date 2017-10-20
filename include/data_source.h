@@ -21,6 +21,8 @@ public:
   typedef typename D::ResultType DistanceType;
 
   virtual inline ElementType get(const IDType &id, const IDType &dim) const = 0;
+  virtual void get(const IDType &id, std::vector<ElementType> &result) const = 0;
+
   virtual IDType findDimWithMaxSpan(const IDType &id1, const IDType &id2) = 0;
   virtual void computeMeanAndVar(const IDType *ids, int count, std::vector<DistanceType> &mean, std::vector<DistanceType> &var) = 0;
 
