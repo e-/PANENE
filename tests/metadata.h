@@ -6,9 +6,8 @@
 
 #include <util/timer.h>
 #include <util/matrix.h>
-#include <binary_data_source.h>
 #include <util/result_set.h>
-
+#include <data_source/binary_data_source.h>
 
 #ifdef _WIN32
 #define SEP "\\"

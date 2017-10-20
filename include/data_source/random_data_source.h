@@ -1,50 +1,40 @@
-#ifndef panene_naive_data_source_h
-#define panene_naive_data_source_h
+#ifndef panene_random_data_source_h
+#define panene_random_data_source_h
 
-#include <string>
-#include <fstream>
+#include <cstdlib>
 #include <vector>
-#include <cmath>
+#include <data_source/data_source.h>
 
 namespace panene
 {
 
-class NaiveDataSource
+template<typename T, class D>
+class RandomDataSource : public DataSource<T, D>
 {
+  USE_DATA_SOURCE_SYMBOLS
 
 public:
-
-  typedef size_t IDType;
-  typedef float ElementType;
-  typedef float DistanceType;
-
-  NaiveDataSource() : data(nullptr) {
+  RandomDataSource(const size_t n_, const size_t d_) : n(n_), d(d_), distance(Distance()) {
+    generate();
   }
 
-  ~NaiveDataSource() {
-    if(opened) delete[] data;
-  }
-
-  void open(const std::string& path, size_t n_, size_t d_) {
-    n = n_;
-    d = d_;
+  void generate() {
     data = new ElementType[n * d];    
-    opened = true;
     
-    std::ifstream ifs(path);
-
-    if(!ifs) {
-      std::cerr << "file " << path << " does not exist" << std::endl;
-      throw;
-    }
-
     for(size_t i = 0; i < n * d; ++i) {
-      ifs >> data[i]; 
+      data[i] = static_cast <ElementType> (rand()) / static_cast <ElementType>(RAND_MAX);
     }
   }
 
-  ElementType get(const IDType &id, const IDType &dim) const {
+  inline ElementType get(const IDType &id, const IDType &dim) const {
     return *(data + id * d + dim);
+  }
+
+  void get(const IDType &id, std::vector<ElementType> &result) const {
+    result.resize(d);
+    for(size_t i = 0; i < d; ++i) {
+      result[i] = get(id, i);
+    }
   }
 
   IDType findDimWithMaxSpan(const IDType &id1, const IDType &id2) {
@@ -94,15 +84,12 @@ public:
     }
   }  
 
-  DistanceType distL2Squared(const IDType &id1, const IDType &id2) const {
-    DistanceType sum = 0;
+  DistanceType getSquaredDistance(const IDType &id1, const IDType &id2) const {
+    return distance.squared(data + id1 * d, data + id2 * d, d);
+  }
 
-    for(size_t i = 0; i < d; ++i) {
-      ElementType v1 = this->get(id1, i), v2 = this->get(id2, i);
-      sum += (v1 - v2) * (v1 - v2);
-    }
-    
-    return sum;
+  DistanceType getSquaredDistance(const IDType &id1, const std::vector<ElementType> &vec2) const {
+    return distance.squared(data + id1 * d, vec2.begin(), d);
   }
 
   size_t size() const {
@@ -119,9 +106,10 @@ public:
 
   size_t n;
   size_t d;
-  bool opened = false;
+
 protected:  
   ElementType* data;
+  Distance distance;
 };
 
 }

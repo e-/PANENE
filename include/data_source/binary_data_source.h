@@ -9,19 +9,17 @@
 #include <cstdlib>
 #include <utility>
 #include <sys/stat.h>
+#include <data_source/data_source.h>
 
 namespace panene
 {
 
 template<typename T, class D>
-class BinaryDataSource
+class BinaryDataSource : public DataSource<T, D>
 {
+  USE_DATA_SOURCE_SYMBOLS
 
 public:
-  typedef T IDType;
-  typedef D Distance;
-  typedef typename D::ElementType ElementType;
-  typedef typename D::ResultType DistanceType;
 
   BinaryDataSource(const std::string& name_ = "data") : name(name_), distance(Distance()) {
   }
@@ -59,6 +57,13 @@ public:
 
   inline ElementType get(const IDType &id, const IDType &dim) const {
     return *(data + id * d + dim);
+  }
+  
+  void get(const IDType &id, std::vector<ElementType> &result) const {
+    result.resize(d);
+    for(size_t i = 0; i < d; ++i) {
+      result[i] = get(id, i);
+    }
   }
 
   IDType findDimWithMaxSpan(const IDType &id1, const IDType &id2) {
@@ -110,6 +115,10 @@ public:
 
   DistanceType getSquaredDistance(const IDType &id1, const IDType &id2) const {
     return distance.squared(data + id1 * d, data + id2 * d, d);
+  }
+
+  DistanceType getSquaredDistance(const IDType &id1, const std::vector<ElementType> &vec2) const {
+    return distance.squared(data + id1 * d, vec2.begin(), d);
   }
 
   size_t size() const {

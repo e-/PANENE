@@ -13,7 +13,7 @@ option(BUILD_STATIC "Build a static library" OFF)
 option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
 option(COMPILE_FOR_BENCHMARK "Compile for benchmark (e.g., profiling)" ON)
 
-FIND_PACKAGE( OpenMP REQUIRED )
+find_package ( OpenMP )
 if(OPENMP_FOUND)
   message("OPENMP FOUND")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -34,12 +34,12 @@ if (COMPILE_FOR_BENCHMARK)
 endif()
 
 add_subdirectory(src)
-#add_subdirectory(examples)
+add_subdirectory(examples)
 enable_testing ()
 add_subdirectory(tests)
 
 # find python
-Find_package(PythonInterp 2)
+find_package(PythonInterp)
 if (NOT PYTHON_EXECUTABLE)
     set(BUILD_PYTHON_BINDINGS OFF)
 endif()
@@ -47,7 +47,6 @@ endif()
 if (BUILD_PYTHON_BINDINGS)
   add_subdirectory(python)
 endif()
-
 
 message( STATUS "CMAKE_SYSTEM_PROCESSOR: " ${CMAKE_SYSTEM_PROCESSOR})
 message( STATUS "CMAKE_BUILD_TYPE: " ${CMAKE_BUILD_TYPE} )
