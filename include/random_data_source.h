@@ -3,20 +3,17 @@
 
 #include <cstdlib>
 #include <vector>
+#include <data_source.h>
 
 namespace panene
 {
 
 template<typename T, class D>
-class RandomDataSource
+class RandomDataSource : public DataSource<T, D>
 {
+  USE_DATA_SOURCE_SYMBOLS
 
 public:
-  typedef T IDType;
-  typedef D Distance;
-  typedef typename D::ElementType ElementType;
-  typedef typename D::ResultType DistanceType;
-
   RandomDataSource(const size_t n_, const size_t d_) : n(n_), d(d_), distance(Distance()) {
     generate();
   }

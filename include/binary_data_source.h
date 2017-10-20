@@ -9,19 +9,17 @@
 #include <cstdlib>
 #include <utility>
 #include <sys/stat.h>
+#include <data_source.h>
 
 namespace panene
 {
 
 template<typename T, class D>
-class BinaryDataSource
+class BinaryDataSource : public DataSource<T, D>
 {
+  USE_DATA_SOURCE_SYMBOLS
 
 public:
-  typedef T IDType;
-  typedef D Distance;
-  typedef typename D::ElementType ElementType;
-  typedef typename D::ResultType DistanceType;
 
   BinaryDataSource(const std::string& name_ = "data") : name(name_), distance(Distance()) {
   }
