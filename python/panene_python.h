@@ -3,7 +3,6 @@
 #include "numpy/ndarrayobject.h"
 #include "numpy/ufuncobject.h"
 #include <progressive_knn_table.h>
-#include <naive.h>
 
 #ifndef NDEBUG
 #include <iostream>
@@ -27,9 +26,15 @@ class PyDataSource
 
   PyDataSource(PyObject * o)
     : _d(0), _object(Py_None), _array(nullptr) {
-    import_array(); // required to avoid core dumps from numpy
     Py_INCREF(_object);
+    import_array_wrap();
     set_array(o);
+  }
+  
+  void* import_array_wrap() {
+    import_array(); // required to avoid core dumps from numpy
+    // I wrote a wrapper for the macro import_array() since it 'returns' when there's an error but the compilers do not allow the use of a 'return' keyword in a class constructor. 
+    return nullptr;
   }
 
   ~PyDataSource() {
@@ -50,16 +55,21 @@ class PyDataSource
     _object = o;
     _array = nullptr;
     DBG(std::cerr << "set_array _object refcount: " << _object->ob_refcnt << std::endl);
-    if (_object != Py_None && PyArray_Check(_object)) {
-      DBG(std::cerr << "Object is an array..." << std::endl;)
-      PyArrayObject * array = (PyArrayObject*)_object;
-      if (PyArray_IS_C_CONTIGUOUS(array)
-          && (PyArray_TYPE(array) == NPY_FLOAT)) {
-        DBG(std::cerr << "acceptable for fast get" << std::endl;)
-        _array = array;
-      }
+    if (_object != Py_None) {
+      if(PyArray_Check(_object)) {
+        DBG(std::cerr << "Object is an array..." << std::endl;)
+        PyArrayObject * array = (PyArrayObject*)_object;
+        if (PyArray_IS_C_CONTIGUOUS(array)
+            && (PyArray_TYPE(array) == NPY_FLOAT)) {
+          DBG(std::cerr << "acceptable for fast get" << std::endl;)
+          _array = array;
+        }
+        else {
+          DBG(std::cerr << "not acceptable for fast get" << std::endl;)
+        }
+      } 
       else {
-        DBG(std::cerr << "not acceptable for fast get" << std::endl;)
+        DBG(std::cerr << "Object is not an array...";)
       }
     }
     else {
@@ -150,7 +160,7 @@ class PyDataSource
     }
   }  
 
-  DistanceType distL2Squared(const IDType &id1, const IDType &id2) const {
+  DistanceType getSquaredDistance(const IDType &id1, const IDType &id2) const {
     DistanceType sum = 0;
     size_t d = dim();
 
@@ -161,6 +171,19 @@ class PyDataSource
     
     return sum;
   }
+
+  DistanceType getSquaredDistance(const IDType &id1, const std::vector<ElementType> &vec2) const {
+    DistanceType sum = 0;
+    size_t d = dim();
+
+    for(size_t i = 0; i < d; ++i) {
+      ElementType v1 = get(id1, i), v2 = vec2[i];
+      sum += (v1 - v2) * (v1 - v2);
+    }
+    
+    return sum;
+  }
+
 
   size_t size() const {
     DBG(std::cerr << "Size called " << std::endl);

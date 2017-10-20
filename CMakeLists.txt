@@ -39,7 +39,7 @@ enable_testing ()
 add_subdirectory(tests)
 
 # find python
-find_package(PythonInterp 2)
+find_package(PythonInterp)
 if (NOT PYTHON_EXECUTABLE)
     set(BUILD_PYTHON_BINDINGS OFF)
 endif()
