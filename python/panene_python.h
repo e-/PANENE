@@ -225,5 +225,20 @@ class PyDataSource
 typedef Neighbor<size_t, float> PyNeighbor;
 
 typedef ResultSet<size_t, float> PyResultSet;
+typedef std::vector<ResultSet<size_t, float>> PyResultSets;
+typedef std::vector<float> Point;
+typedef std::vector<Point> Points;
 
-typedef ProgressiveKDTreeIndex<PyDataSource> PyIndexL2;
+class PyIndexL2 : public ProgressiveKDTreeIndex<PyDataSource> {
+public:
+  PyIndexL2(IndexParams indexParams_)
+    : ProgressiveKDTreeIndex<PyDataSource>(indexParams_) { }
+
+  void knnSearchVec(
+      const Points& points,
+      std::vector<ResultSet<IDType, DistanceType>> &resultSets,
+      size_t knn,
+      const SearchParams& params) const
+  { }
+  
+};
