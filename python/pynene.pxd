@@ -50,8 +50,10 @@ cdef extern from "panene_python.h":
     cdef cppclass Points:
         Points()
         Points(size_t)
+        void reserve(size_t)
         Point& operator[](size_t)
         size_t size() const
+        void emplace_back(size_t)
 
     cdef cppclass PyIndexL2:
         PyIndexL2(IndexParams ip)
@@ -62,6 +64,6 @@ cdef extern from "panene_python.h":
         void removePoint(size_t id)
         size_t getSize()
         int usedMemory()
-        void knnSearch(size_t id, PyResultSet results, size_t knn, SearchParams params)
-        void knnSearchVec(const Points& vec, PyResultSets results, size_t knn, SearchParams params)
+        void knnSearch(size_t id, PyResultSet& results, size_t knn, const SearchParams& params)
+        void knnSearchVec(const Points& vec, PyResultSets& results, size_t knn, const SearchParams& params)
 

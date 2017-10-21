@@ -2604,7 +2604,6 @@ static PyObject *__pyx_pf_6pynene_5Index_8knn_search_points(struct __pyx_obj_6py
   int __pyx_v_l;
   int __pyx_v_d;
   Points __pyx_v_pts;
-  Point __pyx_v_p;
   size_t __pyx_v_j;
   size_t __pyx_v_i;
   PyResultSets __pyx_v_ress;
@@ -2747,7 +2746,7 @@ static PyObject *__pyx_pf_6pynene_5Index_8knn_search_points(struct __pyx_obj_6py
  *             params.cores = cores
  *         cdef int l = val.shape[0]             # <<<<<<<<<<<<<<
  *         cdef int d = val.shape[1]
- *         cdef Points pts = Points(l)
+ *         cdef Points pts = Points()
  */
   __pyx_v_l = (__pyx_v_val->dimensions[0]);
 
@@ -2755,54 +2754,54 @@ static PyObject *__pyx_pf_6pynene_5Index_8knn_search_points(struct __pyx_obj_6py
  *             params.cores = cores
  *         cdef int l = val.shape[0]
  *         cdef int d = val.shape[1]             # <<<<<<<<<<<<<<
- *         cdef Points pts = Points(l)
- *         cdef Point p
+ *         cdef Points pts = Points()
+ *         pts.reserve(l)
  */
   __pyx_v_d = (__pyx_v_val->dimensions[1]);
 
   /* "pynene.pyx":76
  *         cdef int l = val.shape[0]
  *         cdef int d = val.shape[1]
- *         cdef Points pts = Points(l)             # <<<<<<<<<<<<<<
+ *         cdef Points pts = Points()             # <<<<<<<<<<<<<<
+ *         pts.reserve(l)
+ *         cdef Point p
+ */
+  __pyx_v_pts = Points();
+
+  /* "pynene.pyx":77
+ *         cdef int d = val.shape[1]
+ *         cdef Points pts = Points()
+ *         pts.reserve(l)             # <<<<<<<<<<<<<<
  *         cdef Point p
  *         for j in range(l):
  */
-  __pyx_v_pts = Points(__pyx_v_l);
+  __pyx_v_pts.reserve(__pyx_v_l);
 
-  /* "pynene.pyx":78
- *         cdef Points pts = Points(l)
+  /* "pynene.pyx":79
+ *         pts.reserve(l)
  *         cdef Point p
  *         for j in range(l):             # <<<<<<<<<<<<<<
- *             p = Point(d)
- *             pts[j] = p
+ *             pts.emplace_back(d)
+ *             for i in range(d):
  */
   __pyx_t_4 = __pyx_v_l;
   for (__pyx_t_5 = 0; __pyx_t_5 < __pyx_t_4; __pyx_t_5+=1) {
     __pyx_v_j = __pyx_t_5;
 
-    /* "pynene.pyx":79
+    /* "pynene.pyx":80
  *         cdef Point p
  *         for j in range(l):
- *             p = Point(d)             # <<<<<<<<<<<<<<
- *             pts[j] = p
+ *             pts.emplace_back(d)             # <<<<<<<<<<<<<<
  *             for i in range(d):
+ *                 pts[j][i] = val[j, i]
  */
-    __pyx_v_p = Point(__pyx_v_d);
-
-    /* "pynene.pyx":80
- *         for j in range(l):
- *             p = Point(d)
- *             pts[j] = p             # <<<<<<<<<<<<<<
- *             for i in range(d):
- *                 pts[j][d] = val[j, i]
- */
-    (__pyx_v_pts[__pyx_v_j]) = __pyx_v_p;
+    __pyx_v_pts.emplace_back(__pyx_v_d);
 
     /* "pynene.pyx":81
- *             p = Point(d)
- *             pts[j] = p
+ *         for j in range(l):
+ *             pts.emplace_back(d)
  *             for i in range(d):             # <<<<<<<<<<<<<<
- *                 pts[j][d] = val[j, i]
+ *                 pts[j][i] = val[j, i]
  *         cdef PyResultSets ress = PyResultSets()
  */
     __pyx_t_6 = __pyx_v_d;
@@ -2810,9 +2809,9 @@ static PyObject *__pyx_pf_6pynene_5Index_8knn_search_points(struct __pyx_obj_6py
       __pyx_v_i = __pyx_t_7;
 
       /* "pynene.pyx":82
- *             pts[j] = p
+ *             pts.emplace_back(d)
  *             for i in range(d):
- *                 pts[j][d] = val[j, i]             # <<<<<<<<<<<<<<
+ *                 pts[j][i] = val[j, i]             # <<<<<<<<<<<<<<
  *         cdef PyResultSets ress = PyResultSets()
  *         self.c_index.knnSearchVec(pts, ress, k, params)
  */
@@ -2825,13 +2824,13 @@ static PyObject *__pyx_pf_6pynene_5Index_8knn_search_points(struct __pyx_obj_6py
         __Pyx_RaiseBufferIndexError(__pyx_t_10);
         __PYX_ERR(0, 82, __pyx_L1_error)
       }
-      ((__pyx_v_pts[__pyx_v_j])[__pyx_v_d]) = (*__Pyx_BufPtrStrided2d(__pyx_t_6pynene_DTYPE_t *, __pyx_pybuffernd_val.rcbuffer->pybuffer.buf, __pyx_t_8, __pyx_pybuffernd_val.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_val.diminfo[1].strides));
+      ((__pyx_v_pts[__pyx_v_j])[__pyx_v_i]) = (*__Pyx_BufPtrStrided2d(__pyx_t_6pynene_DTYPE_t *, __pyx_pybuffernd_val.rcbuffer->pybuffer.buf, __pyx_t_8, __pyx_pybuffernd_val.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_val.diminfo[1].strides));
     }
   }
 
   /* "pynene.pyx":83
  *             for i in range(d):
- *                 pts[j][d] = val[j, i]
+ *                 pts[j][i] = val[j, i]
  *         cdef PyResultSets ress = PyResultSets()             # <<<<<<<<<<<<<<
  *         self.c_index.knnSearchVec(pts, ress, k, params)
  *         ids = np.ndarray((ress.size(), k), dtype=np.int)
@@ -2839,7 +2838,7 @@ static PyObject *__pyx_pf_6pynene_5Index_8knn_search_points(struct __pyx_obj_6py
   __pyx_v_ress = PyResultSets();
 
   /* "pynene.pyx":84
- *                 pts[j][d] = val[j, i]
+ *                 pts[j][i] = val[j, i]
  *         cdef PyResultSets ress = PyResultSets()
  *         self.c_index.knnSearchVec(pts, ress, k, params)             # <<<<<<<<<<<<<<
  *         ids = np.ndarray((ress.size(), k), dtype=np.int)

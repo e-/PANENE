@@ -73,13 +73,13 @@ cdef class Index:
             params.cores = cores
         cdef int l = val.shape[0]
         cdef int d = val.shape[1]
-        cdef Points pts = Points(l)
+        cdef Points pts = Points()
+        pts.reserve(l)
         cdef Point p
         for j in range(l):
-            p = Point(d)
-            pts[j] = p
+            pts.emplace_back(d)
             for i in range(d):
-                pts[j][d] = val[j, i]
+                pts[j][i] = val[j, i]
         cdef PyResultSets ress = PyResultSets()
         self.c_index.knnSearchVec(pts, ress, k, params)
         ids = np.ndarray((ress.size(), k), dtype=np.int)

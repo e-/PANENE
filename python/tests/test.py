@@ -26,7 +26,8 @@ class Test_Panene(unittest.TestCase):
         pts = x[[pt]]
         print(pts.shape)
         idx,_ = index.knn_search_points(pts, k=1)
-        self.assertTrue(all(idx[0] == pt))
+        self.assertEqual(len(idx), 1)
+        self.assertEqual(idx[0], pt)
 
 
 if __name__ == '__main__':
