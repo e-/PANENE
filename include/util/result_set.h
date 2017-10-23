@@ -45,7 +45,7 @@ struct ResultSet {
     worstDist = (std::numeric_limits<DistanceType>::max)();
 
     for(size_t i = 0; i < size; ++i) {
-      neighbors[i].id = 0;
+      neighbors[i].id = -1;
       neighbors[i].dist = worstDist;
     }
   }

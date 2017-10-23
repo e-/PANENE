@@ -5,11 +5,8 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories ("${CMAKE_SOURCE_DIR}")
 include_directories ("include")
-set(tests answer kd_tree_benchmark knn_table_benchmark)
+file(GLOB SourceFiles *.cpp)
+add_executable (tests ${SourceFiles} )
+target_link_libraries (tests LINK_PUBLIC panene)
 
-foreach (test ${tests})
-  add_executable (${test} ${test}.cpp)
-  target_link_libraries (${test} LINK_PUBLIC panene)
-endforeach (test ${tests})
-
-add_custom_command(TARGET answer POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:answer> ../../data)
+add_test (NAME MyTest COMMAND tests)

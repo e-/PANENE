@@ -6,7 +6,6 @@
 #include <random>
 
 #include <util/allocator.h>
-#include <util/result_set.h>
 #include <util/heap.h>
 #include <util/dynamic_bitset.h>
 #include <util/random.h>
@@ -199,6 +198,7 @@ public:
       getNeighbors<false>(vec, result, maxChecks, epsError, mask);
     }
 
+    // TODO
     for (auto &neighbor : result.neighbors) {
       neighbor.dist = sqrt(neighbor.dist);
     }

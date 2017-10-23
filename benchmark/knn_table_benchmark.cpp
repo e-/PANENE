@@ -1,4 +1,4 @@
-#include <tests/metadata.h>
+#include <benchmark/metadata.h>
 #include <progressive_knn_table.h>
 
 using namespace panene;

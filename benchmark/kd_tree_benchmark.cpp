@@ -1,4 +1,4 @@
-#include <tests/metadata.h>
+#include <benchmark/metadata.h>
 #include <kd_tree_index.h>
 #include <progressive_kd_tree_index.h>
 
