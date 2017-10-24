@@ -1,6 +1,7 @@
 #include <catch.hpp>
 #include <progressive_kd_tree_index.h>
 #include <data_source/random_data_source.h>
+#include <data_source/vector_data_source.h>
 #include <cstdlib>
 
 using namespace panene;
@@ -135,6 +136,7 @@ TEST_CASE("masked points should not appear", "[KNN]") {
   SearchParams searchParam(n * 2); // search for a sufficient number of points
 
   Roaring *mask = new Roaring();
+  // randomly mask a half of points
   for(uint32_t i = 0; i < n; ++i) {
     if(rand() < RAND_MAX / 2)
       mask->add(i);
@@ -152,6 +154,7 @@ TEST_CASE("masked points should not appear", "[KNN]") {
   getExactNNL2(randomDataSource, queries, exact_results, k);
 
   for(auto& neighbors: results) {
+    // check whether masked points do not appear
     for(size_t i = 0 ; i < k; ++i)
       REQUIRE_FALSE(mask->contains(neighbors[i].id));
   }
