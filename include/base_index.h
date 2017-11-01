@@ -215,6 +215,7 @@ public:
     BranchSt branch;
 
     int checkCount = 0;
+
     Heap<BranchSt>* heap = new Heap<BranchSt>((int)size);
     DynamicBitset checked(size);
 
@@ -374,7 +375,6 @@ public:
     }
     /* Select a random integer in range [0,num-1], and return that index. */
     int rnd = rand_int(num);
-    //    std::cerr << "rnd: " << rnd << "so chosen: " << topind[rnd] << std::endl;
     return (int)topind[rnd];
   }
 

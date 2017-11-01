@@ -318,6 +318,7 @@ public:
     {
 #pragma omp for schedule(static)
       for (int i = 0; i < (int)qids.size(); i++) {
+        resultSets[i] = ResultSet<IDType, DistanceType>(knn);
         findNeighbors(vectors[i], resultSets[i], params);
         //ids_to_ids(ids[i], ids[i], n);
       }
@@ -331,11 +332,14 @@ public:
       const SearchParams& params)
   {
     accumulateLoss(vectors.size());
+    
+    resultSets.resize(vectors.size());
 
-#pragma omp parallel num_threads(params.cores)
+//#pragma omp parallel num_threads(params.cores)
     {
-#pragma omp for schedule(static)
+//#pragma omp for schedule(static)
       for (int i = 0; i < (int)vectors.size(); i++) {
+        resultSets[i] = ResultSet<IDType, DistanceType>(knn);
         findNeighbors(vectors[i], resultSets[i], params);
         //ids_to_ids(ids[i], ids[i], n);
       }

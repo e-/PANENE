@@ -12,7 +12,6 @@ class Test_Panene(unittest.TestCase):
             ids, dists = index.knn_search(i, 5)
             self.assertEqual(ids.shape, (1, 5))
             self.assertEqual(dists.shape, (1, 5))
-        print(len(x))
 
     def test_random(self):
         N = 100
@@ -22,10 +21,11 @@ class Test_Panene(unittest.TestCase):
         x = np.array(np.random.rand(N, dim), dtype=dtype)
 
         index = Index(x)
+        index.add_points(N) # we must add points before querying the index
+
         pt = np.random.randint(N)
         pts = x[[pt]]
-        print(pts.shape)
-        idx,_ = index.knn_search_points(pts, k=1)
+        idx, dists = index.knn_search_points(pts, 1, cores=1)
         self.assertEqual(len(idx), 1)
         self.assertEqual(idx[0], pt)
 

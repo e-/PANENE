@@ -63,7 +63,7 @@ cdef class Index:
 
 #    @cython.boundscheck(False) # turn off bounds-checking for entire function
 #    @cython.wraparound(False)  # turn off negative index wrapping for entire function
-    def knn_search_points(self, np.ndarray[DTYPE_t, ndim=2] val, k, eps=None, sorted=None, cores=None):
+    def knn_search_points(self, np.ndarray[DTYPE_t, ndim=2] val, int k, eps=None, sorted=None, cores=None):
         cdef SearchParams params = SearchParams()
         if eps is not None:
             params.eps = eps
@@ -80,7 +80,7 @@ cdef class Index:
             pts.emplace_back(d)
             for i in range(d):
                 pts[j][i] = val[j, i]
-        cdef PyResultSets ress = PyResultSets()
+        cdef PyResultSets ress = PyResultSets(l)
         self.c_index.knnSearchVec(pts, ress, k, params)
         ids = np.ndarray((ress.size(), k), dtype=np.int)
         dists = np.ndarray((ress.size(), k), dtype=np.float32)
