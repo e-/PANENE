@@ -342,6 +342,16 @@ public:
     }
   }  
 
+  // alias for knnSearch(points) since Cython does not seem to support method overloading
+  void knnSearchVec(
+      const std::vector<std::vector<ElementType>> &vectors,
+      std::vector<ResultSet<IDType, DistanceType>> &resultSets,
+      size_t knn,
+      const SearchParams& params)
+  {
+    knnSearch(vectors, resultSets, knn, params);
+  }  
+
 protected:
   
   void buildIndex() {

@@ -29,6 +29,5 @@ class Test_Panene(unittest.TestCase):
         self.assertEqual(len(idx), 1)
         self.assertEqual(idx[0], pt)
 
-
 if __name__ == '__main__':
     unittest.main()
