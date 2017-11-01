@@ -11,6 +11,8 @@ if "${CMAKE_CXX11_STANDARD_COMPILE_OPTION}":
 if "${OpenMP_EXE_LINKER_FLAGS}":
     extra_link_args.append("${OpenMP_EXE_LINKER_FLAGS}")
     
+if "${OpenMP_CXX_FLAGS}":
+    extra_link_args.append("${OpenMP_CXX_FLAGS}")
 
 extension = [Extension(
         "pynene",
@@ -20,7 +22,6 @@ extension = [Extension(
         extra_link_args=extra_link_args,
         language="c++",
     )]
-
 
 setup(name='pynene',
       version='@PANENE_VERSION@',
