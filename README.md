@@ -1,21 +1,22 @@
 PANENE
 --
 
-PANENE (Progressive Approximate k-NEarest NEighbors) is a novel algorithm for the k-nearest neighbor (KNN) problem. In contrast to previous algorithms such as [Annoy](https://github.com/spotify/annoy), [FLANN](http://www.cs.ubc.ca/research/flann/), and many others from [Benchmark](https://github.com/erikbern/ann-benchmarks#evaluated), it is *progressive*: it can process multiple mini-batches *online* while keeping each iteration bounded in time.
+PANENE (Progressive Approximate k-NEarest NEighbors) is a novel algorithm for the k-nearest neighbor (KNN) problem. In contrast to previous algorithms such as [Annoy](https://github.com/spotify/annoy), [FLANN](http://www.cs.ubc.ca/research/flann/), and many others from [Benchmark](https://github.com/erikbern/ann-benchmarks#evaluated), PANENE is *progressive*: it can process multiple mini-batches *online* while keeping each iteration bounded in time. 
 
 PANENE is based on [the FLANN library](https://github.com/mariusmuja/flann) and currently under development. We are going to add the following features:
 
 - [x] a progressive k-d tree
-- [ ] a KNN table structure that enables constant-time lookup
+- [x] a KNN table structure that enables constant-time lookup of KNN neighbors
+- [ ] Python bindings
 
 # Run the Benchmark
 
-The source code was tested on Ubuntu 16.04, macOS, and Windows 10 (with Visual Studio 2017). However, shell scripts in this instruction will not run on Windows so use PowerShell instead or change them appropriately.
+The source code was compiled and tested on Ubuntu 16.04, macOS, and Windows 10 (with Visual Studio 2017). We use Bash scripts to download and parse test data but these scripts may not run on Windows.
 
 Prerequisites:
-- A C++ compiler with OpenMP and C++11 support
-- Python 2.7
-- CMake or Visual Studio 2017 on Windows
+- A C++ compiler with OpenMP and C++ 11 support
+- Python 3.6
+- CMake
 
 Download the source code:
 ```bash
@@ -40,13 +41,15 @@ cd data
 
 Compute the exact neighbors of the testing data (this can take a while):
 ```bash
+cp ../build/benchmark/answer .
 ./answer.sh glove
 ```
 
-Run the benchmark:
+Run one of benchmarks (kd_tree_benchmark or knn_table_benchmark): 
 ```bash
 cd ..
-cd build/tests
-./benchmark
+cd build/benchmark
+./kd_tree_benchmark
 cat log.tsv
 ```
+  
