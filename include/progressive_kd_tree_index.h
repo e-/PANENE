@@ -335,9 +335,9 @@ public:
     
     resultSets.resize(vectors.size());
 
-//#pragma omp parallel num_threads(params.cores)
+#pragma omp parallel num_threads(params.cores)
     {
-//#pragma omp for schedule(static)
+#pragma omp for schedule(static)
       for (int i = 0; i < (int)vectors.size(); i++) {
         resultSets[i] = ResultSet<IDType, DistanceType>(knn);
         findNeighbors(vectors[i], resultSets[i], params);

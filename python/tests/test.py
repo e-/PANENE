@@ -1,6 +1,7 @@
 from pynene import Index
 import numpy as np
 import unittest
+import time
 
 class Test_Panene(unittest.TestCase):
     def test(self):
@@ -28,6 +29,31 @@ class Test_Panene(unittest.TestCase):
         idx, dists = index.knn_search_points(pts, 1, cores=1)
         self.assertEqual(len(idx), 1)
         self.assertEqual(idx[0], pt)
+
+    def test_openmp(self):
+        N = 10000 # must be large
+        dim = 10
+        dtype=np.float32
+
+        np.random.seed(0)
+        x = np.array(np.random.rand(N, dim), dtype=dtype)
+
+        index = Index(x)
+        index.add_points(N) # we must add points before querying the index
+        
+        for r in range(5): # make cache ready
+            idx, dists = index.knn_search_points(x, 10)
+            
+        start = time.time()
+        ids1, dists1 = index.knn_search_points(x, 10, cores=1)
+        elapsed1 = time.time() - start
+
+        start = time.time()
+        ids2, dists2 = index.knn_search_points(x, 10, cores=4)
+        elapsed2 = time.time() - start
+
+        print("single thread: {:.2f} ms".format(elapsed1 * 1000))
+        print("4 threads: {:.2f} ms".format(elapsed2 * 1000))
 
 if __name__ == '__main__':
     unittest.main()
