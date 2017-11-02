@@ -4,32 +4,28 @@ import numpy as np
 from pynene import Index
 
 class KNNKernelDensity():
-    SQRT2PI = 2.50662827463 # sqrt(2 * PI)
+    SQRT2PI = np.sqrt(2 * np.pi)
 
     def __init__(self, X):
         self.X = X
         self.index = Index(X)
-        self.index.add_points(X.shape[0])
+        self.index.add_points(len(X))
 
     def add_points(self, n):
         self.index.add_points(n)
 
     def score_samples(self, X, k=10, bandwidth=0.2):
-        ids, dists = self.index.knn_search_points(X, k=k)
+        _, dists = self.index.knn_search_points(X, k=k)
 
-        n = X.shape[0]
+        n = len(X)
         scores = np.zeros(n)
 
         for i in range(n):
-            scores[i] = self._gaussian_score(dists[i], k, bandwidth) / k
+            scores[i] = self._gaussian_score(dists[i], bandwidth) / k
 
         return scores
 
-    def _gaussian_score(self, dists, k, bandwidth):
-        g = 0
-
+    def _gaussian_score(self, dists, bandwidth):
         logg = -0.5 * (dists / bandwidth) ** 2
-
         g = np.exp(logg) / bandwidth / self.SQRT2PI
-
         return g.sum()
