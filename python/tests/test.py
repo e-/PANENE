@@ -55,5 +55,24 @@ class Test_Panene(unittest.TestCase):
         print("single thread: {:.2f} ms".format(elapsed1 * 1000))
         print("4 threads: {:.2f} ms".format(elapsed2 * 1000))
 
+    def test_large_k(self):
+        N = 100
+        k = 200
+        dim = 10
+        dtype=np.float32
+
+        x = np.array(np.random.rand(N, dim), dtype=dtype)
+        q = np.array(np.random.rand(1, dim), dtype=dtype)
+
+        index = Index(x)
+        index.add_points(N)
+
+        with self.assertRaises(ValueError):
+            index.knn_search(0, k)
+
+        with self.assertRaises(ValueError):
+            index.knn_search_points(q, k)
+     
+
 if __name__ == '__main__':
     unittest.main()

@@ -43,7 +43,7 @@ cdef class Index:
     def add_points(self, size_t end):
         self.c_index.addPoints(end)
 
-    def knn_search(self, int val, k, eps=None, sorted=None, cores=None):
+    def knn_search(self, int pid, int k, eps=None, sorted=None, cores=None):
         cdef SearchParams params = SearchParams()
         if eps is not None:
             params.eps = eps
@@ -51,21 +51,26 @@ cdef class Index:
             params.sorted = sorted
         if cores is not None:
             params.cores = cores
+        
+        if self.c_index.getSize() < k:
+            raise ValueError('k is larger than the number of points in the index. Make sure you called add_points()')
+
         cdef PyResultSet res = PyResultSet(k)
-        self.c_index.knnSearch(val, res, k, params)
+        self.c_index.knnSearch(pid, res, k, params)
+
         ids = np.ndarray((1, res.size), dtype=np.int)
         dists = np.ndarray((1, res.size), dtype=np.float)
-        for i in range(res.size):
-            n = res[i]
-            ids[0, i] = n.id
-            dists[0, i] = n.dist
+
+        for i in range(k):
+            nei = res[i]
+            ids[0, i] = nei.id
+            dists[0, i] = nei.dist
+
         return ids, dists
 
 #    @cython.boundscheck(False) # turn off bounds-checking for entire function
 #    @cython.wraparound(False)  # turn off negative index wrapping for entire function
-    def knn_search_points(self, np.ndarray[DTYPE_t, ndim=2] val, int k, eps=None, sorted=None, cores=None):
-        # TODO val.shape[0] must be larger than k
-
+    def knn_search_points(self, np.ndarray[DTYPE_t, ndim=2] points, int k, eps=None, sorted=None, cores=None):
         cdef SearchParams params = SearchParams()
         if eps is not None:
             params.eps = eps
@@ -73,28 +78,35 @@ cdef class Index:
             params.sorted = sorted
         if cores is not None:
             params.cores = cores
-        cdef int l = val.shape[0]
-        cdef int d = val.shape[1]
-        cdef Points pts = Points()
-        pts.reserve(l)
-        cdef Point p
-        for j in range(l):
-            pts.emplace_back(d)
-            for i in range(d):
-                pts[j][i] = val[j, i]
 
-        cdef PyResultSets ress = PyResultSets(l)
-        self.c_index.knnSearchVec(pts, ress, k, params)
-        ids = np.ndarray((l, k), dtype=np.int)
-        dists = np.ndarray((l, k), dtype=np.float32)
+        if self.c_index.getSize() < k:
+            raise ValueError('k is larger than the number of points in the index. Make sure you called add_points()')
+
+        cdef int n = points.shape[0] # of query points
+        cdef int d = points.shape[1] # dimension
+        cdef Points cpoints = Points()
+
+        cpoints.reserve(n)
+
+        for j in range(n):
+            cpoints.emplace_back(d)
+            for i in range(d):
+                cpoints[j][i] = points[j, i]
+
+        cdef PyResultSets ress = PyResultSets(n)
+
+        self.c_index.knnSearchVec(cpoints, ress, k, params)
+
+        ids = np.ndarray((n, k), dtype=np.int)
+        dists = np.ndarray((n, k), dtype=np.float32)
         cdef PyResultSet res
 
-        for j in range(l):
+        for j in range(n):
             res = ress[j]
             for i in range(k):
-                n = res[i]
-                ids[j][i] = n.id
-                dists[j][i] = n.dist
+                nei = res[i]
+                ids[j][i] = nei.id
+                dists[j][i] = nei.dist
                 
         return ids, dists
         
