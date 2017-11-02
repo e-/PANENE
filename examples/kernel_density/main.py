@@ -2,15 +2,22 @@ from sklearn.neighbors.kde import KernelDensity
 from knnkde import KNNKernelDensity
 
 import numpy as np
-N = 200
-X = np.random.random((N, 2)).astype(np.float32)
+import json
 
 def mv(n, mean, cov):
     return np.random.multivariate_normal(mean, cov, size=(n)).astype(np.float32)
 
-X1 = np.array([np.random.normal([0.1, 0.3], [0.1, 0.3]) for x in range(N)]).astype(np.float32)
-X2 = np.array([np.random.normal([0.7, 0.5], [0.2, 0.1]) for x in range(N)]).astype(np.float32)
-
+def save(path, X, sampleN, samples, scores):
+    with open(path, 'w', encoding='utf8') as outfile:
+        json.dump({
+            'points': X.tolist(),
+            'bins': sampleN,
+            'samples': [
+                (sample, score) for sample, score in zip(samples.tolist(), scores.tolist())
+                ]
+            }, outfile, indent=2)
+     
+N = 200
 X = np.concatenate((
     mv(N, [0.1, 0.3], [[0.01, 0], [0, 0.09]]),
     mv(N, [0.7, 0.5], [[0.04, 0], [0, 0.01]]),
@@ -20,22 +27,17 @@ X = np.concatenate((
 sampleN = 30
 samples = np.indices((sampleN + 1, sampleN + 1)).reshape(2, -1).T / sampleN * 3 - 1.5
 
-kde = KNNKernelDensity(X, bandwidth = 0.2, k=10)
-scores = kde.score_samples(samples.astype(np.float32))
+kde = KNNKernelDensity(X)
 
-import json
+scores = kde.score_samples(samples.astype(np.float32), k=X.shape[0])
+save('result/result_knn_n.json', X, sampleN, samples, scores)
 
-with open('result.json', 'w', encoding='utf8') as outfile:
-    json.dump({
-        'points': X.tolist(),
-        'bins': sampleN,
-        'samples': [
-            (sample, score) for sample, score in zip(samples.tolist(), scores.tolist())
-            ]
-        }, outfile, indent=2)
+for k in [1, 5, 10, 20, 50, 100]:
+    if k > X.shape[0]:
+        continue
+    scores = kde.score_samples(samples.astype(np.float32), k=k)
+    save('result/result_knn_{}.json'.format(k), X, sampleN, samples, scores)
 
-
-    
-#kde2 = KernelDensity(kernel='gaussian', bandwidth=0.2).fit(X)
-#print(kde2.score_samples(X))
-
+sci_kde = KernelDensity(kernel='gaussian', bandwidth=0.2).fit(X)
+scores = np.exp(sci_kde.score_samples(samples))
+save('result/result_sci.json', X, sampleN, samples, scores)
