@@ -259,15 +259,6 @@ typedef std::vector<Point> Points;
 
 class PyIndexL2 : public ProgressiveKDTreeIndex<PyDataSource> {
 public:
-  PyIndexL2(IndexParams indexParams_)
-    : ProgressiveKDTreeIndex<PyDataSource>(indexParams_) { }
-
-  // this function is implemented in include/progressive_kd_tree.h
-/*  void knnSearchVec(
-      const Points& points,
-      std::vector<ResultSet<IDType, DistanceType>> &resultSets,
-      size_t knn,
-      const SearchParams& params) const
-  { }*/
-  
+  PyIndexL2(IndexParams indexParams_, TreeWeight weight_, const float reconstructionWeight_)
+    : ProgressiveKDTreeIndex<PyDataSource>(indexParams_, weight_, reconstructionWeight_) { }
 };

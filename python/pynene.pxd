@@ -20,6 +20,22 @@ cdef extern from "panene_python.h":
         float eps
         int sorted
         int cores
+   
+    cdef cppclass TreeWeight:
+        TreeWeight(float, float)
+
+        float addPointWeight
+        float updateIndexWeight
+
+    cdef cppclass UpdateResult2:
+        UpdateResult2()
+        int numPointsInserted
+        int addPointOps
+        int updateIndexOps
+        int addPointResult
+        int updateIndexResult
+        float addPointElapsed
+        float updateIndexElapsed
 
     cdef cppclass PyNeighbor:
         PyNeighbor()
@@ -56,11 +72,11 @@ cdef extern from "panene_python.h":
         void emplace_back(size_t)
 
     cdef cppclass PyIndexL2:
-        PyIndexL2(IndexParams ip)
+        PyIndexL2(IndexParams ip, TreeWeight, float)
         void setDataSource(PyDataSource  * ds)
         size_t addPoints(size_t end)
         void beginUpdate()
-        size_t update(int ops)
+        UpdateResult2 run(size_t ops)
         void removePoint(size_t id)
         size_t getSize()
         int usedMemory()

@@ -72,7 +72,21 @@ class Test_Panene(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             index.knn_search_points(q, k)
-     
+    
+    def test_incremental_run1(self):
+        N = 100
+        dim = 10
+        dtype=np.float32
+        x = np.array(np.random.rand(N, dim), dtype=dtype)
+
+        index = Index(x, weights=(0.5, 0.5))
+        ops = 20
+
+        for i in range(N // ops):
+            ur = index.run(ops)
+
+            self.assertEqual(index.size(), (i + 1) * ops)
+            self.assertEqual(ur['addPointResult'], ops)
 
 if __name__ == '__main__':
     unittest.main()

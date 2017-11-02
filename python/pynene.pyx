@@ -21,10 +21,12 @@ cdef class Index:
     cdef IndexParams    c_indexParams
     cdef PyIndexL2    * c_index
 
-    def __cinit__(self, array):
+    def __cinit__(self, array, weights=(0.3, 0.7), float reconstruction_weight=0.25):
         check_array(array)
         self.c_src = new PyDataSource(array)
-        self.c_index = new PyIndexL2(self.c_indexParams)
+
+        self.c_index = new PyIndexL2(self.c_indexParams, TreeWeight(weights[0], weights[1]), reconstruction_weight)
+
         self.c_index.setDataSource(self.c_src)
 
     def __dealloc__(self):
@@ -42,6 +44,9 @@ cdef class Index:
 
     def add_points(self, size_t end):
         self.c_index.addPoints(end)
+
+    def size(self):
+        return self.c_index.getSize()
 
     def knn_search(self, int pid, int k, eps=None, sorted=None, cores=None):
         cdef SearchParams params = SearchParams()
@@ -109,4 +114,18 @@ cdef class Index:
                 dists[j][i] = nei.dist
                 
         return ids, dists
-        
+
+    def run(self, int ops):
+        cdef UpdateResult2 ur
+        ur = self.c_index.run(ops)
+
+        return {
+            'numPointsInserted': ur.numPointsInserted,
+            'addPointOps': ur.addPointOps,
+            'updateIndexOps': ur.updateIndexOps,
+            'addPointResult': ur.addPointResult,
+            'updateIndexResult': ur.updateIndexResult,
+            'addPointElapsed': ur.addPointElapsed,
+            'updateIndexElapsed': ur.updateIndexElapsed
+        }
+

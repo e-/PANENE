@@ -49,6 +49,8 @@ struct UpdateResult2 {
   double addPointElapsed;
   double updateIndexElapsed;
 
+  UpdateResult2() = default;
+
   UpdateResult2(
       size_t addPointOps_, size_t updateIndexOps_,
       size_t addPointResult_, size_t updateIndexResult_, 
