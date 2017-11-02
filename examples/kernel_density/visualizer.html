@@ -40,17 +40,19 @@ d3.json('result.json', (data) => {
       .attr('stroke-width', '2px')
       .attr('cx', d => x(d[0]))
       .attr('cy', d => y(d[1]))
+      .attr('opacity', 0.7)
   
   let bins = +data.bins;
   let color = d3.scaleSequential(d3.interpolateCool)
     .domain([0, d3.max(data.samples, d => d[1])])
   let densityMax = d3.max(data.samples, x => x[1])
+  let step = 10
 
   // 
   bg.selectAll('path')
     .data(d3.contours()
       .size([bins + 1, bins + 1])
-      .thresholds(d3.range(0, densityMax, densityMax / 5))
+      .thresholds(d3.range(0, densityMax, densityMax / step))
       (data.samples.map(d => d[1]))
     )
     .enter()
