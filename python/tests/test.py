@@ -3,43 +3,44 @@ import numpy as np
 import unittest
 import time
 
+def random_vectors(n=100, d=10, dtype=np.float32):
+    return np.array(np.random.rand(n, d), dtype=dtype)
+
 class Test_Panene(unittest.TestCase):
-    def test(self):
-        x = np.random.ranf((100,10)).astype(np.float32)
+    def test_return_shape(self):
+        x = random_vectors()
+
         index = Index(x)
         self.assertIs(x, index.array)
-        index.add_points(100)
-        for i in range(100):
+
+        index.add_points(x.shape[0])
+
+        for i in range(x.shape[0]):
             ids, dists = index.knn_search(i, 5)
             self.assertEqual(ids.shape, (1, 5))
             self.assertEqual(dists.shape, (1, 5))
 
     def test_random(self):
-        N = 100
-        dim = 10
-        dtype=np.float32
-        np.random.seed(0)
-        x = np.array(np.random.rand(N, dim), dtype=dtype)
+        x = random_vectors()
 
         index = Index(x)
-        index.add_points(N) # we must add points before querying the index
+        index.add_points(x.shape[0]) # we must add points before querying the index
 
-        pt = np.random.randint(N)
+        pt = np.random.randint(x.shape[0])
         pts = x[[pt]]
+
         idx, dists = index.knn_search_points(pts, 1, cores=1)
+
         self.assertEqual(len(idx), 1)
         self.assertEqual(idx[0], pt)
 
     def test_openmp(self):
-        N = 10000 # must be large
-        dim = 10
-        dtype=np.float32
-
-        np.random.seed(0)
-        x = np.array(np.random.rand(N, dim), dtype=dtype)
+        N = 10000 # must be large enough
+        
+        x = random_vectors(N)
 
         index = Index(x)
-        index.add_points(N) # we must add points before querying the index
+        index.add_points(x.shape[0]) # we must add points before querying the index
         
         for r in range(5): # make cache ready
             idx, dists = index.knn_search_points(x, 10)
@@ -56,16 +57,12 @@ class Test_Panene(unittest.TestCase):
         print("4 threads: {:.2f} ms".format(elapsed2 * 1000))
 
     def test_large_k(self):
-        N = 100
-        k = 200
-        dim = 10
-        dtype=np.float32
-
-        x = np.array(np.random.rand(N, dim), dtype=dtype)
-        q = np.array(np.random.rand(1, dim), dtype=dtype)
+        x = random_vectors()
+        q = random_vectors(1)
+        k = x.shape[0] + 1 # make k larger than # of vectors in x
 
         index = Index(x)
-        index.add_points(N)
+        index.add_points(x.shape[0])
 
         with self.assertRaises(ValueError):
             index.knn_search(0, k)
@@ -74,15 +71,12 @@ class Test_Panene(unittest.TestCase):
             index.knn_search_points(q, k)
     
     def test_incremental_run1(self):
-        N = 100
-        dim = 10
-        dtype=np.float32
-        x = np.array(np.random.rand(N, dim), dtype=dtype)
+        x = random_vectors()
 
         index = Index(x, weights=(0.5, 0.5))
         ops = 20
 
-        for i in range(N // ops):
+        for i in range(x.shape[0] // ops):
             ur = index.run(ops)
 
             self.assertEqual(index.size(), (i + 1) * ops)
