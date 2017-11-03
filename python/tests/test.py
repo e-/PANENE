@@ -82,5 +82,23 @@ class Test_Panene(unittest.TestCase):
             self.assertEqual(index.size(), (i + 1) * ops)
             self.assertEqual(ur['addPointResult'], ops)
 
+    def test_check_x_type(self):
+        x = random_vectors()
+        index = Index(x)
+        index.add_points(len(x))
+        index.knn_search_points(x, 10)
+
+        with self.assertRaises(ValueError):
+            x = random_vectors(dtype=np.int32)
+            index = Index(x)
+            index.add_points(len(x))
+            index.knn_search_points(x, 10)
+
+        with self.assertRaises(ValueError):
+            x = np.random.rand(100, 10)
+            index = Index(x)
+            index.add_points(len(x))
+            index.knn_search_points(x, 10)
+
 if __name__ == '__main__':
     unittest.main()
