@@ -1,8 +1,22 @@
-from sklearn.neighbors.kde import KernelDensity
-from knnkde import KNNKernelDensity
+"""
+This script performs density estimation for randomly generated data.
+We use two different methods: scikit-learn's KernelDensity and our density 
+estimation method based on KNN.
+The results are stored in the "result" directory and can be visualized using 
+"offline_visualizer.html". Note that you need to run a local webserver before
+opening the visualizer on a web browser. It can be done by running the following 
+command:
+
+`python -m http.server`
+
+and visit 'localhost:8000/offlie_visualizer.html' on the browser
+"""
 
 import numpy as np
 import json
+
+from sklearn.neighbors.kde import KernelDensity
+from knnkde import KNNKernelDensity
 
 def mv(n, mean, cov):
     return np.random.multivariate_normal(mean, cov, size=(n)).astype(np.float32)
