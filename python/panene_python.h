@@ -262,3 +262,5 @@ public:
   PyIndexL2(IndexParams indexParams_, TreeWeight weight_, const float reconstructionWeight_)
     : ProgressiveKDTreeIndex<PyDataSource>(indexParams_, weight_, reconstructionWeight_) { }
 };
+
+typedef ProgressiveKNNTable<PyIndexL2> PyKNNTable;

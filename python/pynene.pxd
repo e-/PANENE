@@ -83,3 +83,27 @@ cdef extern from "panene_python.h":
         void knnSearch(size_t id, PyResultSet& results, size_t knn, const SearchParams& params)
         void knnSearchVec(const Points& vec, PyResultSets& results, size_t knn, const SearchParams& params)
 
+    cdef cppclass TableWeight:
+        TableWeight(float treew, float tablew)
+        float treeWeight
+        float tableWeight
+
+    cdef cppclass UpdateResult:
+      size_t addPointOps
+      size_t updateIndexOps
+      size_t updateTableOps
+      size_t addPointResult
+      size_t updateIndexResult
+      size_t updateTableResult
+      size_t numPointsInserted
+      double addPointElapsed
+      double updateIndexElapsed
+      double updateTableElapsed
+
+
+    cdef cppclass PyKNNTable:
+        PyKNNTable(size_t knn, size_t d, IndexParams ip, SearchParams sp, TreeWeight treew, TableWeight tablew)
+        void setDataSource(PyDataSource * ds)
+        size_t getSize()
+        UpdateResult run(size_t ops)
+        PyResultSet& getNeighbors(int id)
