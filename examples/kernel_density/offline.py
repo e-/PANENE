@@ -11,12 +11,11 @@ command:
 
 and visit 'localhost:8000/offlie_visualizer.html' on the browser
 """
-
 import numpy as np
 import json
 
 from sklearn.neighbors.kde import KernelDensity
-from knnkde import KNNKernelDensity
+from .knnkde import KNNKernelDensity
 
 def mv(n, mean, cov):
     return np.random.multivariate_normal(mean, cov, size=(n)).astype(np.float32)
