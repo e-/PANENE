@@ -7,7 +7,7 @@ PANENE is based on [the FLANN library](https://github.com/mariusmuja/flann) and 
 
 - [x] a progressive k-d tree
 - [x] a KNN table structure that enables constant-time lookup of KNN neighbors
-- [ ] Python bindings
+- [X] Python bindings
 
 # Run the Benchmark
 
