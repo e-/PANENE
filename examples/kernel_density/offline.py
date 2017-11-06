@@ -11,6 +11,7 @@ command:
 
 and visit 'localhost:8000/offlie_visualizer.html' on the browser
 """
+
 import numpy as np
 import json
 

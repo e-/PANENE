@@ -1,3 +1,13 @@
+"""
+This script performs density estimation for randomly generated data.
+In contrast to "offline.py", it computes density progressively, using the
+'run' method of PANENE.
+
+To see the result, run this script with Python 3, Flask, and Flask-SocketIO
+(we recommend to use Anaconda 3). Then, open 'localhost:8001' on your browser.
+"""
+
+
 from flask import Flask, render_template, request, send_from_directory
 from flask_socketio import SocketIO, emit
 from knnkde import KNNKernelDensity
