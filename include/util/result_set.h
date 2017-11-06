@@ -42,17 +42,35 @@ template <typename IDType, typename DistanceType>
 struct ResultSet {
   ResultSet() = default;
   ResultSet(size_t size_) : size(size_) {
-    neighbors.resize(size);
+    nn.resize(size);
     worstDist = (std::numeric_limits<DistanceType>::max)();
 
     for(size_t i = 0; i < size; ++i) {
-      neighbors[i].id = -1;
-      neighbors[i].dist = worstDist;
+      nn[i].id = -1;
+      nn[i].dist = worstDist;
     }
   }
 
-  const Neighbor<IDType, DistanceType> operator[](unsigned int index) const {
-    return neighbors[index];
+  const Neighbor<IDType, DistanceType> operator[](IDType id) const {
+    return nn[id];
+  }
+
+  const std::vector<IDType> neighbors(IDType id) {
+    std::vector<IDType> res(size);
+    
+    for(size_t i = 0; i < size; ++i)
+      res[i] = nn[id].id;
+    
+    return res;
+  }
+
+  const std::vector<DistanceType> distances(IDType id) {
+    std::vector<DistanceType> res(size);
+    
+    for(size_t i = 0; i < size; ++i)
+      res[i] = nn[id].dist;
+    
+    return res;
   }
 
   bool full() const
@@ -62,7 +80,7 @@ struct ResultSet {
 
   friend std::ostream& operator<<( std::ostream& os, const ResultSet<IDType, DistanceType> &obj ) {
     for(size_t i = 0; i < obj.size; ++i) {
-      os << i << ":" << obj.neighbors[i] << " ";
+      os << i << ":" << obj.nn[i] << " ";
     }
     return os;  
   }
@@ -72,8 +90,8 @@ struct ResultSet {
 
     int i;
     for(i = size - 1; i >= 0; --i) {
-      if(neighbors[i] == neighbor) return;
-      if(neighbors[i] < neighbor) break;
+      if(nn[i] == neighbor) return;
+      if(nn[i] < neighbor) break;
     }
 
     // insert neighbor to (i + 1)
@@ -82,16 +100,16 @@ struct ResultSet {
     // shift (i+1) ~ size - 2
 
     for(size_t i = size - 1; i > pos; --i) {
-      neighbors[i] = neighbors[i - 1];
+      nn[i] = nn[i - 1];
     }
 
-    neighbors[pos] = neighbor;
-    worstDist = neighbors[size - 1].dist;
+    nn[pos] = neighbor;
+    worstDist = nn[size - 1].dist;
   }
   
   size_t size;
   DistanceType worstDist;
-  std::vector<Neighbor<IDType, DistanceType>> neighbors;
+  std::vector<Neighbor<IDType, DistanceType>> nn;
 };
 
 }

@@ -199,7 +199,7 @@ public:
     }
 
     // TODO
-    for (auto &neighbor : result.neighbors) {
+    for (auto &neighbor : result.nn) {
       neighbor.dist = sqrt(neighbor.dist);
     }
   }

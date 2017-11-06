@@ -1,4 +1,5 @@
 #include <benchmark/metadata.h>
+#include <data_sink/vector_data_sink.h>
 #include <progressive_knn_table.h>
 
 using namespace panene;
@@ -6,6 +7,7 @@ typedef size_t IDType;
 typedef float ElementType;
 using Source = panene::BinaryDataSource<IDType, L2<ElementType>>;
 typedef typename Source::DistanceType DistanceType;
+using Sink = panene::VectorDataSink<IDType, DistanceType>;
 
 void getExactNN(Source &dataset, Matrix<ElementType> &queryset, Matrix<ElementType> &answers, size_t k) {
   int rows = dataset.size();
@@ -100,6 +102,7 @@ void run(const char* base_) {
 
   for (const auto& dataset : datasets) {
     Source trainDataSource(dataset.path);
+    Sink dataSink(dataset.n, k);
 
     size_t trainN = trainDataSource.open(dataset.path, dataset.n, dataset.dim);
 
@@ -131,11 +134,12 @@ void run(const char* base_) {
           float treeWeight = treeWeights[w];
           size_t numPointsInserted = 0;
 
-          ProgressiveKNNTable<ProgressiveKDTreeIndex<Source>> table(k, dataset.dim, 
+          ProgressiveKNNTable<ProgressiveKDTreeIndex<Source>, Sink> table(k, dataset.dim, 
               IndexParams(4),
               searchParam,
               TreeWeight(0.3, 0.7),
-              TableWeight(treeWeight, 1 - treeWeight));
+              TableWeight(treeWeight, 1 - treeWeight),
+              &dataSink);
 
           table.setDataSource(&trainDataSource);
 
@@ -161,10 +165,10 @@ void run(const char* base_) {
                 size_t id = order[i];
 
                 if (id < updateResult.numPointsInserted) { // the sample point is present in the table
-                  auto nn = table.getNeighbors(id);
+                  auto distances = table.getDistances(id);
 
                   // get the distance to the farthest neighbor
-                  float dist = nn[k - 1].dist;
+                  float dist = distances[k - 1];
 
                   // get the exact distnce
                   float exact = exactDists[i][k - 1];

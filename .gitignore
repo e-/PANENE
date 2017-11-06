@@ -43,3 +43,5 @@ build
 *.app
 
 /.vs
+
+*.swp

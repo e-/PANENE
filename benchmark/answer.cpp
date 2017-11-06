@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
   
   out << k << std::endl;
   for (size_t i = 0; i < testN; ++i) {
-    for (const auto& neighbor : exactResults[i].neighbors) {
+    for (const auto& neighbor : exactResults[i].nn) {
       out << neighbor.id << " " << neighbor.dist << " ";
     }
     out << std::endl;

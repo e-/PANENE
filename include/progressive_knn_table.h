@@ -59,7 +59,7 @@ struct UpdateResult {
   }
 };
 
-template <typename Indexer>
+template <typename Indexer, typename DataSink>
 class ProgressiveKNNTable {
   typedef typename Indexer::DataSourceT DataSource;
   typedef typename DataSource::ElementType ElementType;
@@ -70,8 +70,8 @@ class ProgressiveKNNTable {
 
 public:  
 
-  ProgressiveKNNTable(size_t k_, size_t d_, IndexParams indexParams_, SearchParams searchParams_, TreeWeight treeWeight_, TableWeight weight_) : 
-    d(d_), k(k_), indexer(Indexer(indexParams_)), weight(weight_), searchParams(searchParams_){
+  ProgressiveKNNTable(size_t k_, size_t d_, IndexParams indexParams_, SearchParams searchParams_, TreeWeight treeWeight_, TableWeight weight_, DataSink *dataSink_) : 
+    d(d_), k(k_), indexer(Indexer(indexParams_)), weight(weight_), searchParams(searchParams_), dataSink(dataSink_){
 
     numPointsInserted = 0;
   }
@@ -152,7 +152,9 @@ public:
           }
         }
         
-        neighbors.push_back(results[i]);
+        dataSink->setNeighbors(id, 
+            &results[i].neighbors(id)[0],
+            &results[i].distances(id)[0]);
       }
     }
 
@@ -180,15 +182,19 @@ public:
 
       // check if there is a difference between previous NN and newly computed NN.      
       size_t i;
+      const IDType* current = dataSink->getNeighbors(q.id);
       for(i = 0; i < k; ++i) {
-        if(neighbors[q.id][i] != result[i])
+        if(current[i] != result[i].id)
           break;
       } 
 
       if(i < k) { // if there is a difference
         // then, mark the nn of q.id as dirty
 
-        neighbors[q.id] = result;
+        dataSink->setNeighbors(
+            q.id,
+            &result.neighbors(q.id)[0],
+            &result.distances(q.id)[0]);
 
         for(i = 0; i < k; ++i) {
           if(!queued.test(result[i].id)) {
@@ -208,8 +214,12 @@ public:
                         indexerResult.addPointElapsed, indexerResult.updateIndexElapsed, updateTableElapsed);
   }
 
-  ResultSet<IDType, DistanceType> &getNeighbors(const IDType id) {
-    return neighbors[id];
+  const IDType * getNeighbors(const IDType id) const {
+    return dataSink->getNeighbors(id);
+  }
+
+  const DistanceType * getDistances(const IDType id) const {
+    return dataSink->getDistances(id);
   }
 
   Indexer indexer;
@@ -218,7 +228,7 @@ private:
   size_t d;
   size_t k;
   SearchParams searchParams;
-  std::vector<ResultSet<IDType, DistanceType>> neighbors;
+  DataSink *dataSink;
   DataSource *dataSource;
   TableWeight weight;
   size_t numPointsInserted;
