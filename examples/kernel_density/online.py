@@ -46,7 +46,7 @@ def runner_job():
         res = kde.run(ops)
         inserted = res['numPointsInserted']
 
-        scores = kde.score_samples(samples.astype(np.float32), k=20)
+        scores = kde.score_samples(samples.astype(np.float32), k=100)
          
         socketio.emit('result', {
             'points': X[:500].tolist(),
@@ -57,7 +57,7 @@ def runner_job():
                 (sample, score) for sample, score in zip(samples.tolist(), scores.tolist())
             ]
         })
-        socketio.sleep(0.01)
+        socketio.sleep(0.001)
 
 def stop_runner():
     global runner
