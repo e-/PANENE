@@ -2,11 +2,10 @@
 #define panene_vector_data_sink_h
 
 #include <vector>
-#include <cassert>
 
 namespace panene {
 
-  template <typename IDType, typename DistanceType>
+template <typename IDType, typename DistanceType>
 class VectorDataSink {
 public:
   VectorDataSink(size_t size_, size_t k_): size(size_), k(k_) {
