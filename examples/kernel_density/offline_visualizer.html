@@ -58,7 +58,6 @@ function draw(svgId, path) {
     let svg = d3.select(svgId).append('g').attr('transform', translate(10, 10))
     let bg = svg.append('g')
     let fg = svg.append('g')
-    let dict = {}
 
     let x = d3.scaleLinear().domain(d3.extent(data.samples, d => d[0][0])).range([0, width])
     let y = d3.scaleLinear().domain(d3.extent(data.samples, d => d[0][1])).range([0, height])

@@ -6,13 +6,15 @@ from pynene import Index
 class KNNKernelDensity():
     SQRT2PI = np.sqrt(2 * np.pi)
 
-    def __init__(self, X):
+    def __init__(self, X, online=False):
         self.X = X
         self.index = Index(X)
-        self.index.add_points(len(X))
+        
+        if not online: # if offline
+            self.index.add_points(len(X))
 
-    def add_points(self, n):
-        self.index.add_points(n)
+    def run(self, ops):
+        return self.index.run(ops)
 
     def score_samples(self, X, k=10, bandwidth=0.2):
         _, dists = self.index.knn_search_points(X, k=k)
