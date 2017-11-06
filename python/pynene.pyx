@@ -129,3 +129,13 @@ cdef class Index:
             'updateIndexElapsed': ur.updateIndexElapsed
         }
 
+cdef class KNNTable:
+    cdef PyDataSource * c_src
+    cdef IndexParams    c_indexParams
+    cdef SearchParams   c_searchParams
+    cdef PyIndexL2    * c_index
+
+    def __cinit__(self, array, treew=(0.3, 0.7), tablew=(0.5, 0.5)):
+        check_array(array)
+        self.c_src = new PyDataSource(array)
+        
