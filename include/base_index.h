@@ -199,9 +199,8 @@ public:
     }
 
     // TODO
-    for (auto &neighbor : result.nn) {
-      neighbor.dist = sqrt(neighbor.dist);
-    }
+    for(size_t i = 0; i < result.k; ++i) 
+      result.distances[i] = sqrt(result.distances[i]);
   }
 
   /**

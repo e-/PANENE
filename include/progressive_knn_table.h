@@ -153,8 +153,8 @@ public:
         }
         
         dataSink->setNeighbors(id, 
-            &results[i].neighbors(id)[0],
-            &results[i].distances(id)[0]);
+            results[i].getNeighbors(),
+            results[i].getDistances());
       }
     }
 
@@ -193,8 +193,8 @@ public:
 
         dataSink->setNeighbors(
             q.id,
-            &result.neighbors(q.id)[0],
-            &result.distances(q.id)[0]);
+            result.getNeighbors(),
+            result.getDistances());
 
         for(i = 0; i < k; ++i) {
           if(!queued.test(result[i].id)) {
