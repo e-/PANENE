@@ -247,7 +247,14 @@ class PyDataSource
     Py_DECREF(shape);
     DBG(std::cerr << "set_dim _object refcount: " << _object->ob_refcnt << std::endl);
   }
+};
 
+// TODO
+class PyDataSink
+{
+  public:
+  PyDataSink() {
+  }
 };
 
 typedef Neighbor<size_t, float> PyNeighbor;
@@ -263,4 +270,4 @@ public:
     : ProgressiveKDTreeIndex<PyDataSource>(indexParams_, weight_, reconstructionWeight_) { }
 };
 
-typedef ProgressiveKNNTable<PyIndexL2> PyKNNTable;
+typedef ProgressiveKNNTable<PyIndexL2, PyDataSink> PyKNNTable;

@@ -63,8 +63,8 @@ cdef class Index:
         cdef PyResultSet res = PyResultSet(k)
         self.c_index.knnSearch(pid, res, k, params)
 
-        ids = np.ndarray((1, res.size), dtype=np.int)
-        dists = np.ndarray((1, res.size), dtype=np.float)
+        ids = np.ndarray((1, res.k), dtype=np.int)
+        dists = np.ndarray((1, res.k), dtype=np.float)
 
         for i in range(k):
             nei = res[i]

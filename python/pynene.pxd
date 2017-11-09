@@ -47,7 +47,7 @@ cdef extern from "panene_python.h":
         PyResultSet(size_t)
         PyNeighbor operator[](size_t) const
         bint full() const
-        size_t size
+        size_t k
         float worstDist
 
     cdef cppclass PyResultSets:

@@ -56,11 +56,11 @@ struct UpdateResult2 {
       size_t addPointResult_, size_t updateIndexResult_, 
       size_t numPointsInserted_,
       double addPointElapsed_, double updateIndexElapsed_) :
+    numPointsInserted(numPointsInserted_), 
     addPointOps(addPointOps_),
     updateIndexOps(updateIndexOps_),
     addPointResult(addPointResult_), 
     updateIndexResult(updateIndexResult_), 
-    numPointsInserted(numPointsInserted_), 
     addPointElapsed(addPointElapsed_),
     updateIndexElapsed(updateIndexElapsed_)
   {
@@ -485,6 +485,12 @@ protected:
     std::cout << "ongoingTree size: " << ongoingTree->size << std::endl;
   }
 
+public:
+  UpdateStatus updateStatus = UpdateStatus::NoUpdate;
+  KDTree<NodePtr>* ongoingTree;
+  float queryLoss = 0.0;
+  TreeWeight weight;
+
 private:
   float reconstructionWeight; // lower => more update
 
@@ -492,12 +498,6 @@ private:
 
   std::queue<NodeSplit> queue;
   std::vector<size_t> ids;
-
-public:
-  UpdateStatus updateStatus = UpdateStatus::NoUpdate;
-  KDTree<NodePtr>* ongoingTree;
-  float queryLoss = 0.0;
-  TreeWeight weight;
 };
 
 }
