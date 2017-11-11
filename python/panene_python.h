@@ -263,7 +263,9 @@ public:
  PyDataSink(PyObject * neighbors, PyObject * distances)
    : _neighbors(neighbors), _distances(distances),
      _aneighbors(nullptr), _adistances(nullptr), 
-     _d(0) {
+    _d(0),
+    _distance_cache(nullptr), _neighbor_cache(nullptr),
+     _last_distance_id(-1), _last_neighbor_id(-1) {
    Py_INCREF(_neighbors);
    Py_INCREF(_distances);
    import_array_wrap();
@@ -312,6 +314,7 @@ public:
      DBG(std::cerr << "dim is: " << _d << std::endl);
      Py_DECREF(dim);
      Py_DECREF(shape);
+     _neighbor_cache = new IDType[_d];
    }
    if(PyArray_Check(_distances)) {
      PyArrayObject * array = (PyArrayObject*)_distances;
@@ -366,6 +369,7 @@ public:
        //return (PyObject *)NULL;
        throw std::invalid_argument("Distances dimension should be the same as Neighbors");
      }
+     _distance_cache = new float[_d];
    }
 
  }
@@ -395,29 +399,168 @@ public:
     }
     _neighbors = nullptr;
     _aneighbors = nullptr;
+    if (_distance_cache != nullptr) {
+      delete _distance_cache;
+      _distance_cache = nullptr;
+    }
+    if (_neighbor_cache != nullptr) {
+      delete _neighbor_cache;
+      _neighbor_cache = nullptr;
+    }
   }
 
   const IDType * getNeighbors(IDType id) const {
-    return NULL; // TODO
+    if (_aneighbors != nullptr) {
+      return (IDType *)PyArray_GETPTR2(_aneighbors, id, 0);
+    }
+    if (_last_neighbor_id != id) {
+      _last_neighbor_id = id;
+      IDType v;
+      PyObject *key1 = PyInt_FromLong(id);
+      PyObject *key2 = PyInt_FromLong(0);
+      PyObject *tuple = PyTuple_Pack(2, key1, key2);
+      PyObject *pf = PyObject_GetItem(_neighbors, tuple);
+      v = 0;
+      if (PyLong_Check(pf)) {
+        v = PyLong_AsLong(pf);
+      }
+      else if (PyInt_Check(pf)) {
+        v = PyInt_AsLong(pf);
+      }
+      if (pf != nullptr) {
+        Py_DECREF(pf);
+      }
+      _neighbor_cache[0] = v;
+      for(npy_intp i = 1; i < _d; ++i) {
+        PyObject *key2 = PyInt_FromLong(i);
+        PyTuple_SET_ITEM(tuple, 1, key2);
+        pf = PyObject_GetItem(_neighbors, tuple);
+        v = 0;
+        if (PyLong_Check(pf)) {
+          v = PyLong_AsLong(pf);
+        }
+        else if (PyInt_Check(pf)) {
+          v = PyInt_AsLong(pf);
+        }
+        if (pf != nullptr) {
+          Py_DECREF(pf);
+        }
+        _neighbor_cache[i] = v;
+      }
+      Py_DECREF(tuple);
+    }
+    return _neighbor_cache;
+    
   }
 
   const DistanceType * getDistances(IDType id) const {
-    return NULL; // TODO
+    if (_adistances != nullptr) {
+      return (DistanceType *)PyArray_GETPTR2(_adistances, id, 0);
+    }
+    if (_last_distance_id != id) {
+      _last_distance_id = id;
+      DistanceType v;
+      PyObject *key1 = PyInt_FromLong(id);
+      PyObject *key2 = PyInt_FromLong(0);
+      PyObject *tuple = PyTuple_Pack(2, key1, key2);
+      PyObject *pf = PyObject_GetItem(_distances, tuple);
+      v = 0;
+      if (PyFloat_Check(pf)) {
+        v = (DistanceType)PyFloat_AsDouble(pf);
+      }
+      if (pf != nullptr) {
+        Py_DECREF(pf);
+      }
+      _distance_cache[0] = v;
+      for(npy_intp i = 1; i < _d; ++i) {
+        PyObject *key2 = PyInt_FromLong(i);
+        PyTuple_SET_ITEM(tuple, 1, key2);
+        pf = PyObject_GetItem(_distances, tuple);
+        v = 0;
+        if (PyFloat_Check(pf)) {
+          v = (DistanceType)PyFloat_AsDouble(pf);
+        }
+        if (pf != nullptr) {
+          Py_DECREF(pf);
+        }
+        _distance_cache[i] = v;
+      }
+      Py_DECREF(tuple);
+    }
+    return _distance_cache;
   }
 
+
   void setNeighbors(IDType id, const IDType * neighbors_, const DistanceType * distances_) {
-    // we "copy" the neighbors and distances 
-    for(npy_intp i = 0; i < _d; ++i) {
-      ; //TODO
+    int i;
+    if (_aneighbors != nullptr) {
+      IDType * head = (IDType*)PyArray_GETPTR2(_aneighbors, id, 0);
+      for(npy_intp i = 0; i < _d; ++i) {
+        head[i] = neighbors_[i];
+      }
+    }
+    else {
+      _last_neighbor_id = id;
+      for (i = 0; i < _d; i++) {
+        _neighbor_cache[i] = neighbors_[i];
+      }
+      PyObject *v = PyInt_FromLong(_neighbor_cache[0]);
+      PyObject *key1 = PyInt_FromLong(id);
+      PyObject *key2 = PyInt_FromLong(0);
+      PyObject *tuple = PyTuple_Pack(2, key1, key2);
+      if (PyObject_SetItem(_neighbors, tuple, v)==-1)
+        throw std::invalid_argument("setitem failed on neighbors");
+      for(npy_intp i = 1; i < _d; ++i) {
+        PyObject *key2 = PyInt_FromLong(i);
+        PyTuple_SET_ITEM(tuple, 1, key2);
+        Py_DECREF(v);
+        PyObject *v = PyInt_FromLong(_neighbor_cache[i]);
+        if (PyObject_SetItem(_neighbors, tuple, v)==-1)
+          throw std::invalid_argument("setitem failed on neighbors");
+      }
+      Py_DECREF(v);
+      Py_DECREF(tuple);
+    }
+    if (_adistances != nullptr) {
+      DistanceType * head = (DistanceType*)PyArray_GETPTR2(_adistances, id, 0);
+      for(npy_intp i = 0; i < _d; ++i) {
+        head[i] = distances_[i];
+      }
+    }
+    else {
+      _last_distance_id = id;
+      for (i = 0; i < _d; i++) {
+        _distance_cache[i] = distances_[i];
+      }
+      PyObject *v = PyFloat_FromDouble(_distance_cache[0]);
+      PyObject *key1 = PyInt_FromLong(id);
+      PyObject *key2 = PyInt_FromLong(0);
+      PyObject *tuple = PyTuple_Pack(2, key1, key2);
+      if (PyObject_SetItem(_distances, tuple, v)==-1)
+        throw std::invalid_argument("setitem failed on distances");
+      for(npy_intp i = 1; i < _d; ++i) {
+        PyObject *key2 = PyInt_FromLong(i);
+        PyTuple_SET_ITEM(tuple, 1, key2);
+        Py_DECREF(v);
+        PyObject *v = PyFloat_FromDouble(_distance_cache[i]);
+        if (PyObject_SetItem(_distances, tuple, v)==-1)
+          throw std::invalid_argument("setitem failed on distances");
+      }
+      Py_DECREF(v);
+      Py_DECREF(tuple);
     }
   }
 
  protected:  
-  PyObject      * _neighbors;
-  PyObject      * _distances;
-  PyArrayObject * _aneighbors;
-  PyArrayObject * _adistances;
-  npy_intp        _d;
+  PyObject       * _neighbors;
+  PyObject       * _distances;
+  PyArrayObject  * _aneighbors;
+  PyArrayObject  * _adistances;
+  npy_intp         _d;
+  mutable float  * _distance_cache;
+  mutable IDType * _neighbor_cache;
+  mutable IDType _last_distance_id;
+  mutable IDType _last_neighbor_id;
 };
 
 typedef Neighbor<size_t, float> PyNeighbor;
