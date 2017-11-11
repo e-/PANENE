@@ -273,7 +273,7 @@ public:
          && (PyArray_TYPE(array) == NPY_INT)) {
        _aneighbors = array;
      }
-     if (*PyArray_SHAPE(array) != 2) {
+     if (PyArray_NDIM(array) != 2) {
        //PyErr_SetString(PyExc_ValueError, "Neighbors should be a 2-dim object");
        //return (PyObject *)NULL;
        throw std::invalid_argument("Neighbors should be a 2-dim object"); //generates a ValueError
@@ -319,7 +319,7 @@ public:
          && (PyArray_TYPE(array) == NPY_FLOAT)) {
        _adistances = array;
      }
-     if (*PyArray_SHAPE(array) != 2) {
+     if (PyArray_NDIM(array) != 2) {
        //PyErr_SetString(PyExc_ValueError, "Distances should be a 2-dim object");
        //return (PyObject *)NULL;
        throw std::invalid_argument("Distances should be a 2-dim object");
