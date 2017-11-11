@@ -40,6 +40,9 @@ class PyDataSource
   {
     import_array(); // required to avoid core dumps from numpy
     // I wrote a wrapper for the macro import_array() since it 'returns' when there's an error but the compilers do not allow the use of a 'return' keyword in a class constructor. 
+#if PY_VERSION_HEX >= 0x03000000
+    return NULL;
+#endif
   }
 
   ~PyDataSource() {
@@ -376,6 +379,9 @@ public:
   {
     import_array(); // required to avoid core dumps from numpy
     // I wrote a wrapper for the macro import_array() since it 'returns' when there's an error but the compilers do not allow the use of a 'return' keyword in a class constructor. 
+#if PY_VERSION_HEX >= 0x03000000
+    return NULL;
+#endif
   }
 
   ~PyDataSink() {
@@ -401,7 +407,7 @@ public:
 
   void setNeighbors(IDType id, const IDType * neighbors_, const DistanceType * distances_) {
     // we "copy" the neighbors and distances 
-    for(size_t i = 0; i < _d; ++i) {
+    for(npy_intp i = 0; i < _d; ++i) {
       ; //TODO
     }
   }
@@ -411,7 +417,7 @@ public:
   PyObject      * _distances;
   PyArrayObject * _aneighbors;
   PyArrayObject * _adistances;
-  size_t          _d;
+  npy_intp        _d;
 };
 
 typedef Neighbor<size_t, float> PyNeighbor;

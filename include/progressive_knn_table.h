@@ -73,7 +73,7 @@ class ProgressiveKNNTable {
 public:  
 
   ProgressiveKNNTable(size_t k_, size_t d_, IndexParams indexParams_, SearchParams searchParams_, TreeWeight treeWeight_, TableWeight weight_, DataSink *dataSink_) : 
-    d(d_), k(k_), indexer(Indexer(indexParams_)), weight(weight_), searchParams(searchParams_), dataSink(dataSink_){
+    d(d_), k(k_), indexer(Indexer(indexParams_)), weight(weight_), searchParams(searchParams_), dataSink(dataSink_), dataSource(nullptr) {
 
     numPointsInserted = 0;
   }
@@ -230,10 +230,10 @@ private:
 public:
   Indexer indexer;
 private:
+  TableWeight weight;
   SearchParams searchParams;
   DataSink *dataSink;
   DataSource *dataSource;
-  TableWeight weight;
   size_t numPointsInserted;
 
   std::priority_queue<NeighborType, std::vector<NeighborType>, std::greater<NeighborType>> queue; // descending order
