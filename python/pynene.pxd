@@ -101,8 +101,11 @@ cdef extern from "panene_python.h":
       double updateTableElapsed
 
 
+    cdef cppclass PyDataSink:
+        PyDataSink(object neighbors, object distances) except +ValueError
+
     cdef cppclass PyKNNTable:
-        PyKNNTable(size_t knn, size_t d, IndexParams ip, SearchParams sp, TreeWeight treew, TableWeight tablew)
+        PyKNNTable(size_t knn, size_t d, IndexParams ip, SearchParams sp, TreeWeight treew, TableWeight tablew, PyDataSink * sink)
         void setDataSource(PyDataSource * ds)
         size_t getSize()
         UpdateResult run(size_t ops)

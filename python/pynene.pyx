@@ -25,7 +25,8 @@ cdef class Index:
         check_array(array)
         self.c_src = new PyDataSource(array)
 
-        self.c_index = new PyIndexL2(self.c_indexParams, TreeWeight(weights[0], weights[1]), reconstruction_weight)
+        self.c_index = new PyIndexL2(self.c_indexParams, TreeWeight(weights[0], weights[1]),
+                                     reconstruction_weight)
 
         self.c_index.setDataSource(self.c_src)
 
@@ -133,9 +134,43 @@ cdef class KNNTable:
     cdef PyDataSource * c_src
     cdef IndexParams    c_indexParams
     cdef SearchParams   c_searchParams
-    cdef PyIndexL2    * c_index
-
-    def __cinit__(self, array, treew=(0.3, 0.7), tablew=(0.5, 0.5)):
+    cdef PyDataSink   * c_sink
+    cdef PyKNNTable   * c_table
+    
+    def __cinit__(self, object array, int k, object neighbors, object distances,
+                  treew=(0.3, 0.7), tablew=(0.5, 0.5)):
         check_array(array)
+        check_array(neighbors)
+        check_array(distances)
+        if neighbors.shape[1] != k or distances.shape[1] != k:
+            raise ValueError('neighbors and distances should have axis=1 of %d'%k)
+        self.c_sink = new PyDataSink(neighbors, distances)
         self.c_src = new PyDataSource(array)
-        
+        self.c_table = new PyKNNTable(k, array.shape[1],
+                                      self.c_indexParams,
+                                      self.c_searchParams,
+                                      TreeWeight(treew[0], treew[1]),
+                                      TableWeight(tablew[0], tablew[1]),
+                                      self.c_sink)
+        self.c_table.setDataSource(self.c_src)
+
+    def __dealloc(self):
+        del self.c_table
+        del self.c_src
+        del self.c_sink
+
+    def run(self, size_t ops):
+        cdef UpdateResult ur
+        ur = self.c_table.run(ops)
+        return {
+            'addPointOps': ur.addPointOps,
+            'updateIndexOps': ur.updateIndexOps,
+            'updateTableOps': ur.updateTableOps,
+            'addPointResult': ur.addPointResult,
+            'updateIndexResult': ur.updateIndexResult,
+            'updateTableResult': ur.updateTableResult,
+            'numPointsInserted': ur.numPointsInserted,  
+            'addPointElapsed': ur.addPointElapsed,
+            'updateIndexElapsed': ur.updateIndexElapsed,
+            'updateTableElapsed': ur.updateTableElapsed,
+            }

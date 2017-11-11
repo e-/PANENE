@@ -50,6 +50,8 @@ struct UpdateResult {
     addPointElapsed(addPointElapsed_), updateIndexElapsed(updateIndexElapsed_), updateTableElapsed(updateTableElapsed_)
   {
   }
+  UpdateResult() = default;
+  UpdateResult(const UpdateResult&) = default;
 
   friend std::ostream& operator<<(std::ostream& os, const UpdateResult& obj) {
     os << "UpdateResult(addPointOps: " << obj.addPointResult << " / " << obj.addPointOps << ", "
@@ -222,11 +224,12 @@ public:
     return dataSink->getDistances(id);
   }
 
-  Indexer indexer;
-
 private:
   size_t d;
   size_t k;
+public:
+  Indexer indexer;
+private:
   SearchParams searchParams;
   DataSink *dataSink;
   DataSource *dataSource;

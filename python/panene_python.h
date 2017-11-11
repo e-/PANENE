@@ -252,9 +252,166 @@ class PyDataSource
 // TODO
 class PyDataSink
 {
-  public:
-  PyDataSink() {
+public:
+  typedef size_t IDType;
+  typedef float DistanceType;
+  typedef L2<float> Distance;
+
+ PyDataSink(PyObject * neighbors, PyObject * distances)
+   : _neighbors(neighbors), _distances(distances),
+     _aneighbors(nullptr), _adistances(nullptr), 
+     _d(0) {
+   Py_INCREF(_neighbors);
+   Py_INCREF(_distances);
+   import_array_wrap();
+   if(PyArray_Check(_neighbors)) {
+     PyArrayObject * array = (PyArrayObject*)_neighbors;
+     if (PyArray_IS_C_CONTIGUOUS(array)
+         && (PyArray_TYPE(array) == NPY_INT)) {
+       _aneighbors = array;
+     }
+     if (*PyArray_SHAPE(array) != 2) {
+       //PyErr_SetString(PyExc_ValueError, "Neighbors should be a 2-dim object");
+       //return (PyObject *)NULL;
+       throw std::invalid_argument("Neighbors should be a 2-dim object"); //generates a ValueError
+
+     }
+     _d = PyArray_DIM(array, 1);
+   }
+   else {
+     PyObject * shape = PyObject_GetAttrString(_neighbors, "shape");
+     if (PyTuple_Size(shape) != 2) {
+       Py_DECREF(shape);
+       //PyErr_SetString(PyExc_ValueError, "Neighbors should be a 2-dim object");
+       //return (PyObject *)NULL;
+       throw std::invalid_argument("Neighbors should be a 2-dim object");
+     }
+     PyObject * dim = PyTuple_GetItem(shape, 1);
+     if (dim == nullptr) {
+       Py_DECREF(shape);
+       //PyErr_SetString(PyExc_ValueError, "Neighbors should have a valid 1st axis");
+       //return (PyObject *)NULL;
+       throw std::invalid_argument("Neighbors should have a valid 1st axis");
+     }
+     else if (PyLong_Check(dim)) {
+       _d = PyLong_AsLong(dim);
+     }
+     else if (PyInt_Check(dim)) {
+       _d = PyInt_AsLong(dim);
+     }
+     else {
+       Py_DECREF(dim);
+       Py_DECREF(shape);
+       //PyErr_SetString(PyExc_ValueError, "Neighbors dimension is not a known number type");
+       //return (PyObject *)NULL;
+       throw std::invalid_argument("Neighbors dimension is not a known number type");
+     }
+     DBG(std::cerr << "dim is: " << _d << std::endl);
+     Py_DECREF(dim);
+     Py_DECREF(shape);
+   }
+   if(PyArray_Check(_distances)) {
+     PyArrayObject * array = (PyArrayObject*)_distances;
+     if (PyArray_IS_C_CONTIGUOUS(array)
+         && (PyArray_TYPE(array) == NPY_FLOAT)) {
+       _adistances = array;
+     }
+     if (*PyArray_SHAPE(array) != 2) {
+       //PyErr_SetString(PyExc_ValueError, "Distances should be a 2-dim object");
+       //return (PyObject *)NULL;
+       throw std::invalid_argument("Distances should be a 2-dim object");
+     }
+     if (_d != PyArray_DIM(array, 1)) {
+       //PyErr_SetString(PyExc_ValueError, "Distances dimension should be the same as Neighbors");
+       //return (PyObject *)NULL;
+       throw std::invalid_argument("Distances dimension should be the same as Neighbors");
+     }
+   }
+   else {
+     PyObject * shape = PyObject_GetAttrString(_distances, "shape");
+     if (PyTuple_Size(shape) != 2) {
+       Py_DECREF(shape);
+       //PyErr_SetString(PyExc_ValueError, "Distances should be a 2-dim object");
+       //return (PyObject *)NULL;
+       throw std::invalid_argument("Distances should be a 2-dim object");
+     }
+     PyObject * dim = PyTuple_GetItem(shape, 1);
+     long d = 0;
+     if (dim == nullptr) {
+       Py_DECREF(shape);
+       //PyErr_SetString(PyExc_ValueError, "Distances should have a valid 1st axis");
+       //return (PyObject *)NULL;
+       throw std::invalid_argument("Distances should have a valid 1st axis");
+     }
+     else if (PyLong_Check(dim)) {
+       d = PyLong_AsLong(dim);
+     }
+     else if (PyInt_Check(dim)) {
+       d = PyInt_AsLong(dim);
+     }
+     else {
+       Py_DECREF(dim);
+       Py_DECREF(shape);
+       //PyErr_SetString(PyExc_ValueError, "Distances dimension is not a known number type");
+       //return (PyObject *)NULL;
+       throw std::invalid_argument("Distances dimension is not a known number type");
+     }
+     Py_DECREF(dim);
+     Py_DECREF(shape);
+     if (_d != d) {
+       //PyErr_SetString(PyExc_ValueError, "Distances dimension should be the same as Neighbors");
+       //return (PyObject *)NULL;
+       throw std::invalid_argument("Distances dimension should be the same as Neighbors");
+     }
+   }
+
+ }
+
+
+#if PY_VERSION_HEX >= 0x03000000
+  void* import_array_wrap()
+#else
+  void  import_array_wrap()
+#endif
+  {
+    import_array(); // required to avoid core dumps from numpy
+    // I wrote a wrapper for the macro import_array() since it 'returns' when there's an error but the compilers do not allow the use of a 'return' keyword in a class constructor. 
   }
+
+  ~PyDataSink() {
+    if (_distances != nullptr) {
+      Py_DECREF(_distances);
+    }
+    _distances = nullptr;
+    _adistances = nullptr;
+    if (_neighbors != nullptr) {
+      Py_DECREF(_neighbors);
+    }
+    _neighbors = nullptr;
+    _aneighbors = nullptr;
+  }
+
+  const IDType * getNeighbors(IDType id) const {
+    return NULL; // TODO
+  }
+
+  const DistanceType * getDistances(IDType id) const {
+    return NULL; // TODO
+  }
+
+  void setNeighbors(IDType id, const IDType * neighbors_, const DistanceType * distances_) {
+    // we "copy" the neighbors and distances 
+    for(size_t i = 0; i < _d; ++i) {
+      ; //TODO
+    }
+  }
+
+ protected:  
+  PyObject      * _neighbors;
+  PyObject      * _distances;
+  PyArrayObject * _aneighbors;
+  PyArrayObject * _adistances;
+  size_t          _d;
 };
 
 typedef Neighbor<size_t, float> PyNeighbor;
@@ -266,7 +423,9 @@ typedef std::vector<Point> Points;
 
 class PyIndexL2 : public ProgressiveKDTreeIndex<PyDataSource> {
 public:
-  PyIndexL2(IndexParams indexParams_, TreeWeight weight_, const float reconstructionWeight_)
+  PyIndexL2(IndexParams indexParams_,
+            TreeWeight weight_ = TreeWeight(0.3, 0.7),
+            const float reconstructionWeight_ = .25f)
     : ProgressiveKDTreeIndex<PyDataSource>(indexParams_, weight_, reconstructionWeight_) { }
 };
 
