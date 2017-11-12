@@ -223,11 +223,17 @@ class PyDataSource
     _d = 0;
     if (_object==Py_None) return;
 
+    if (_array != nullptr) {
+      _d = PyArray_DIM(_array, 1);
+      DBG(std::cerr << "Fast set_dim is: " << _d << std::endl);
+      return;
+    }
+
     DBG(std::cerr << "Getting shape" << std::endl);
     PyObject * shape = PyObject_GetAttrString(_object, "shape");
     DBG(std::cerr << "Got shape, getting dim" << std::endl);
     if (PyTuple_Size(shape) != 2) {
-      return;
+      throw std::invalid_argument("Array should be a 2-dim object"); //generates a ValueError
     }
     PyObject * dim = PyTuple_GetItem(shape, 1);
     DBG(std::cerr << "Got dim" << std::endl);
@@ -263,8 +269,8 @@ public:
  PyDataSink(PyObject * neighbors, PyObject * distances)
    : _neighbors(neighbors), _distances(distances),
      _aneighbors(nullptr), _adistances(nullptr), 
-    _d(0),
-    _distance_cache(nullptr), _neighbor_cache(nullptr),
+     _d(0),
+     _distance_cache(nullptr), _neighbor_cache(nullptr),
      _last_distance_id(-1), _last_neighbor_id(-1) {
    Py_INCREF(_neighbors);
    Py_INCREF(_distances);
@@ -272,30 +278,26 @@ public:
    if(PyArray_Check(_neighbors)) {
      PyArrayObject * array = (PyArrayObject*)_neighbors;
      if (PyArray_IS_C_CONTIGUOUS(array)
-         && (PyArray_TYPE(array) == NPY_INT)) {
+         && (PyArray_TYPE(array) == NPY_LONG)) {
+       DBG(std::cerr << "PyDataSink neigbbors is an acceptable array" << std::endl);
        _aneighbors = array;
      }
      if (PyArray_NDIM(array) != 2) {
-       //PyErr_SetString(PyExc_ValueError, "Neighbors should be a 2-dim object");
-       //return (PyObject *)NULL;
        throw std::invalid_argument("Neighbors should be a 2-dim object"); //generates a ValueError
 
      }
      _d = PyArray_DIM(array, 1);
    }
-   else {
+   if (_aneighbors == nullptr) {
+     DBG(std::cerr << "PyDataSink neigbbors is NOT an acceptable array" << std::endl);
      PyObject * shape = PyObject_GetAttrString(_neighbors, "shape");
      if (PyTuple_Size(shape) != 2) {
        Py_DECREF(shape);
-       //PyErr_SetString(PyExc_ValueError, "Neighbors should be a 2-dim object");
-       //return (PyObject *)NULL;
        throw std::invalid_argument("Neighbors should be a 2-dim object");
      }
      PyObject * dim = PyTuple_GetItem(shape, 1);
      if (dim == nullptr) {
        Py_DECREF(shape);
-       //PyErr_SetString(PyExc_ValueError, "Neighbors should have a valid 1st axis");
-       //return (PyObject *)NULL;
        throw std::invalid_argument("Neighbors should have a valid 1st axis");
      }
      else if (PyLong_Check(dim)) {
@@ -307,46 +309,39 @@ public:
      else {
        Py_DECREF(dim);
        Py_DECREF(shape);
-       //PyErr_SetString(PyExc_ValueError, "Neighbors dimension is not a known number type");
-       //return (PyObject *)NULL;
        throw std::invalid_argument("Neighbors dimension is not a known number type");
      }
-     DBG(std::cerr << "dim is: " << _d << std::endl);
      Py_DECREF(dim);
      Py_DECREF(shape);
      _neighbor_cache = new IDType[_d];
    }
+   DBG(std::cerr << "dim is: " << _d << std::endl);
+
    if(PyArray_Check(_distances)) {
      PyArrayObject * array = (PyArrayObject*)_distances;
      if (PyArray_IS_C_CONTIGUOUS(array)
          && (PyArray_TYPE(array) == NPY_FLOAT)) {
+       DBG(std::cerr << "PyDataSink distances is an acceptable array" << std::endl);
        _adistances = array;
      }
      if (PyArray_NDIM(array) != 2) {
-       //PyErr_SetString(PyExc_ValueError, "Distances should be a 2-dim object");
-       //return (PyObject *)NULL;
        throw std::invalid_argument("Distances should be a 2-dim object");
      }
      if (_d != PyArray_DIM(array, 1)) {
-       //PyErr_SetString(PyExc_ValueError, "Distances dimension should be the same as Neighbors");
-       //return (PyObject *)NULL;
        throw std::invalid_argument("Distances dimension should be the same as Neighbors");
      }
    }
-   else {
+   if (_adistances == nullptr) {
+     DBG(std::cerr << "PyDataSink neigbbors is NOT an acceptable array" << std::endl);
      PyObject * shape = PyObject_GetAttrString(_distances, "shape");
      if (PyTuple_Size(shape) != 2) {
        Py_DECREF(shape);
-       //PyErr_SetString(PyExc_ValueError, "Distances should be a 2-dim object");
-       //return (PyObject *)NULL;
        throw std::invalid_argument("Distances should be a 2-dim object");
      }
      PyObject * dim = PyTuple_GetItem(shape, 1);
      long d = 0;
      if (dim == nullptr) {
        Py_DECREF(shape);
-       //PyErr_SetString(PyExc_ValueError, "Distances should have a valid 1st axis");
-       //return (PyObject *)NULL;
        throw std::invalid_argument("Distances should have a valid 1st axis");
      }
      else if (PyLong_Check(dim)) {
@@ -358,20 +353,15 @@ public:
      else {
        Py_DECREF(dim);
        Py_DECREF(shape);
-       //PyErr_SetString(PyExc_ValueError, "Distances dimension is not a known number type");
-       //return (PyObject *)NULL;
        throw std::invalid_argument("Distances dimension is not a known number type");
      }
      Py_DECREF(dim);
      Py_DECREF(shape);
      if (_d != d) {
-       //PyErr_SetString(PyExc_ValueError, "Distances dimension should be the same as Neighbors");
-       //return (PyObject *)NULL;
        throw std::invalid_argument("Distances dimension should be the same as Neighbors");
      }
      _distance_cache = new float[_d];
    }
-
  }
 
 
@@ -389,6 +379,7 @@ public:
   }
 
   ~PyDataSink() {
+    DBG(std::cerr << "PyDataSink calling destructor" << std::endl);
     if (_distances != nullptr) {
       Py_DECREF(_distances);
     }
@@ -410,6 +401,7 @@ public:
   }
 
   const IDType * getNeighbors(IDType id) const {
+    DBG(std::cerr << "PyDataSink getNeighbors(" << id << ")" << std::endl);
     if (_aneighbors != nullptr) {
       return (IDType *)PyArray_GETPTR2(_aneighbors, id, 0);
     }
@@ -450,10 +442,10 @@ public:
       Py_DECREF(tuple);
     }
     return _neighbor_cache;
-    
   }
 
   const DistanceType * getDistances(IDType id) const {
+    DBG(std::cerr << "PyDataSink getDistances(" << id << ")" << std::endl);
     if (_adistances != nullptr) {
       return (DistanceType *)PyArray_GETPTR2(_adistances, id, 0);
     }
@@ -492,9 +484,10 @@ public:
 
 
   void setNeighbors(IDType id, const IDType * neighbors_, const DistanceType * distances_) {
+    DBG(std::cerr << "PyDataSink setNeighbors(" << id << ")" << std::endl);
     int i;
     if (_aneighbors != nullptr) {
-      IDType * head = (IDType*)PyArray_GETPTR2(_aneighbors, id, 0);
+      IDType * head = (IDType *)PyArray_GETPTR2(_aneighbors, id, 0);
       for(npy_intp i = 0; i < _d; ++i) {
         head[i] = neighbors_[i];
       }
@@ -522,7 +515,7 @@ public:
       Py_DECREF(tuple);
     }
     if (_adistances != nullptr) {
-      DistanceType * head = (DistanceType*)PyArray_GETPTR2(_adistances, id, 0);
+      DistanceType * head = (DistanceType *)PyArray_GETPTR2(_adistances, id, 0);
       for(npy_intp i = 0; i < _d; ++i) {
         head[i] = distances_[i];
       }

@@ -12,9 +12,12 @@ class Test_KNNTable(unittest.TestCase):
         d=10
         k=5
         array = random_vectors(n, d)
-        neighbors = np.zeros((n, 5), dtype=np.int)
+        neighbors = np.zeros((n, 5), dtype=np.int64) # with np.in32, it is not optimized
         distances = np.zeros((n, 5), dtype=np.float32)
         table = KNNTable(array, k, neighbors, distances)
         
         self.assertTrue(table != None)
-        #table.run(10)
+        updates = table.run(10)
+        #print(updates)
+        self.assertEqual(len(updates), 10)
+
