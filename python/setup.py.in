@@ -3,7 +3,7 @@ from setuptools.extension import Extension
 from Cython.Build import cythonize
 import numpy as np
 
-extra_link_args = ["-lpanene"] #FIXME Is there a more portable way to do it?
+extra_link_args = ["-L..", "-lpanene"] #FIXME Is there a more portable way to do it?
 
 if "${CMAKE_CXX11_STANDARD_COMPILE_OPTION}":
     extra_link_args.append("${CMAKE_CXX11_STANDARD_COMPILE_OPTION}")
