@@ -134,14 +134,14 @@ void run(const char* base_) {
           float treeWeight = treeWeights[w];
           size_t numPointsInserted = 0;
 
-          ProgressiveKNNTable<ProgressiveKDTreeIndex<Source>, Sink> table(k, dataset.dim, 
+          ProgressiveKNNTable<ProgressiveKDTreeIndex<Source>, Sink> table(
+              &trainDataSource,
+              &dataSink,
+              k, 
               IndexParams(4),
               searchParam,
               TreeWeight(0.3, 0.7),
-              TableWeight(treeWeight, 1 - treeWeight),
-              &dataSink);
-
-          table.setDataSource(&trainDataSource);
+              TableWeight(treeWeight, 1 - treeWeight));
 
           for (int r = 0; r < maxIter; ++r) {
             std::cout << "(" << w << "/" << weightN << ") (" << repeat << "/" << maxRepeat << ") (" << r << "/" << maxIter << ")" << std::endl;

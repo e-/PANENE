@@ -23,15 +23,15 @@ class KDTreeIndex : public BaseIndex<DataSource>
 
 
 public:
-  KDTreeIndex(IndexParams indexParams_, Distance distance_ = Distance()) : BaseIndex<DataSource>(indexParams_, distance_) {
+  KDTreeIndex(DataSource *dataSource_, IndexParams indexParams_, Distance distance_ = Distance()) : BaseIndex<DataSource>(dataSource_, indexParams_, distance_) {
   }
 
   size_t addPoints(size_t newPoints) {
     size_t oldSize = size;
     size += newPoints;
 
-    if(size > dataSource -> loaded())
-      size = dataSource -> loaded();
+    if(size > dataSource -> size())
+      size = dataSource -> size();
     
     if(sizeAtBuild * 2 < size) {
       buildIndex();
@@ -96,8 +96,7 @@ protected:
     freeIndex();
     for(size_t i = 0; i < numTrees; ++i) {
       std::random_shuffle(ids.begin(), ids.end());            
-      trees[i] = new KDTree<NodePtr>();
-      trees[i]->setMaxSize(dataSource->size());
+      trees[i] = new KDTree<NodePtr>(dataSource->capacity());
       trees[i]->root = divideTree(trees[i], &ids[0], size, 1);
       trees[i]->size = size;
       trees[i]->cost = trees[i]->computeCost();

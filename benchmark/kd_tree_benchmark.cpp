@@ -126,8 +126,7 @@ void run(const char* base_) {
        
         // online first
         {
-          KDTreeIndex<Source> onlineIndex(indexParam);
-          onlineIndex.setDataSource(&trainDataSource);
+          KDTreeIndex<Source> onlineIndex(&trainDataSource, indexParam);
           
           size_t numPointsInserted = 0;       
 
@@ -195,8 +194,7 @@ void run(const char* base_) {
           float addPointWeight = addPointWeights[w];
           size_t numPointsInserted = 0;
 
-          ProgressiveKDTreeIndex<Source> progressiveIndex(indexParam, TreeWeight(addPointWeight, 1 - addPointWeight));
-          progressiveIndex.setDataSource(&trainDataSource);
+          ProgressiveKDTreeIndex<Source> progressiveIndex(&trainDataSource, indexParam, TreeWeight(addPointWeight, 1 - addPointWeight));
 
           for (int r = 0; r < maxIter; ++r) {
             std::cout << "(" << datasetIndex << "/" << datasets.size() 

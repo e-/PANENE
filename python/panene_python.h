@@ -206,7 +206,7 @@ class PyDataSource
     return s;
   }
 
-  size_t loaded() const {
+  size_t capacity() const {
     return size();
   }
 
@@ -564,10 +564,10 @@ typedef std::vector<Point> Points;
 
 class PyIndexL2 : public ProgressiveKDTreeIndex<PyDataSource> {
 public:
-  PyIndexL2(IndexParams indexParams_,
+  PyIndexL2(PyDataSource *dataSource_, IndexParams indexParams_,
             TreeWeight weight_ = TreeWeight(0.3, 0.7),
             const float reconstructionWeight_ = .25f)
-    : ProgressiveKDTreeIndex<PyDataSource>(indexParams_, weight_, reconstructionWeight_) { }
+    : ProgressiveKDTreeIndex<PyDataSource>(dataSource_, indexParams_, weight_, reconstructionWeight_) { }
 };
 
 typedef ProgressiveKNNTable<PyIndexL2, PyDataSink> PyKNNTable;

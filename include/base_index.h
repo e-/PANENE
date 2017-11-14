@@ -1,5 +1,5 @@
-#ifndef panene_progressive_base_index_h
-#define panene_progressive_base_index_h
+#ifndef panene_base_index_h
+#define panene_base_index_h
 
 #include <vector>
 #include <algorithm>
@@ -116,26 +116,18 @@ public:
 
 public:
 
-  BaseIndex(IndexParams indexParams_, Distance distance_ = Distance()) : distance(distance_) {
+  BaseIndex(DataSource *dataSource_, IndexParams indexParams_, Distance distance_ = Distance()) : dataSource(dataSource_), distance(distance_) {
     numTrees = indexParams_.trees;
     trees.resize(numTrees);
+    dim = dataSource->dim();
     for (size_t i = 0; i < numTrees; ++i) {
-      trees[i] = new KDTree<NodePtr>();
+      trees[i] = new KDTree<NodePtr>(dataSource->capacity());
     }
   }
 
   ~BaseIndex() {
     for (size_t i = 0; i < numTrees; ++i) {
       delete trees[i];
-    }
-  }
-
-  void setDataSource(DataSource *dataSource_) {
-    dataSource = dataSource_;
-    dim = dataSource->dim();
-    size_t maxSize = dataSource->size();
-    for (size_t i = 0; i < numTrees; ++i) {
-      trees[i]->setMaxSize(maxSize);
     }
   }
 

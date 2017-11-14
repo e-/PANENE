@@ -81,14 +81,14 @@ class ProgressiveKDTreeIndex : public BaseIndex<DataSource>
   typedef DataSource DataSourceT;
 
 public:
-  ProgressiveKDTreeIndex(IndexParams indexParams_, TreeWeight weight_ = TreeWeight(0.3, 0.7), const float reconstructionWeight_ = .25f) : BaseIndex<DataSource>(indexParams_, Distance()), weight(weight_), reconstructionWeight(reconstructionWeight_) {
+  ProgressiveKDTreeIndex(DataSource *dataSource_, IndexParams indexParams_, TreeWeight weight_ = TreeWeight(0.3, 0.7), const float reconstructionWeight_ = .25f) : BaseIndex<DataSource>(dataSource_, indexParams_, Distance()), weight(weight_), reconstructionWeight(reconstructionWeight_) {
   }
 
   size_t addPoints(size_t ops) {
     size_t oldSize = size;
     size += ops;
-    if(size > dataSource -> loaded())
-      size = dataSource -> loaded();
+    if(size > dataSource -> size())
+      size = dataSource -> size();
 
     if(oldSize == 0) { // for the first time, build the index as we did in the non-progressive version.
       buildIndex();
@@ -120,14 +120,13 @@ public:
     for (size_t i = 0; i < sizeAtUpdate; ++i) ids[i] = int(i);
     std::random_shuffle(ids.begin(), ids.end());
 
-    ongoingTree = new KDTree<NodePtr>();
+    ongoingTree = new KDTree<NodePtr>(dataSource->capacity());
     ongoingTree->root = new(pool) Node();
     std::queue<NodeSplit> empty;
     queue = empty;
     queue.push(NodeSplit(ongoingTree->root, &ids[0], sizeAtUpdate, 1));
 
     ongoingTree->size = sizeAtUpdate;
-    ongoingTree->setMaxSize(dataSource->size());
   }
 
   size_t update(int ops) {

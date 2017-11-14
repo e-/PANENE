@@ -31,7 +31,7 @@ public:
   virtual DistanceType getSquaredDistance(const IDType &id1, const IDType &id2) const = 0;
 
   virtual size_t size() const = 0;
-  virtual size_t loaded() const = 0;
+  virtual size_t capacity() const = 0;
   virtual size_t dim() const = 0;
 };
 }

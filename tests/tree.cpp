@@ -65,8 +65,7 @@ TEST_CASE("k-nearest neighbors should be found with correct distances in ascendi
   RandomSource randomDataSource(n, d);
   const IndexParams indexParam(4);
 
-  ProgressiveKDTreeIndex<RandomSource> progressiveIndex(indexParam, TreeWeight(1, 0));
-  progressiveIndex.setDataSource(&randomDataSource);
+  ProgressiveKDTreeIndex<RandomSource> progressiveIndex(&randomDataSource, indexParam, TreeWeight(1, 0));
 
   const size_t query_n = 100;
   std::vector<std::vector<ElementType>> queries(query_n);
@@ -118,8 +117,7 @@ TEST_CASE("masked points should not appear", "[KNN]") {
   RandomSource randomDataSource(n, d);
   const IndexParams indexParam(4);
 
-  ProgressiveKDTreeIndex<RandomSource> progressiveIndex(indexParam, TreeWeight(1, 0));
-  progressiveIndex.setDataSource(&randomDataSource);
+  ProgressiveKDTreeIndex<RandomSource> progressiveIndex(&randomDataSource, indexParam, TreeWeight(1, 0));
 
   const size_t query_n = 100;
   std::vector<std::vector<ElementType>> queries(query_n);

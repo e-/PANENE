@@ -9,23 +9,30 @@ struct InsertionLog
   size_t depth;
 
   InsertionLog() = default;
+  InsertionLog(size_t count_, size_t depth_) : count(count_), depth(depth_) {
+
+  }
 };
+
+/***
+ * a KD tree that records the frequency and depth of each leaf
+ */
 
 template<class NodePtr>
 struct KDTree
 {
   NodePtr root;
   size_t size;
-  size_t maxSize;
+  size_t capacity;
   int countSum = 0;
   float cost;
   std::vector<InsertionLog> insertionLog;
 
-  KDTree() {
-    size = 0;
-    countSum = 0;
+  KDTree(size_t capacity_) : capacity(capacity_) {
+    size = countSum = 0;
     cost = 0;
     root = nullptr;
+    insertionLog.resize(capacity);
   }
 
   ~KDTree() {
@@ -33,15 +40,10 @@ struct KDTree
       root->~Node();
   }
 
-  void setMaxSize(size_t maxSize) {
-    this->maxSize = maxSize;
-    insertionLog.resize(maxSize);
-  }
-
   float computeCost() {
     float cost = 0;
 
-    for (size_t i = 0; i < maxSize; ++i) {
+    for (size_t i = 0; i < capacity; ++i) {
       cost += (float)insertionLog[i].count / countSum * insertionLog[i].depth;
     }
     return cost;
@@ -54,7 +56,7 @@ struct KDTree
 
   size_t computeMaxDepth() {
     size_t maxDepth = 0;
-    for (size_t i = 0; i < maxSize; ++i) {
+    for (size_t i = 0; i < capacity; ++i) {
       if (maxDepth < insertionLog[i].depth)
         maxDepth = insertionLog[i].depth;
     }

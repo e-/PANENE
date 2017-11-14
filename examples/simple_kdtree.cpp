@@ -20,9 +20,7 @@ int main(){
   const float addPointWeight = 0.3;
   const size_t ops = 10000;
 
-  ProgressiveKDTreeIndex<Source> progressiveIndex(indexParam, TreeWeight(addPointWeight, 1 - addPointWeight));
-
-  progressiveIndex.setDataSource(&randomDataSource);
+  ProgressiveKDTreeIndex<Source> progressiveIndex(&randomDataSource, indexParam, TreeWeight(addPointWeight, 1 - addPointWeight));
 
   const size_t query_n = 10;
   std::vector<std::vector<ElementType>> queries(query_n);

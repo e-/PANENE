@@ -25,10 +25,9 @@ cdef class Index:
         check_array(array)
         self.c_src = new PyDataSource(array)
 
-        self.c_index = new PyIndexL2(self.c_indexParams, TreeWeight(w[0], w[1]),
+        self.c_index = new PyIndexL2(self.c_src,
+                                     self.c_indexParams, TreeWeight(w[0], w[1]),
                                      reconstruction_weight)
-
-        self.c_index.setDataSource(self.c_src)
 
     def __dealloc__(self):
         del self.c_index
@@ -144,15 +143,16 @@ cdef class KNNTable:
         check_array(distances)
         if neighbors.shape[1] != k or distances.shape[1] != k:
             raise ValueError('neighbors and distances should have axis=1 of %d'%k)
-        self.c_sink = new PyDataSink(neighbors, distances)
         self.c_src = new PyDataSource(array)
-        self.c_table = new PyKNNTable(k, array.shape[1],
+        self.c_sink = new PyDataSink(neighbors, distances)
+        self.c_table = new PyKNNTable(self.c_src,
+                                      self.c_sink,
+                                      k, 
                                       self.c_indexParams,
                                       self.c_searchParams,
                                       TreeWeight(treew[0], treew[1]),
-                                      TableWeight(tablew[0], tablew[1]),
-                                      self.c_sink)
-        self.c_table.setDataSource(self.c_src)
+                                      TableWeight(tablew[0], tablew[1])
+                                     )
 
     def __dealloc(self):
         del self.c_table

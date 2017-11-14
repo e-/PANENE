@@ -89,7 +89,7 @@ public:
     return n;
   }
 
-  size_t loaded() const {
+  size_t capacity() const {
     return n;
   }
 

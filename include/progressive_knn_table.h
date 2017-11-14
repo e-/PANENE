@@ -72,16 +72,17 @@ class ProgressiveKNNTable {
 
 public:  
 
-  ProgressiveKNNTable(size_t k_, size_t d_, IndexParams indexParams_, SearchParams searchParams_, TreeWeight treeWeight_, TableWeight weight_, DataSink *dataSink_) : 
-    d(d_), k(k_), indexer(Indexer(indexParams_)), weight(weight_), searchParams(searchParams_), dataSink(dataSink_), dataSource(nullptr) {
-
+  ProgressiveKNNTable(DataSource *dataSource_, DataSink *dataSink_, size_t k_, IndexParams indexParams_, SearchParams searchParams_, TreeWeight treeWeight_, TableWeight weight_) : 
+    dataSource(dataSource_), dataSink(dataSink_),
+    k(k_), indexer(Indexer(dataSource_, indexParams_)), weight(weight_), searchParams(searchParams_)
+  {
+    std::cerr<<"1"<<std::endl;
     numPointsInserted = 0;
-  }
-
-  void setDataSource(DataSource *dataSource_) {
-    dataSource = dataSource_;
-    indexer.setDataSource(dataSource);
-    queued = DynamicBitset(dataSource -> size());
+    std::cerr<<"2"<<std::endl;
+    d = dataSource -> dim();
+    std::cerr<<"3"<<std::endl;
+    queued = DynamicBitset(dataSource -> capacity());
+    std::cerr<<"4"<<std::endl;
   }
 
   size_t getSize() {
@@ -225,6 +226,8 @@ public:
   }
 
 private:
+  DataSource *dataSource;
+  DataSink *dataSink;
   size_t d;
   size_t k;
 
@@ -234,8 +237,6 @@ public:
 private:
   TableWeight weight;
   SearchParams searchParams;
-  DataSink *dataSink;
-  DataSource *dataSource;
   size_t numPointsInserted;
 
   std::priority_queue<NeighborType, std::vector<NeighborType>, std::greater<NeighborType>> queue; // descending order

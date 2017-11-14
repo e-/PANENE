@@ -72,8 +72,7 @@ cdef extern from "panene_python.h":
         void emplace_back(size_t)
 
     cdef cppclass PyIndexL2:
-        PyIndexL2(IndexParams ip, TreeWeight, float)
-        void setDataSource(PyDataSource  * ds)
+        PyIndexL2(PyDataSource *ds, IndexParams ip, TreeWeight, float)
         size_t addPoints(size_t end)
         void beginUpdate()
         UpdateResult2 run(size_t ops)
@@ -105,8 +104,7 @@ cdef extern from "panene_python.h":
         PyDataSink(object neighbors, object distances) except +ValueError
 
     cdef cppclass PyKNNTable:
-        PyKNNTable(size_t knn, size_t d, IndexParams ip, SearchParams sp, TreeWeight treew, TableWeight tablew, PyDataSink * sink)
-        void setDataSource(PyDataSource * ds)
+        PyKNNTable(PyDataSource *ds, PyDataSink *sink, size_t knn, IndexParams ip, SearchParams sp, TreeWeight treew, TableWeight tablew)
         size_t getSize()
         UpdateResult run(size_t ops)
         PyResultSet& getNeighbors(int id)
