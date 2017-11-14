@@ -76,13 +76,9 @@ public:
     dataSource(dataSource_), dataSink(dataSink_),
     k(k_), indexer(Indexer(dataSource_, indexParams_)), weight(weight_), searchParams(searchParams_)
   {
-    std::cerr<<"1"<<std::endl;
     numPointsInserted = 0;
-    std::cerr<<"2"<<std::endl;
     d = dataSource -> dim();
-    std::cerr<<"3"<<std::endl;
     queued = DynamicBitset(dataSource -> capacity());
-    std::cerr<<"4"<<std::endl;
   }
 
   size_t getSize() {
@@ -168,7 +164,7 @@ public:
     BENCH(Timer timer);
     BENCH(timer.begin());
 
-    int checkCount = 0;    
+    size_t checkCount = 0;    
     while(checkCount < updateTableOps && !queue.empty()) {
       auto q = queue.top();
 

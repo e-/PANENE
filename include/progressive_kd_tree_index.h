@@ -308,9 +308,9 @@ public:
 
     std::vector<std::vector<ElementType>> vectors(qids.size());
 
-    for (int i = 0; i < qids.size(); ++i) {
+    for (size_t i = 0; i < qids.size(); ++i) {
       vectors[i].resize(dim);
-      for (int j = 0; j < dim; ++j) {
+      for (size_t j = 0; j < dim; ++j) {
         vectors[i][j] = dataSource->get(qids[i], j);
       }
     }

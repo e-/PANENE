@@ -48,7 +48,7 @@ cdef class Index:
     def size(self):
         return self.c_index.getSize()
 
-    def knn_search(self, int pid, int k, eps=None, sorted=None, cores=None):
+    def knn_search(self, int pid, size_t k, eps=None, sorted=None, cores=None):
         cdef SearchParams params = SearchParams()
         if eps is not None:
             params.eps = eps
@@ -75,7 +75,7 @@ cdef class Index:
 
 #    @cython.boundscheck(False) # turn off bounds-checking for entire function
 #    @cython.wraparound(False)  # turn off negative index wrapping for entire function
-    def knn_search_points(self, np.ndarray[DTYPE_t, ndim=2] points, int k, eps=None, sorted=None, cores=None):
+    def knn_search_points(self, np.ndarray[DTYPE_t, ndim=2] points, size_t k, eps=None, sorted=None, cores=None):
         cdef SearchParams params = SearchParams()
         if eps is not None:
             params.eps = eps
@@ -87,8 +87,8 @@ cdef class Index:
         if self.c_index.getSize() < k:
             raise ValueError('k is larger than the number of points in the index. Make sure you called add_points()')
 
-        cdef int n = points.shape[0] # of query points
-        cdef int d = points.shape[1] # dimension
+        cdef size_t n = points.shape[0] # of query points
+        cdef size_t d = points.shape[1] # dimension
         cdef Points cpoints = Points()
 
         cpoints.reserve(n)

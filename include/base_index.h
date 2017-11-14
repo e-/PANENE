@@ -125,7 +125,7 @@ public:
     }
   }
 
-  ~BaseIndex() {
+  virtual ~BaseIndex() {
     for (size_t i = 0; i < numTrees; ++i) {
       delete trees[i];
     }
@@ -410,10 +410,10 @@ public:
   };
 
   size_t numTrees;
+  DataSource *dataSource;
   Distance distance;
   size_t size = 0; // the number of points loaded into trees
   size_t dim;
-  DataSource *dataSource;
 
   bool removed = false;
   DynamicBitset removedPoints;
