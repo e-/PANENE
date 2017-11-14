@@ -33,6 +33,7 @@ if (COMPILE_FOR_BENCHMARK)
   add_definitions(-DBENCHMARK)
 endif()
 
+add_subdirectory(src)
 add_subdirectory(examples)
 add_subdirectory(benchmark)
 enable_testing ()
