@@ -73,7 +73,7 @@ class Test_Panene(unittest.TestCase):
     def test_incremental_run1(self):
         x = random_vectors()
 
-        index = Index(x, weights=(0.5, 0.5))
+        index = Index(x, w=(0.5, 0.5))
         ops = 20
 
         for i in range(x.shape[0] // ops):

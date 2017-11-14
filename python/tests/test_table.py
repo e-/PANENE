@@ -21,3 +21,5 @@ class Test_KNNTable(unittest.TestCase):
         #print(updates)
         self.assertEqual(len(updates), 10)
 
+if __name__ == '__main__':
+    unittest.main()

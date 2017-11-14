@@ -227,8 +227,10 @@ public:
 private:
   size_t d;
   size_t k;
+
 public:
   Indexer indexer;
+
 private:
   TableWeight weight;
   SearchParams searchParams;

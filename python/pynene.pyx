@@ -21,11 +21,11 @@ cdef class Index:
     cdef IndexParams    c_indexParams
     cdef PyIndexL2    * c_index
 
-    def __cinit__(self, array, weights=(0.3, 0.7), float reconstruction_weight=0.25):
+    def __cinit__(self, array, w=(0.3, 0.7), float reconstruction_weight=0.25):
         check_array(array)
         self.c_src = new PyDataSource(array)
 
-        self.c_index = new PyIndexL2(self.c_indexParams, TreeWeight(weights[0], weights[1]),
+        self.c_index = new PyIndexL2(self.c_indexParams, TreeWeight(w[0], w[1]),
                                      reconstruction_weight)
 
         self.c_index.setDataSource(self.c_src)
