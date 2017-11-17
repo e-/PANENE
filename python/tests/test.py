@@ -82,6 +82,28 @@ class Test_Panene(unittest.TestCase):
             self.assertEqual(index.size(), (i + 1) * ops)
             self.assertEqual(ur['addPointResult'], ops)
 
+    def test_incremental_run2(self):
+        n = 1000
+        k = 20
+        ops = 100
+        test_n = 30
+
+        x = random_vectors(n)
+        test_points = random_vectors(test_n)
+
+        index = Index(x)
+        
+        for i in range(n // ops):
+            ur = index.run(ops)
+           
+            ids1, dists1 = index.knn_search_points(test_points, k, checks = 100)
+            ids2, dists2 = index.knn_search_points(test_points, k, checks = 1000)            
+            
+            """
+            The assertion below always holds since the latter search checks a larger number of nodes and the search process is deterministic
+            """
+            self.assertEqual(np.sum(dists1 >= dists2), test_n * k)
+
     def test_check_x_type(self):
         x = random_vectors()
         index = Index(x)

@@ -21,9 +21,12 @@ cdef class Index:
     cdef IndexParams    c_indexParams
     cdef PyIndexL2    * c_index
 
-    def __cinit__(self, array, w=(0.3, 0.7), float reconstruction_weight=0.25):
+    def __cinit__(self, array, w=(0.3, 0.7), float reconstruction_weight=0.25, trees = None):
         check_array(array)
         self.c_src = new PyDataSource(array)
+        
+        if trees is not None:
+            self.c_indexParams.trees = trees
 
         self.c_index = new PyIndexL2(self.c_src,
                                      self.c_indexParams, TreeWeight(w[0], w[1]),
@@ -48,8 +51,11 @@ cdef class Index:
     def size(self):
         return self.c_index.getSize()
 
-    def knn_search(self, int pid, size_t k, eps=None, sorted=None, cores=None):
+    def knn_search(self, int pid, size_t k, checks=None, eps=None, sorted=None, cores=None):
         cdef SearchParams params = SearchParams()
+
+        if checks is not None:
+            params.checks = checks
         if eps is not None:
             params.eps = eps
         if sorted is not None:
@@ -73,10 +79,10 @@ cdef class Index:
 
         return ids, dists
 
-#    @cython.boundscheck(False) # turn off bounds-checking for entire function
-#    @cython.wraparound(False)  # turn off negative index wrapping for entire function
-    def knn_search_points(self, np.ndarray[DTYPE_t, ndim=2] points, size_t k, eps=None, sorted=None, cores=None):
+    def knn_search_points(self, np.ndarray[DTYPE_t, ndim=2] points, size_t k, checks=None, eps=None, sorted=None, cores=None):
         cdef SearchParams params = SearchParams()
+        if checks is not None:
+            params.checks = checks
         if eps is not None:
             params.eps = eps
         if sorted is not None:
@@ -137,12 +143,28 @@ cdef class KNNTable:
     cdef PyKNNTable   * c_table
     
     def __cinit__(self, object array, int k, object neighbors, object distances,
-                  treew=(0.3, 0.7), tablew=(0.5, 0.5)):
+                  treew=(0.3, 0.7), tablew=(0.5, 0.5),
+                  trees=None,
+                  checks=None, eps=None, sorted=None, cores=None
+                  ):
         check_array(array)
         check_array(neighbors)
         check_array(distances)
         if neighbors.shape[1] != k or distances.shape[1] != k:
             raise ValueError('neighbors and distances should have axis=1 of %d'%k)
+
+        if trees is not None:
+            self.c_indexParams.trees = trees
+
+        if checks is not None:
+            self.c_searchParams.checks = checks
+        if eps is not None:
+            self.c_searchParams.eps = eps
+        if sorted is not None:
+            self.c_searchParams.sorted = sorted
+        if cores is not None:
+            self.c_searchParams.cores = cores
+
         self.c_src = new PyDataSource(array)
         self.c_sink = new PyDataSink(neighbors, distances)
         self.c_table = new PyKNNTable(self.c_src,
@@ -158,6 +180,9 @@ cdef class KNNTable:
         del self.c_table
         del self.c_src
         del self.c_sink
+
+    def size(self):
+        return self.c_table.getSize()
 
     def run(self, size_t ops):
         cdef UpdateResult ur
