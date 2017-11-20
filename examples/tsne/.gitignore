@@ -8,6 +8,6 @@ bh_tsne
 # ignore data files
 *.txt
 *.tsv
-
 *.dat
+
 bh_tsne

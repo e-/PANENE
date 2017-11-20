@@ -666,7 +666,7 @@ bool TSNE::load_data(double** data, int* n, int* d, int* no_dims, double* theta,
 
   // Open file, read first 2 integers, allocate memory, and read the data
   FILE *h;
-  if((h = fopen("data.dat", "r")) == NULL) {
+  if((h = fopen("data.txt", "r")) == NULL) {
     printf("Error: could not open data file.\n");
     return false;
   }
@@ -694,15 +694,14 @@ bool TSNE::load_data(double** data, int* n, int* d, int* no_dims, double* theta,
 
 // Function that saves map to a t-SNE file
 void TSNE::save_data(double* data, int* landmarks, double* costs, int n, int d) {
-
   // Open file, write first 2 integers and then the data
   FILE *h;
-  if((h = fopen("result.dat", "w")) == NULL) {
+  if((h = fopen("result/result.txt", "w")) == NULL) {
     printf("Error: could not open data file.\n");
     return;
   }
-  fprintf(h, "%d\n", n); // fwrite(&n, sizeof(int), 1, h);
-  fprintf(h, "%d\n", d); //	fwrite(&d, sizeof(int), 1, h);
+  //fprintf(h, "%d\n", n); // fwrite(&n, sizeof(int), 1, h);
+  //fprintf(h, "%d\n", d); //	fwrite(&d, sizeof(int), 1, h);
   for(int i = 0; i < n; ++i) {
     for(int j = 0; j < d; ++j)
       fprintf(h, "%lf ", data[i*d+j]);
@@ -711,17 +710,17 @@ void TSNE::save_data(double* data, int* landmarks, double* costs, int n, int d) 
 
   //  fwrite(data, sizeof(double), n * d, h);
 
-  for(int i = 0; i <n; ++i) {
-    fprintf(h, "%d ", landmarks[i]);
-  }
-  fprintf(h, "\n");
+  //for(int i = 0; i <n; ++i) {
+    //fprintf(h, "%d ", landmarks[i]);
+  //}
+  //fprintf(h, "\n");
 
   //fwrite(landmarks, sizeof(int), n, h);
 
-  for(int i = 0 ; i < n; ++i) {
-    fprintf(h, "%lf ", costs[i]);
-  }
-  fprintf(h, "\n");
+  //for(int i = 0 ; i < n; ++i) {
+    //fprintf(h, "%lf ", costs[i]);
+  //}
+  //fprintf(h, "\n");
   //    fwrite(costs, sizeof(double), n, h);
   fclose(h);
   printf("Wrote the %i x %i data matrix successfully!\n", n, d);
