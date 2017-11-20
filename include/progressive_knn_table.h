@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 #include <queue>
+#include <set>
 
 #include <progressive_kd_tree_index.h>
 #include <functional>
@@ -40,14 +41,19 @@ struct UpdateResult {
   double updateIndexElapsed;
   double updateTableElapsed;
 
+  std::set<size_t> updatedIds;
+
   UpdateResult(size_t addPointOps_, size_t updateIndexOps_, size_t updateTableOps_,
                size_t addPointResult_, size_t updateIndexResult_, size_t updateTableResult_, 
                size_t numPointsInserted_,
-               double addPointElapsed_, double updateIndexElapsed_, double updateTableElapsed_) :
+               double addPointElapsed_, double updateIndexElapsed_, double updateTableElapsed_,
+               std::set<size_t> updatedIds_
+               ) :
     addPointOps(addPointOps_), updateIndexOps(updateIndexOps_), updateTableOps(updateTableOps_),
     addPointResult(addPointResult_), updateIndexResult(updateIndexResult_), updateTableResult(updateTableResult_),
     numPointsInserted(numPointsInserted_), 
-    addPointElapsed(addPointElapsed_), updateIndexElapsed(updateIndexElapsed_), updateTableElapsed(updateTableElapsed_)
+    addPointElapsed(addPointElapsed_), updateIndexElapsed(updateIndexElapsed_), updateTableElapsed(updateTableElapsed_),
+    updatedIds(updatedIds_)
   {
   }
   UpdateResult() = default;
@@ -165,12 +171,12 @@ public:
     BENCH(timer.begin());
 
     size_t checkCount = 0;    
+    std::set<IDType> updatedIds;
+
     while(checkCount < updateTableOps && !queue.empty()) {
       auto q = queue.top();
 
       queue.pop();
-
-      queued.reset(q.id);
       checkCount++;
 
       // we need to update the NN of q.id
@@ -190,6 +196,7 @@ public:
       if(i < k) { // if there is a difference
         // then, mark the nn of q.id as dirty
 
+        updatedIds.insert(q.id);
         dataSink->setNeighbors(
             q.id,
             result.getNeighbors(),
@@ -202,6 +209,8 @@ public:
           }
         }
       }
+
+      queued.reset(q.id);
     }
 
     updateTableResult = checkCount;
@@ -210,7 +219,8 @@ public:
     return UpdateResult(indexerResult.addPointOps, indexerResult.updateIndexOps, updateTableOps, 
                         addPointResult, indexerResult.updateIndexResult, updateTableResult, 
                         numPointsInserted,
-                        indexerResult.addPointElapsed, indexerResult.updateIndexElapsed, updateTableElapsed);
+                        indexerResult.addPointElapsed, indexerResult.updateIndexElapsed, updateTableElapsed,
+                        updatedIds);
   }
 
   const IDType * getNeighbors(const IDType id) const {

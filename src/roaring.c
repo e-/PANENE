@@ -1,5 +1,5 @@
 /* auto-generated on Wed Sep 20 20:29:00 EDT 2017. Do not edit! */
-#include "roaring.h"
+#include <roaring/roaring.h>
 /* begin file src/array_util.c */
 #include <assert.h>
 #include <stdbool.h>

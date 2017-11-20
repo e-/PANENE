@@ -384,7 +384,9 @@ void SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double*
     double D;
     for(unsigned int n = 0; n < N; n++) {
         for(unsigned int i = row_P[n]; i < row_P[n + 1]; i++) {
-        
+            if(col_P[i] > N) { // removed neighbors
+              continue;
+            }
             // Compute pairwise distance and Q-value
             D = 1.0;
             ind2 = col_P[i] * dimension;

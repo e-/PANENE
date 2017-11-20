@@ -11,11 +11,11 @@
 #include <util/random.h>
 #include <util/result_set.h>
 #include <dist.h>
+#include <map>
 
 #include <kd_tree.h>
 
 #include <roaring/roaring.hh>
-#include <roaring/roaring.c>
 
 #define USE_BASECLASS_SYMBOLS public: \
   typedef typename BaseIndex<DataSource>::Distance Distance;\

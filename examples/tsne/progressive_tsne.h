@@ -31,21 +31,33 @@
  */
 
 
-#ifndef TSNE_H
-#define TSNE_H
+#ifndef PROGRESSIVE_TSNE_H
+#define PROGRESSIVE_TSNE_H
 
+#include <progressive_knn_table.h>
+#include <data_source/array_data_source.h>
+#include <data_sink/vector_data_sink.h>
+#include <dist.h>
+
+using namespace panene;
+
+typedef size_t IDType;
+typedef double ElementType;
+using Source = ArrayDataSource<IDType, L2<ElementType>>;
+typedef typename Source::DistanceType DistanceType;
+using Sink = VectorDataSink<IDType, DistanceType>;
+using Table = ProgressiveKNNTable<ProgressiveKDTreeIndex<Source>, Sink>;
 
 static inline double sign(double x) { return (x == .0 ? .0 : (x < .0 ? -1.0 : 1.0)); }
 
-
-class TSNE
+class ProgressiveTSNE
 {
 public:
     void run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
              bool skip_random_init, int max_iter=1000, int stop_lying_iter=250, int mom_switch_iter=250);
     bool load_data(double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter);
     void save_data(double* data, int* landmarks, double* costs, int n, int d);
-    void symmetrizeMatrix(unsigned int** row_P, unsigned int** col_P, double** val_P, int N); // should be static!
+    void symmetrizeMatrix(unsigned int** row_P, unsigned int** col_P, double** val_P, int effectiveN, int N, int K); // should be static!
 
 private:
     void computeGradient(double* P, unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, double* Y, int N, int D, double* dC, double theta);
@@ -53,8 +65,9 @@ private:
     double evaluateError(double* P, double* Y, int N, int D);
     double evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, double* Y, int N, int D, double theta);
     void zeroMean(double* X, int N, int D);
+    void initializeSimilarity(int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double** cur_P, int K);
     void computeGaussianPerplexity(double* X, int N, int D, double* P, double perplexity);
-    void computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K);
+    void computeGaussianPerplexity(Table *table, size_t ops, double* X, int N, int D, unsigned int* row_P, unsigned int* _col_P, double* _val_P, double* cur_P, double perplexity, int K);
     void computeSquaredEuclideanDistance(double* X, int N, int D, double* DD);
     double randn();
 };

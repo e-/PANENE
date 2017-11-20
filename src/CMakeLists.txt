@@ -10,7 +10,7 @@ endif()
 MESSAGE( STATUS "PANENE_LIB_TYPE: " ${PANENE_LIB_TYPE})
 
 set(PANENE_SRC
-    panene.cpp)
+    panene.cpp roaring.c)
 
 add_library(${PANENE_LIB_NAME} ${PANENE_LIB_TYPE} ${PANENE_SRC})
 install(TARGETS ${PANENE_LIB_NAME} DESTINATION lib)
