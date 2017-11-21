@@ -121,6 +121,26 @@ class Test_Panene(unittest.TestCase):
             index = Index(x)
             index.add_points(len(x))
             index.knn_search_points(x, 10)
+    
+    def test_updates_after_all_points_added(self):
+        np.random.seed(10)
+        n = 10000
+        w = (0.5, 0.5)
+        x = random_vectors(n)
+        ops = 1000
+
+        index = Index(x, w=w)
+        
+        index.add_points(n) # add all points
+
+        for i in range(1000):
+            index.knn_search_points(random_vectors(100), 10) # accumulate losses
+
+        for i in range(10):
+            res = index.run(ops)
+            
+            self.assertEqual(res['addPointResult'], 0)
+            self.assertEqual(res['updateIndexResult'], ops)
 
 if __name__ == '__main__':
     unittest.main()

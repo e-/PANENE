@@ -244,10 +244,15 @@ public:
     BENCH(Timer timer);
     BENCH(timer.begin());
 
-    addPointResult = addPoints(addPointOps);
+    if(addPointOps > 0) {
+      addPointResult = addPoints(addPointOps);
+    }
+
     if(addPointResult == 0) {
+      // if we added all points, put all operations to update index
       weight.updateIndexWeight += weight.addPointWeight;
       weight.addPointWeight = 0;
+      updateIndexOps = ops;
     }
     size_t numPointsInserted = size;
 
