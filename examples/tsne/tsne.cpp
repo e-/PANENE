@@ -39,12 +39,13 @@
 #include "vptree.h"
 #include "sptree.h"
 #include "tsne.h"
+#include "util.h"
 
 using namespace std;
 
 // Perform t-SNE
 void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
-    bool skip_random_init, int max_iter, int stop_lying_iter, int mom_switch_iter) {
+    bool skip_random_init, int max_iter, int mom_switch_iter, int print_every) {
 
   // Set random seed
   if (skip_random_init != true) {
@@ -127,10 +128,6 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
   }
   end = clock();
 
-  // Lie about the P-values
-  if(exact) { for(int i = 0; i < N * N; i++)        P[i] *= 12.0; }
-  else {      for(int i = 0; i < row_P[N]; i++) val_P[i] *= 12.0; }
-
   // Initialize solution (randomly)
   if (skip_random_init != true) {
     for(int i = 0; i < N * no_dims; i++) Y[i] = randn() * .0001;
@@ -158,15 +155,10 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
     // Make solution zero-mean
     zeroMean(Y, N, no_dims);
 
-    // Stop lying about the P-values after a while, and switch momentum
-    if(iter == stop_lying_iter) {
-      if(exact) { for(int i = 0; i < N * N; i++)        P[i] /= 12.0; }
-      else      { for(int i = 0; i < row_P[N]; i++) val_P[i] /= 12.0; }
-    }
     if(iter == mom_switch_iter) momentum = final_momentum;
 
     // Print out progress
-    if (iter > 0 && (iter % 1 == 0 || iter == max_iter - 1)) {
+    if (iter > 0 && (iter % print_every == 0 || iter == max_iter - 1)) {
       end = clock();
       double C = .0;
       if(exact) C = evaluateError(P, Y, N, no_dims);
@@ -178,6 +170,15 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
         printf("Iteration %d: error is %f (50 iterations in %4.2f seconds)\n", iter, C, (float) (end - start) / CLOCKS_PER_SEC);
       }
       start = clock();
+    }
+
+    size_t log_every = 10;
+
+    if(iter % log_every == 0) {
+      char path[100];
+      sprintf(path,"result/result.%d.txt", iter / log_every);
+
+      save(path, Y, N, no_dims);
     }
   }
   end = clock(); total_time += (float) (end - start) / CLOCKS_PER_SEC;

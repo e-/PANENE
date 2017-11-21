@@ -80,7 +80,7 @@ public:
 
   ProgressiveKNNTable(DataSource *dataSource_, DataSink *dataSink_, size_t k_, IndexParams indexParams_, SearchParams searchParams_, TreeWeight treeWeight_, TableWeight weight_) : 
     dataSource(dataSource_), dataSink(dataSink_),
-    k(k_), indexer(Indexer(dataSource_, indexParams_)), weight(weight_), searchParams(searchParams_)
+    k(k_), indexer(Indexer(dataSource_, indexParams_, treeWeight_)), weight(weight_), searchParams(searchParams_)
   {
     numPointsInserted = 0;
     d = dataSource -> dim();
@@ -132,7 +132,7 @@ public:
     size_t size = indexer.getSize();
     size_t oldSize = size - addPointResult;
 
-    // checks if points are added (if not, it means all points in the data have already been inserted)
+    // checks if at least one point is added. 
     if(addPointResult > 0) {
       std::vector<IDType> newPoints(addPointResult);
       

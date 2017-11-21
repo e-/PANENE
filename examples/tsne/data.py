@@ -15,7 +15,7 @@ parser.add_argument('-d', type=int, default=100, help='# of dimensions to write'
 parser.add_argument('--theta', '-t', type=float, default=0.3, help='theta')
 parser.add_argument('--perplexity', '-p', type=float, default=5, help='target perplexity')
 parser.add_argument('--output-dims', '-o', type=int, default=2, help='output dimensionality')
-parser.add_argument('--max-iter', '-i', type=int, default=200, help='maximum # of iterations')
+parser.add_argument('--max-iter', '-i', type=int, default=1000, help='maximum # of iterations')
 
 if __name__ == '__main__':
     args = parser.parse_args()

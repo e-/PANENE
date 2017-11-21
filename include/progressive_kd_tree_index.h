@@ -253,6 +253,7 @@ public:
       weight.updateIndexWeight += weight.addPointWeight;
       weight.addPointWeight = 0;
       updateIndexOps = ops;
+      addPointOps = 0;
     }
     size_t numPointsInserted = size;
 

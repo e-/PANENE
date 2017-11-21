@@ -1,13 +1,19 @@
 <!DOCTYPE html>
 <body>
-  <svg width="400" height="400" id="vis"></svg>
+  <svg width="400" height="400" id="vis"><g></svg>
   
   <script src="https://d3js.org/d3.v4.min.js"></script>
   <script src="https://d3js.org/d3-contour.v1.min.js"></script>
 
   <script>
 
-draw('#vis', 'result.txt')
+let iter = 0;
+
+setInterval(() => {
+  draw('#vis g', 'result.' + iter + '.txt')
+  iter++;
+  if(iter > 90) iter = 0;
+}, 300);
 
 function translate(x, y) { return 'translate(' + x + ',' + y + ')'; }
 
@@ -20,27 +26,34 @@ function draw(svgId, path) {
     })
 
     let width = 380, height = 380;
-    let svg = d3.select(svgId).append('g').attr('transform', translate(10, 10))
-    let bg = svg.append('g')
+    let svg = d3.select(svgId).attr('transform', translate(10, 10))
 
     let x = d3.scaleLinear().domain(d3.extent(data, d => d[0])).range([0, width])
     let y = d3.scaleLinear().domain(d3.extent(data, d => d[1])).range([0, height])
 
-    let color = d3.scaleSequential(d3.interpolateCool).domain([0, 0.03]).clamp(true)
-    let step = 10
+    let color = d3.scaleSequential(d3.interpolateCool).domain([0, 0.2]).clamp(true)
 
-    bg.selectAll('path')
+    let path = svg.selectAll('path')
       .data(d3.contourDensity()
         .x(d => x(d[0]))
         .y(d => y(d[1]))
         .size([width, height])
-        .bandwidth(10)
+        .bandwidth(8)
         (data)
       )
-      .enter()
-        .append('path')
-        .attr('d', d3.geoPath())
-        .attr('fill', d => color(d.value))
+
+    let enter = path
+        .enter()
+          .append('path')
+
+    path.merge(enter)
+
+    path
+      .attr('d', d3.geoPath())
+      .attr('fill', d => color(d.value))
+
+    path
+      .exit().remove()
   })
 }
 

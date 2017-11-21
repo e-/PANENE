@@ -30,7 +30,7 @@ int main() {
     tsne->run(data, N, D, Y, no_dims, perplexity, theta, rand_seed, false, max_iter);
 
     // Save the results
-    tsne->save_data(Y, landmarks, costs, N, no_dims);
+    tsne->save_data("result/result.txt", Y, N, no_dims);
 
     // Clean up the memory
     free(data); data = NULL;
