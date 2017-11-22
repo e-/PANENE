@@ -6,7 +6,7 @@
 bh_tsne
 
 # ignore data files
-*.txt
+result/*.txt
 *.tsv
 *.dat
 
