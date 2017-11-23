@@ -34,8 +34,10 @@
 #ifndef SPTREE_H
 #define SPTREE_H
 
-using namespace std;
+#include <vector>
+#include <map>
 
+using namespace std;
 
 class Cell {
 
@@ -103,6 +105,7 @@ public:
     unsigned int getDepth();
     void computeNonEdgeForces(unsigned int point_index, double theta, double neg_f[], double* sum_Q);
     void computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double* val_P, int N, double* pos_f);
+    void computeEdgeForces(vector<map<size_t, double>> similarities, int N, double* pos_f);
     void print();
     
 private:

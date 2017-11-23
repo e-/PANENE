@@ -38,8 +38,11 @@
 #include <data_source/array_data_source.h>
 #include <data_sink/vector_data_sink.h>
 #include <dist.h>
+#include <vector>
+#include <map>
 
 using namespace panene;
+using namespace std;
 
 typedef size_t IDType;
 typedef double ElementType;
@@ -57,15 +60,20 @@ public:
              bool skip_random_init, int max_iter=1000, int mom_switch_iter=250, int print_every=50);
     bool load_data(double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter);
     void save_data(char* path, double* data, int n, int d);
-    void symmetrizeMatrix(unsigned int** row_P, unsigned int** col_P, double** val_P, int effectiveN, int N, int K); // should be static!
+    void updateSimilarity(Table *table, 
+      vector<map<size_t, double>>& neighbors,
+      vector<map<size_t, double>>& similarties,
+      double* Y,
+      size_t no_dims,
+      double perplexity,
+      size_t K,
+      size_t ops);
 
 private:
-    void computeGradient(double* P, unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, double* Y, int N, int D, double* dC, double theta);
-    void computeExactGradient(double* P, double* Y, int N, int D, double* dC);
-    double evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, double* Y, int N, int D, double theta);
+    void computeGradient(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double* dC, double theta);
+    double evaluateError(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double theta);
     void zeroMean(double* X, int N, int D);
-    void initializeSimilarity(int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double** cur_P, int K);
-    void computeGaussianPerplexity(Table *table, size_t ops, double* X, int N, int D, unsigned int* row_P, unsigned int* _col_P, double* _val_P, double* cur_P, double perplexity, int K);
+    float computeGaussianPerplexity(Table *table, size_t ops, double* X, int N, int D, unsigned int* row_P, unsigned int* _col_P, double* _val_P, double* cur_P, double perplexity, int K);
     void computeSquaredEuclideanDistance(double* X, int N, int D, double* DD);
     double randn();
 };

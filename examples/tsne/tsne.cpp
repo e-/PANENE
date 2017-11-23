@@ -67,7 +67,9 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
   float total_time = .0;
   clock_t start, end;
   double momentum = .5, final_momentum = .8;
-  double eta = 200.0;
+
+  // Logging
+  FILE *meta = fopen("result/original.meta.txt", "w");
 
   // Allocate some memory
   double* dY    = (double*) malloc(N * no_dims * sizeof(double));
@@ -76,6 +78,20 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
   if(dY == NULL || uY == NULL || gains == NULL) { printf("Memory allocation failed!\n"); exit(1); }
   for(int i = 0; i < N * no_dims; i++)    uY[i] =  .0;
   for(int i = 0; i < N * no_dims; i++) gains[i] = 1.0;
+
+  // Adam optimzer
+  double* m_t    = (double*) malloc(N * no_dims * sizeof(double));
+  double* v_t    = (double*) malloc(N * no_dims * sizeof(double));
+  if(m_t == NULL || v_t == NULL) { printf("Memory allocation failed!\n"); exit(1); }
+
+  for(int i = 0; i < N * no_dims; i++) m_t[i] = v_t[i] = .0;
+
+  double eta = 1;
+  double beta1 = 0.9;
+  double beta2 = 0.999;
+  double pbeta1 = beta1;
+  double pbeta2 = beta2;
+  double eps = 1e-8;
 
   // Normalize input data (to prevent numerical problems)
   printf("Computing input similarities...\n");
@@ -125,68 +141,94 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
     double sum_P = .0;
     for(int i = 0; i < row_P[N]; i++) sum_P += val_P[i];
     for(int i = 0; i < row_P[N]; i++) val_P[i] /= sum_P;
+    printf("[sum of sims] = %.10lf\n", sum_P);
+    //for(int i = 0; i < row_P[1]; ++i) {
+      //printf("[%d] %lf\n", col_P[i], val_P[i]);
+    //}
   }
   end = clock();
 
+  total_time += (float)(end - start) / CLOCKS_PER_SEC;
+  fprintf(meta, "embedding %f\n", total_time);
+
   // Initialize solution (randomly)
+
   if (skip_random_init != true) {
+    srand(0);
     for(int i = 0; i < N * no_dims; i++) Y[i] = randn() * .0001;
   }
-
+  
   // Perform main training loop
   if(exact) printf("Input similarities computed in %4.2f seconds!\nLearning embedding...\n", (float) (end - start) / CLOCKS_PER_SEC);
   else printf("Input similarities computed in %4.2f seconds (sparsity = %f)!\nLearning embedding...\n", (float) (end - start) / CLOCKS_PER_SEC, (double) row_P[N] / ((double) N * (double) N));
-  start = clock();
 
   for(int iter = 0; iter < max_iter; iter++) {
+    start = clock();
 
     // Compute (approximate) gradient
     if(exact) computeExactGradient(P, Y, N, no_dims, dY);
     else computeGradient(P, row_P, col_P, val_P, Y, N, no_dims, dY, theta);
 
+    // we use Adam Optimzer
+   
+    for(int i = 0; i < N * no_dims; i++) {
+      m_t[i] = beta1 * m_t[i] + (1 - beta1) * dY[i];
+      v_t[i] = beta2 * v_t[i] + (1 - beta2) * dY[i] * dY[i];
+      double d = eta * sqrt(1 - pbeta2) / (1 - pbeta1) / (sqrt(v_t[i]) + eps) * m_t[i];
+      Y[i] = Y[i] - d;
+    }
+
+//    if(iter == 5) break;
+    pbeta1 *= beta1;
+    pbeta2 *= beta2;
+
+/*    double grad_sum = 0;
+    for(int i = 0; i < N * no_dims; i++) {
+      grad_sum += dY[i] * dY[i];
+    }
+    printf("grad_sum = %.14lf\n", grad_sum);*/
+
+    
     // Update gains
-    for(int i = 0; i < N * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
+/*    for(int i = 0; i < N * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
     for(int i = 0; i < N * no_dims; i++) if(gains[i] < .01) gains[i] = .01;
 
     // Perform gradient update (with momentum and gains)
     for(int i = 0; i < N * no_dims; i++) uY[i] = momentum * uY[i] - eta * gains[i] * dY[i];
-    for(int i = 0; i < N * no_dims; i++)  Y[i] = Y[i] + uY[i];
+    for(int i = 0; i < N * no_dims; i++)  Y[i] = Y[i] + uY[i];*/
 
     // Make solution zero-mean
     zeroMean(Y, N, no_dims);
 
     if(iter == mom_switch_iter) momentum = final_momentum;
 
+    end = clock();
+    total_time += (float) (end - start) / CLOCKS_PER_SEC;
+
     // Print out progress
-    if (iter > 0 && (iter % print_every == 0 || iter == max_iter - 1)) {
-      end = clock();
+    size_t log_every = 5;
+
+    if(iter < 20 || iter % log_every == 0) {
       double C = .0;
-      if(exact) C = evaluateError(P, Y, N, no_dims);
-      else      C = evaluateError(row_P, col_P, val_P, Y, N, no_dims, theta);  // doing approximate computation here!
-      if(iter == 0)
-        printf("Iteration %d: error is %f\n", iter + 1, C);
-      else {
-        total_time += (float) (end - start) / CLOCKS_PER_SEC;
-        printf("Iteration %d: error is %f (50 iterations in %4.2f seconds)\n", iter, C, (float) (end - start) / CLOCKS_PER_SEC);
-      }
-      start = clock();
-    }
+      C = evaluateError(row_P, col_P, val_P, Y, N, no_dims, theta);  // doing approximate computation here!
 
-    size_t log_every = 10;
+      printf("Iteration %d: error is %f (%4.2f seconds)\n", iter, C, (float) (end - start) / CLOCKS_PER_SEC);
 
-    if(iter % log_every == 0) {
       char path[100];
-      sprintf(path,"result/result.%d.txt", iter / log_every);
-
+      sprintf(path,"result/original.%d.txt", iter);
       save(path, Y, N, no_dims);
+      
+      fprintf(meta, "%d %f %f original.%d.txt\n", iter, total_time, C, iter);
     }
   }
-  end = clock(); total_time += (float) (end - start) / CLOCKS_PER_SEC;
 
   // Clean up memory
   free(dY);
   free(uY);
   free(gains);
+  free(m_t);
+  free(v_t);
+  fclose(meta);
   if(exact) free(P);
   else {
     free(row_P); row_P = NULL;
@@ -211,7 +253,6 @@ void TSNE::computeGradient(double* P, unsigned int* inp_row_P, unsigned int* inp
   if(pos_f == NULL || neg_f == NULL) { printf("Memory allocation failed!\n"); exit(1); }
   tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f);
   for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, neg_f + n * D, &sum_Q);
-
   // Compute final t-SNE gradient
   for(int i = 0; i < N * D; i++) {
     dC[i] = pos_f[i] - (neg_f[i] / sum_Q);
@@ -447,7 +488,7 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _ro
     indices.clear();
     distances.clear();
     tree->search(obj_X[n], K + 1, &indices, &distances);
-
+    
     // Initialize some variables for binary search
     bool found = false;
     double beta = 1.0;
