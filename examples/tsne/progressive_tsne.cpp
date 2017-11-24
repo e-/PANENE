@@ -80,8 +80,8 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
       &source,
       &sink,
       K + 1, 
-      IndexParams(1),
-      SearchParams(4096),
+      IndexParams(4),
+      SearchParams(1024),
       TreeWeight(0.7, 0.3),
       TableWeight(0.5, 0.5));
 
@@ -107,7 +107,7 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
 
   // Perform main training loop
 
-  size_t ops = 500;
+  size_t ops = 100;
 
   vector<map<size_t, double>> neighbors(N); // neighbors[i] has exact K items
   vector<map<size_t, double>> similarities(N); // may have more 

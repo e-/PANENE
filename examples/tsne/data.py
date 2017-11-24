@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser(description='Generate input data for the tsne e
 
 parser.add_argument('path', type=str, help='output path')
 parser.add_argument('--sample', type=str, help='sample or random')
+parser.add_argument('--text', dest='text', action='store_true', default=False, help='sample or random')
 parser.add_argument('-n', type=int, default=10000, help='# of rows to write')
 parser.add_argument('-d', type=int, default=100, help='# of dimensions to write')
 parser.add_argument('--theta', '-t', type=float, default=0.5, help='theta')
@@ -21,19 +22,33 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.sample:
-        with open(args.sample, 'rb') as inf:
-            with open(args.path, 'w') as outf:
-                print(args.n, file=outf)
-                print(args.d, file=outf)
-                print(args.theta, file=outf)
-                print(args.perplexity, file=outf)
-                print(args.output_dims, file=outf)
-                print(args.max_iter, file=outf)
+        if args.text:
+            with open(args.sample, 'r') as inf:
+                with open(args.path, 'w') as outf:
+                    print(args.n, file=outf)
+                    print(args.d, file=outf)
+                    print(args.theta, file=outf)
+                    print(args.perplexity, file=outf)
+                    print(args.output_dims, file=outf)
+                    print(args.max_iter, file=outf)
+                    
+                    lines = inf.readlines()
+                    for i in range(args.n):
+                        print(lines[i], file=outf, end='')
+        else:
+            with open(args.sample, 'rb') as inf:
+                with open(args.path, 'w') as outf:
+                    print(args.n, file=outf)
+                    print(args.d, file=outf)
+                    print(args.theta, file=outf)
+                    print(args.perplexity, file=outf)
+                    print(args.output_dims, file=outf)
+                    print(args.max_iter, file=outf)
 
-                for i in range(args.n):
-                    inf.seek(i * 4 * args.d)
-                    floats = struct.unpack('f' * args.d, inf.read(args.d * 4))
-                    print(' '.join([str(f) for f in floats]), file=outf)
+                    for i in range(args.n):
+                        inf.seek(i * 4 * args.d)
+                        floats = struct.unpack('f' * args.d, inf.read(args.d * 4))
+                        print(' '.join([str(f) for f in floats]), file=outf)
     else:
         r = random.random()
 
