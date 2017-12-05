@@ -2,65 +2,71 @@
 <body>
   <style>
     svg{width: 200px;}
-    td{padding:10px;}
+    td{padding:2px;}
     text{font-family: Helvetica; font-size:1.2em;}
     h1{font-family:Helvetica; text-align:center; padding-top:0;}
     .header{
       padding-top:0px;
       position:relative;
+      text-align:center;
     }
-    p{font-family:Helvetica; font-size:1.2em; text-align:center; 
+    p{
+      font-family:Helvetica;
+      font-size:1.2em; text-align:center; 
       margin:0;
       padding:0;
+      width:100%;
       position:absolute;
-      bottom:22px;
+      bottom:2px; 
+      left:-3px;
     }
   </style>
   <table>
     <tr>
       <td class="header">
         <h1>
-          Original <br /><em>t</em>-SNE <br />
-          (MNIST)
+          Barnes-Hut <br /><em>t</em>-SNE <br />
         </h1>
         <p>
-          Neighbor Computation (<span id="ori-time"></span>s)
+          Neighbor Computation 
+          <br><span style="font-size:0.8em">(<span id="ori-time"></span>s)</span>
         </p>
       </td>
       <td><svg id="ori0"></svg></td>
       <td><svg id="ori1"></svg></td>
       <td><svg id="ori2"></svg></td>
       <td><svg id="ori3"></svg></td>
-      <td><svg id="ori4"></svg></td>
+      <!--<td><svg id="ori4"></svg></td>
       <td><svg id="ori5"></svg></td>
       <td><svg id="ori6"></svg></td>
       <td><svg id="ori7"></svg></td>
       <td><svg id="ori8"></svg></td>
       <td><svg id="ori9"></svg></td>
       <td><svg id="ori10"></svg></td>
-      <td><svg id="ori11"></svg></td>
+      <td><svg id="ori11"></svg></td>-->
+      <td rowspan="2"><svg id="error"></svg></td>
     </tr>
     <tr>
       <td class="header">
         <h1>
           Responsive <br/><em>t</em>-SNE <br />
-          (MNIST)
         </h1>
         <p>
-          Neighbor Computation (<span id="pro-time"></span>s)
+          Initialization
+          <br><span style="font-size:0.8em">(<span id="pro-time"></span>s)</span>
         </p>
       </td>
       <td><svg id="pro0"></svg></td>
       <td><svg id="pro1"></svg></td>
       <td><svg id="pro2"></svg></td>
       <td><svg id="pro3"></svg></td>
-      <td><svg id="pro4"></svg></td>
+      <!--<td><svg id="pro4"></svg></td>
       <td><svg id="pro5"></svg></td>
       <td><svg id="pro6"></svg></td>
       <td><svg id="pro7"></svg></td>
       <td><svg id="pro8"></svg></td>
       <td><svg id="pro9"></svg></td>
-      <td><svg id="pro10"></svg></td>
+      <td><svg id="pro10"></svg></td>-->
     </tr>
   </table>
   
@@ -78,15 +84,84 @@ let label = 35;
 
 d3.text('../mnist/labels.txt', labels => { 
   labels = labels.split('\n');
-  drawAll('original.meta.txt', i => '#ori' + i, [0, 1, 2, 3, 4, 10, 20, 50, 100, 500, 990], '#ori-time', labels)
-  drawAll('progressive.meta.txt', i => '#pro' + i, [0, 1, 2, 3, 4, 10, 20, 50, 100, 200, 500], '#pro-time', labels)
+  drawError([
+    ['Barnes-Hut', 'original.meta.txt'],
+    ['Responsive', 'progressive.meta.txt']
+  ])
+  drawAll('original.meta.txt', i => '#ori' + i, [10, 50, 100, 500], '#ori-time', labels)
+  drawAll('progressive.meta.txt', i => '#pro' + i, [10, 50, 100, 500], '#pro-time', labels)
+
+
 })
+
+function drawError(meta){
+  let svg = d3.select('#error'),
+      margin = {top: 20, right: 20, bottom: 30, left: 50},
+      width = 200,
+    height = 100
+
+
+  svg.attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom)
+
+  let g = svg.append("g").attr('transform', translate(margin.left, margin.top));
+
+  var x = d3.scaleLinear()
+      .rangeRound([0, width]);
+
+  var y = d3.scaleLinear()
+      .rangeRound([height, 0]);
+
+  var line = d3.line()
+      .x(function(d) { return x(d[0]);  })
+      .y(function(d) { return y(d[1]);  });
+
+  let iterEnd = 500;
+
+  d3.text(meta[0][1], (text) => {
+    let data = text.trim().split('\n').map(line => line.split(' '))
+    let line0 = data.slice(1, 10000).map((d) => [+d[0], +d[2]]).filter(d => d[0] <= iterEnd)
+
+    d3.text(meta[1][1], (text) => {
+      let data = text.trim().split('\n').map(line => line.split(' '))
+      let line1 = data.slice(1, 10000).map((d) => [+d[0], +d[2]]).filter(d => d[0] <= iterEnd)
+      
+      x.domain([0, iterEnd])
+      y.domain([0, Math.max(d3.max(line0, d => d[1]), d3.max(line1, d => d[1]))])
+
+      g.append("g")
+          .attr("transform", "translate(0," + height + ")")
+          .call(d3.axisBottom(x))
+
+      g.append("g")
+          .call(d3.axisLeft(y))
+        .append("text")
+          .attr("fill", "#000")
+          .attr("transform", "rotate(-90)")
+          .attr("y", 6)
+          .attr("dy", "0.71em")
+          .attr("text-anchor", "end")
+          .text("Price ($)");
+
+      g.append('g').selectAll('path')
+        .data([line0, line1])
+        .enter()
+        .append('path')
+          .attr("fill", "none")
+          .attr("stroke", "steelblue")
+          .attr("stroke-linejoin", "round")
+          .attr("stroke-linecap", "round")
+          .attr("stroke-width", 1.5)
+          .attr("d", line)
+    })
+  })
+}
 
 function drawAll(metaPath, id, iter, tree, labels) {
   d3.text(metaPath, text => {
     lines = text.split('\n').map(line => line.split(' '))
 
-    d3.select(tree).text(d3.format('3.1f')(lines[0][1]));
+    d3.select(tree).text(d3.format(',.1f')(lines[0][1]));
 
     for(let i = 0; i < iter.length; ++i) {
       for (line of lines) {
@@ -118,11 +193,18 @@ function draw(svgId, line, labels) {
     
     svg.attr('width', width).attr('height', height + label)
 
-    svg.append('text')
+    let te = svg.append('text')
       .attr('text-anchor', 'middle')
       .attr('dy', '-0.6em')
-      .attr('transform', translate(width / 2, height + label))
-      .text('Iter #' + (+iter) + ' (' + d3.format('2.1f')(time) +'s)')
+      .attr('transform', translate(width / 2, height + label - 10))
+      .text('Iteration #' + (+iter))
+      
+    let te2 = svg.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '-0.6em')
+      .style('font-size', '0.9em')
+      .attr('transform', translate(width / 2, height + label + 5))
+      .text('(' + d3.format(',.1f')(time) + 's, error=' + d3.format('.2f')(error) + ')')
 
     let x = d3.scaleLinear().domain(d3.extent(data, d => d[0])).range([0, width - 2 * margin])
     let y = d3.scaleLinear().domain(d3.extent(data, d => d[1])).range([0, height - 2 * margin])
