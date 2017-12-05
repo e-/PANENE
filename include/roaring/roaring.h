@@ -391,7 +391,7 @@ int32_t intersect_skewed_uint16_cardinality(const uint16_t *small,
                                             const uint16_t *large,
                                             size_t size_l);
 
-
+ 
 /* Check whether the size of the intersection between one small and one large set of uint16_t is non-zero. */
 bool intersect_skewed_uint16_nonempty(const uint16_t *small, size_t size_s,
                                 const uint16_t *large, size_t size_l);

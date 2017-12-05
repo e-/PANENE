@@ -13,6 +13,10 @@ option(BUILD_STATIC "Build a static library" OFF)
 option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
 option(COMPILE_FOR_BENCHMARK "Compile for benchmark (e.g., profiling)" ON)
 
+option(DISABLE_X64 "Forcefully disable x64 optimizations even if hardware supports it (this disables AVX) " OFF)
+option(DISABLE_AVX "Forcefully disable AVX even if hardware supports it" OFF)
+
+
 find_package ( OpenMP )
 if(OPENMP_FOUND)
   message("OPENMP FOUND")

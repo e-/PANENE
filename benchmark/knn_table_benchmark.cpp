@@ -1,5 +1,7 @@
 #include <benchmark/metadata.h>
 #include <data_sink/vector_data_sink.h>
+#include <progressive_kd_tree_index.h>
+#include <dist.h>
 #include <progressive_knn_table.h>
 
 using namespace panene;
@@ -83,6 +85,7 @@ void run(const char* base_) {
   std::fstream log;
 
 #ifdef _WIN32
+#define BASE "D:\\G\\work\\panene\\panene\\data"
   log.open(BASE "./knn_table_log.tsv", std::fstream::out);
 #else
   log.open("./knn_table_log.tsv", std::fstream::out);

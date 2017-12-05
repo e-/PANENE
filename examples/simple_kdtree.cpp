@@ -9,7 +9,7 @@ typedef float ElementType;
 using Source = panene::RandomDataSource<IDType, L2<ElementType>>;
 
 int main(){
-  const size_t n = 100000;
+  const size_t n = 1000;
   const size_t d = 100;
   const size_t k = 20;
 
@@ -18,7 +18,7 @@ int main(){
   SearchParams searchParam(1024);
   searchParam.cores = 4;
   const float addPointWeight = 0.3;
-  const size_t ops = 10000;
+  const size_t ops = 100;
 
   ProgressiveKDTreeIndex<Source> progressiveIndex(&randomDataSource, indexParam, TreeWeight(addPointWeight, 1 - addPointWeight));
 

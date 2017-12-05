@@ -1,5 +1,5 @@
-#ifndef panene_tests_metadata_h
-#define panene_tests_metadata_h
+#ifndef panene_metadata_h
+#define panene_metadata_h
 
 #include <iostream>
 #include <fstream>

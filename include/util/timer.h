@@ -1,8 +1,8 @@
 #ifndef TIMER_H
 #define TIMER_H
 
-#ifdef _WIN32
-#include <Windows.h>
+#ifdef _WIN32 
+#include <chrono>
 #else
 #include <sys/time.h>
 #include <ctime>
@@ -21,25 +21,9 @@ public:
   typedef long long int64; 
   typedef unsigned long long uint64;
 
+#ifndef _WIN32
   uint64 GetTimeMs64()
   {
-#ifdef _WIN32
-	  /* Windows */
-	  FILETIME ft;
-	  LARGE_INTEGER li;
-
-	  /* Get the amount of 100 nano seconds intervals elapsed since January 1, 1601 (UTC) and copy it
-	  * to a LARGE_INTEGER structure. */
-	  GetSystemTimeAsFileTime(&ft);
-	  li.LowPart = ft.dwLowDateTime;
-	  li.HighPart = ft.dwHighDateTime;
-
-	  uint64 ret = li.QuadPart;
-	  ret -= 116444736000000000LL; /* Convert from file time to UNIX epoch time. */
-	  ret /= 10000; /* From 100 nano seconds (10^-7) to 1 millisecond (10^-3) intervals */
-
-	  return ret;
-#else
 	  /* Linux */
 	  struct timeval tv;
 
@@ -53,22 +37,37 @@ public:
 	  ret += (tv.tv_sec * 1000);
 
 	  return ret;
+  }
+#endif
+
+  void begin() {
+#ifdef _WIN32
+    std::chrono::steady_clock::time_point begint = std::chrono::steady_clock::now();
+#else
+    bb = GetTimeMs64();
 #endif
   }
 
-  void begin() {
-    bb = GetTimeMs64();
-  }
-
   double end() {
+#ifdef _WIN32
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+    return std::chrono::duration_cast<std::chrono::milliseconds>(end - begint).count();
+#else
     ff = GetTimeMs64();
     
     double elapsed = (ff - bb) / 1000.0;
     return elapsed;
+#endif
   }
 
 protected:
-	uint64 bb, ff;
+	
+#ifdef _WIN32
+  std::chrono::steady_clock::time_point begint;
+#else
+  uint64 bb, ff;
+#endif
 };
 
 }
