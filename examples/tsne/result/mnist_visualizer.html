@@ -20,6 +20,10 @@
       bottom:2px; 
       left:-3px;
     }
+
+    .error-cell{
+      width:400px;
+    }
   </style>
   <table>
     <tr>
@@ -44,7 +48,7 @@
       <td><svg id="ori9"></svg></td>
       <td><svg id="ori10"></svg></td>
       <td><svg id="ori11"></svg></td>-->
-      <td rowspan="2"><svg id="error"></svg></td>
+      <td rowspan="2" class="error-cell"><svg id="error"></svg></td>
     </tr>
     <tr>
       <td class="header">
@@ -116,16 +120,17 @@ function drawError(meta){
       .x(function(d) { return x(d[0]);  })
       .y(function(d) { return y(d[1]);  });
 
-  let iterEnd = 500;
+  let iterEnd = 6000;
 
   d3.text(meta[0][1], (text) => {
     let data = text.trim().split('\n').map(line => line.split(' '))
-    let line0 = data.slice(1, 10000).map((d) => [+d[0], +d[2]]).filter(d => d[0] <= iterEnd)
+    let line0 = data.slice(1, 10000).map((d) => [+d[1], +d[2]]).filter(d => d[0] <= iterEnd)
 
     d3.text(meta[1][1], (text) => {
       let data = text.trim().split('\n').map(line => line.split(' '))
-      let line1 = data.slice(1, 10000).map((d) => [+d[0], +d[2]]).filter(d => d[0] <= iterEnd)
-      
+      let line1 = data.slice(1, 10000).map((d) => [+d[1], +d[2]]).filter(d => d[0] <= iterEnd)
+
+      console.log(line0, line1)
       x.domain([0, iterEnd])
       y.domain([0, Math.max(d3.max(line0, d => d[1]), d3.max(line1, d => d[1]))])
 

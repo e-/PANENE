@@ -107,7 +107,7 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
 
   // Perform main training loop
 
-  size_t ops = 100;
+  size_t ops = 300;
 
   vector<map<size_t, double>> neighbors(N); // neighbors[i] has exact K items
   vector<map<size_t, double>> similarities(N); // may have more 
@@ -172,7 +172,7 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
 
     if(iter < 20 || iter % log_every == 0) {
       double C = .0;
-      C = evaluateError(similarities, Y, n, no_dims, theta);  // doing approximate computation here!
+      C = evaluateError(similarities, Y, N, no_dims, theta);  // doing approximate computation here!
       printf("Iteration %d: error is %f (total=%4.2f seconds, perplex=%4.2f seconds, tree=%4.2f seconds) grad_sum is %4.6f\n", iter, C, (float) (end - start) / CLOCKS_PER_SEC, (end_perplex - start_perplex) / CLOCKS_PER_SEC, table_time, grad_sum);
 
       char path[100];

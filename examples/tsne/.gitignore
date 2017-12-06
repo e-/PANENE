@@ -11,3 +11,4 @@ result/*.txt
 *.dat
 
 bh_tsne
+result_10K
