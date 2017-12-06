@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <body>
   <style>
-    svg{width: 200px;}
     td{padding:2px;}
     text{font-family: Helvetica; font-size:1.2em;}
     h1{font-family:Helvetica; text-align:center; padding-top:0;}
@@ -23,6 +22,11 @@
 
     .error-cell{
       width:400px;
+    
+    }
+
+    .error-cell text {
+      font-size:1.8em;
     }
   </style>
   <table>
@@ -91,22 +95,27 @@ d3.text('../mnist/labels.txt', labels => {
   drawError([
     ['Barnes-Hut', 'original.meta.txt'],
     ['Responsive', 'progressive.meta.txt']
-  ])
+  ], [100, 500, 1000])
   drawAll('original.meta.txt', i => '#ori' + i, [10, 50, 100, 500], '#ori-time', labels)
   drawAll('progressive.meta.txt', i => '#pro' + i, [10, 50, 100, 500], '#pro-time', labels)
-
-
 })
 
-function drawError(meta){
+function drawError(meta, iters){
   let svg = d3.select('#error'),
-      margin = {top: 20, right: 20, bottom: 30, left: 50},
-      width = 200,
-    height = 100
+      margin = {top: 60, right: 20, bottom: 140, left: 50},
+      width = 400,
+      height = 280
 
 
   svg.attr('width', width + margin.left + margin.right)
     .attr('height', height + margin.top + margin.bottom)
+
+  svg.append('text')
+    .text('t-SNE Loss by Elapsed Time')
+    .attr('text-anchor', 'middle')
+    .attr('dy', '0.71em')
+    .attr('font-style', 'italic')
+    .attr('transform', translate(width / 2 + margin.left, 20))
 
   let g = svg.append("g").attr('transform', translate(margin.left, margin.top));
 
@@ -120,46 +129,143 @@ function drawError(meta){
       .x(function(d) { return x(d[0]);  })
       .y(function(d) { return y(d[1]);  });
 
-  let iterEnd = 6000;
+  let iterEnd = 3600;
 
   d3.text(meta[0][1], (text) => {
     let data = text.trim().split('\n').map(line => line.split(' '))
-    let line0 = data.slice(1, 10000).map((d) => [+d[1], +d[2]]).filter(d => d[0] <= iterEnd)
+    let line0 = data.slice(1, 10000).map((d) => [+d[1], +d[2], +d[0]]).filter(d => d[0] <= iterEnd)
 
     d3.text(meta[1][1], (text) => {
       let data = text.trim().split('\n').map(line => line.split(' '))
-      let line1 = data.slice(1, 10000).map((d) => [+d[1], +d[2]]).filter(d => d[0] <= iterEnd)
+      let line1 = data.slice(1, 10000).map((d) => [+d[1], +d[2], +d[0]]).filter(d => d[0] <= iterEnd)
 
-      console.log(line0, line1)
       x.domain([0, iterEnd])
       y.domain([0, Math.max(d3.max(line0, d => d[1]), d3.max(line1, d => d[1]))])
 
       g.append("g")
           .attr("transform", "translate(0," + height + ")")
           .call(d3.axisBottom(x))
+          .append("text")
+            .attr("fill", "#000")
+            .attr("x", width / 2)
+            .attr('y', '2.6em')
+            .attr("text-anchor", "middle")
+            .attr('font-style', 'italic')
+            .text("Time (seconds)")
 
       g.append("g")
           .call(d3.axisLeft(y))
         .append("text")
           .attr("fill", "#000")
           .attr("transform", "rotate(-90)")
-          .attr("y", 6)
+          .attr("y", '-2.5em')
+          .attr('x', -height / 2)
           .attr("dy", "0.71em")
-          .attr("text-anchor", "end")
-          .text("Price ($)");
+          .attr("text-anchor", "middle")
+          .attr('font-style', 'italic')
+          .text("Loss")
 
       g.append('g').selectAll('path')
         .data([line0, line1])
         .enter()
         .append('path')
           .attr("fill", "none")
-          .attr("stroke", "steelblue")
+          .attr("stroke", (d, i) => d3.scaleOrdinal(d3.schemeCategory10).domain([0, 1])(i))
           .attr("stroke-linejoin", "round")
           .attr("stroke-linecap", "round")
           .attr("stroke-width", 1.5)
-          .attr("d", line)
+          .attr("d", line);
+      
+      [line0].forEach(ld => {
+        iters.forEach((it, i) => {
+          let target = ld.filter(d => d[2] == it)[0]
+          let time = target[0]
+          let error = target[1]
+
+          g.append('line')
+            .attr('x1', 0)
+            .attr('y1', -10)
+            .attr('x2', 0)
+            .attr('y2', 10)
+            .attr('stroke', '#333')            
+            .attr('stroke-width', '1px')
+            .attr('transform', translate(x(time), y(error)))
+
+          g.append('text')
+            .text('Itertion #' + it)
+            .style('font-size', '.8em')
+            .attr('dy', (1.5 + i / 3) - (i == 1 ? 0.3 : 0) + 'em')
+            .style('text-anchor', 'end')
+            .attr('transform', translate(x(time), y(error)))
+            
+        })
+      });
+
+      [line1].forEach(ld => {
+        iters.forEach((it, i) => {
+          let target = ld.filter(d => d[2] == it)[0]
+          let time = target[0]
+          let error = target[1]
+
+          g.append('line')
+            .attr('x1', 0)
+            .attr('y1', -10)
+            .attr('x2', 0)
+            .attr('y2', 10)
+            .attr('stroke', '#333')            
+            .attr('stroke-width', '1px')
+            .attr('transform', translate(x(time), y(error)))
+
+          g.append('text')
+            .text('Itertion #' + it)
+            .style('font-size', '.8em')
+            .attr('dy', '-0.7em')
+            .attr('transform', translate(x(time), y(error)))
+            
+        })
+
+      })
     })
   })
+
+
+  let legendWidth = 200;
+  let legend = g.append('g')
+    .attr('transform', translate(width / 2 - legendWidth / 2, height + 65))
+  let cc = d3.scaleOrdinal(d3.schemeCategory10).domain([0, 1])
+
+  legend
+    .append('rect')
+    .attr('stroke', 'black')
+    .attr('stroke-width', '1.5px')
+    .attr('fill', 'none')
+    .style('shape-rendering', 'crispEdges')
+    .attr('width', legendWidth + 'px')
+    .attr('height', '60px')
+  
+  function lineLegend(legend, color, name) {
+    legend
+      .append('line')
+      .attr('x1', 0)
+      .attr('y1', 0)
+      .attr('x2', 20)
+      .attr('y2', 0)
+      .attr('stroke', color)
+      .attr('stroke-width', '2px')
+
+    legend
+      .append('text')
+      .attr('dy', '0.3em')
+      .attr('dx', '25px')
+      .style('font-size', '1.2em')
+      .text(name)
+  }
+
+  lineLegend(legend.append('g').attr('transform', translate(10, 15)), cc(0), 'Barnes-Hut t-SNE')
+  lineLegend(legend.append('g').attr('transform', translate(10, 45)), cc(1), 'Responsive t-SNE')
+
+    
+  //  .attr("stroke", (d, i) => d3.scaleOrdinal(d3.schemeCategory10).domain([0, 1])(i))
 }
 
 function drawAll(metaPath, id, iter, tree, labels) {
@@ -243,7 +349,7 @@ function draw(svgId, line, labels) {
     let categorical = d3.scaleOrdinal(d3.schemeCategory10).domain(d3.range(10));
 
     circle
-      .data(data.slice(0, 1000))
+      .data(data.slice(0, 2000))
       .enter()
         .append('circle')
         .attr('cx', d => x(d[0]))
