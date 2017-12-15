@@ -5,6 +5,7 @@
 #include <cstring>
 #include <ctime>
 #include <map>
+#include "config.h"
 #include "vptree.h"
 #include "sptree.h"
 #include "progressive_tsne.h"
@@ -29,7 +30,7 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
 
   // Determine whether we are using an exact algorithm
   if(N - 1 < 3 * perplexity) { printf("Perplexity too large for the number of data points!\n"); exit(1); }
-  printf("Using no_dims = %d, perplexity = %f, and theta = %f\n", no_dims, perplexity, theta);
+  printf("Using no_dims = %d, perplexity = %f, theta = %f, and USE_ADAM=%d\n", no_dims, perplexity, theta, USE_ADAM);
 
   if(theta == .0) {
     printf("Exact TSNE is not supported!");
@@ -41,14 +42,9 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
   clock_t start, end;
   double momentum = .5, final_momentum = .8;
 
-  // Allocate some memory
   double* dY    = (double*) malloc(N * no_dims * sizeof(double));
-  double* uY    = (double*) malloc(N * no_dims * sizeof(double));
-  double* gains = (double*) malloc(N * no_dims * sizeof(double));
-  if(dY == NULL || uY == NULL || gains == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-  for(int i = 0; i < N * no_dims; i++)    uY[i] =  .0;
-  for(int i = 0; i < N * no_dims; i++) gains[i] = 1.0;
 
+#if USE_ADAM
   // Adam optimzer
   double* m_t    = (double*) malloc(N * no_dims * sizeof(double));
   double* v_t    = (double*) malloc(N * no_dims * sizeof(double));
@@ -62,6 +58,16 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
   double pbeta1 = beta1;
   double pbeta2 = beta2;
   double eps = 1e-8;
+
+#else
+  // Allocate some memory
+  double eta = 200;
+  double* uY    = (double*) malloc(N * no_dims * sizeof(double));
+  double* gains = (double*) malloc(N * no_dims * sizeof(double));
+  if(dY == NULL || uY == NULL || gains == NULL) { printf("Memory allocation failed!\n"); exit(1); }
+  for(int i = 0; i < N * no_dims; i++)    uY[i] =  .0;
+  for(int i = 0; i < N * no_dims; i++) gains[i] = 1.0;
+#endif
 
   // Logging
   FILE *meta = fopen("result/progressive.meta.txt", "w");
@@ -121,8 +127,14 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
 
     // Update similarity if loading is incomplete
     if(table.getSize() < N) {
+#if USE_ADAM
+      float ee_factor = 1;
+#else
+      float ee_factor = iter <= stop_lying_factor ? EE_FACTOR : 1;
+#endif
+
       start_perplex = clock();
-      updateSimilarity(&table, neighbors, similarities, Y, no_dims, perplexity, K, ops);           
+      updateSimilarity(&table, neighbors, similarities, Y, no_dims, perplexity, K, ops, ee_factor);
       end_perplex = clock();
     }
 
@@ -131,8 +143,8 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
     // Compute (approximate) gradient
     computeGradient(similarities, Y, n, no_dims, dY, theta);
 
+#if USE_ADAM
     // we use Adam Optimzer
-
     for(int i = 0; i < n * no_dims; i++) {
       m_t[i] = beta1 * m_t[i] + (1 - beta1) * dY[i];
       v_t[i] = beta2 * v_t[i] + (1 - beta2) * dY[i] * dY[i];
@@ -142,8 +154,8 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
 
     pbeta1 *= beta1;
     pbeta2 *= beta2;
+#else
 
-    /*  
     // Update gains
     for(int i = 0; i < n * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
     for(int i = 0; i < n * no_dims; i++) if(gains[i] < .01) gains[i] = .01;
@@ -152,12 +164,30 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
     for(int i = 0; i < n * no_dims; i++) uY[i] = momentum * uY[i] - eta * gains[i] * dY[i];
     for(int i = 0; i < n * no_dims; i++)  Y[i] = Y[i] + uY[i];
 
-*/
+#endif
 
     double grad_sum = 0;
     for(int i = 0; i < n * no_dims; i++) {
       grad_sum += dY[i] * dY[i];
     }
+
+#if !USE_ADAM
+    if(iter == stop_lying_iter) {
+      for(auto &nei : neighbors) {
+        for(auto &iter : nei) {
+          iter->second /= EE_FACTOR;
+        }
+      }
+      for(auto &sim : similarities) {
+        for(auto &iter : sim) {
+          iter->second /= EE_FACTOR;
+        }
+      }
+    }
+
+    if(iter == mom_switch_iter) momentum = final_momentum;
+#endif
+
 
     // Make solution zero-mean
     zeroMean(Y, n, no_dims);
@@ -182,11 +212,17 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
       fprintf(meta, "%d %f %f progressive.%d.txt\n", iter, total_time, C, iter);
     }
   }
-
   // Clean up memory
   free(dY);
+
+#if USE_ADAM
+  free(m_t);
+  free(v_t);
+#else
   free(uY);
   free(gains);
+#endif
+
 
   fclose(meta);
 
@@ -200,7 +236,8 @@ void ProgressiveTSNE::updateSimilarity(Table *table,
     size_t no_dims,
     double perplexity,
     size_t K,
-    size_t ops) {
+    size_t ops,
+    float ee_factor) {
   if(perplexity > K) printf("Perplexity should be lower than K!\n");
 
   // Update the KNNTable
@@ -301,7 +338,7 @@ void ProgressiveTSNE::updateSimilarity(Table *table,
     old[uid] = neighbors[uid];
     neighbors[uid].clear();
     for(unsigned int m = 0; m < K; m++) {
-      neighbors[uid][indices[m+1]] = p[m];
+      neighbors[uid][indices[m+1]] = p[m] * ee_factor;
     }
   } 
 

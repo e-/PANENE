@@ -67,7 +67,8 @@ public:
       size_t no_dims,
       double perplexity,
       size_t K,
-      size_t ops);
+      size_t ops,
+      float ee_factor);
 
 private:
     void computeGradient(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double* dC, double theta);

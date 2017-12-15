@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<body>
+  <style>
+    svg{width: 200px;}
+    td{padding:10px;}
+    text{font-family: Helvetica; font-size:1.2em;}
+    h1{font-family:Helvetica; text-align:center;}
+    .header{
+      padding-top:0px;
+      position:relative;
+    }
+    p{font-family:Helvetica; font-size:1.2em; text-align:center; 
+      margin:0;
+      padding:0;
+      position:absolute;
+      bottom:10px;
+    }
+  </style>
+  <table>
+    <tr>
+      <td class="header">
+        <h1>
+          Original <br /><em>t</em>-SNE
+        </h1>
+        <p>
+          Neighbor Computation (<span id="ori-time"></span>s)
+        </p>
+      </td>
+      <td><svg id="ori0"></svg></td>
+      <td><svg id="ori1"></svg></td>
+      <td><svg id="ori2"></svg></td>
+      <td><svg id="ori3"></svg></td>
+      <td><svg id="ori4"></svg></td>
+      <td><svg id="ori5"></svg></td>
+      <td><svg id="ori6"></svg></td>
+      <td><svg id="ori7"></svg></td>
+      <td><svg id="ori8"></svg></td>
+      <td><svg id="ori9"></svg></td>
+      <td><svg id="ori10"></svg></td>
+      <td><svg id="ori11"></svg></td>
+      <td><svg id="ori12"></svg></td>
+      <td><svg id="ori13"></svg></td>
+      <td><svg id="ori14"></svg></td>
+      <td><svg id="ori15"></svg></td>
+    </tr>
+    <tr>
+      <td class="header">
+        <h1>
+          Responsive <br /><em>t</em>-SNE
+        </h1>
+        <p>
+          Neighbor Computation (<span id="pro-time"></span>s)
+        </p>
+      </td>
+      <td><svg id="pro0"></svg></td>
+      <td><svg id="pro1"></svg></td>
+      <td><svg id="pro2"></svg></td>
+      <td><svg id="pro3"></svg></td>
+      <td><svg id="pro4"></svg></td>
+      <td><svg id="pro5"></svg></td>
+      <td><svg id="pro6"></svg></td>
+      <td><svg id="pro7"></svg></td>
+      <td><svg id="pro8"></svg></td>
+      <td><svg id="pro9"></svg></td>
+      <td><svg id="pro10"></svg></td>
+      <td><svg id="pro11"></svg></td>
+      <td><svg id="pro12"></svg></td>
+      <td><svg id="pro13"></svg></td>
+      <td><svg id="pro14"></svg></td>
+      <td><svg id="pro15"></svg></td>
+    </tr>
+  </table>
+  
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="https://d3js.org/d3-contour.v1.min.js"></script>
+
+  <script>
+
+let width = 200;
+let height = 200
+let margin = 15
+let label = 35;
+
+drawAll('original.meta.txt', i => '#ori' + i, [0, 1, 2, 3, 4, 10, 20, 60, 250, 490, 990], '#ori-time')
+//drawAll('original.meta.txt', i => '#ori' + i, [55, 60, 65, 70, 75, 80, 100], '#ori-time')
+drawAll('progressive.meta.txt', i => '#pro' + i, [0, 1, 2, 3, 4, 10, 20, 60, 250, 490, 990], '#pro-time')
+//drawAll('progressive.meta.txt', i => '#pro' + i, [55, 60, 65, 70, 75, 80, 100], '#pro-time')
+
+function drawAll(metaPath, id, iter, tree) {
+  d3.text(metaPath, text => {
+    lines = text.split('\n').map(line => line.split(' '))
+
+    d3.select(tree).text(d3.format('3.1f')(lines[0][1]));
+
+    for(let i = 0; i < iter.length; ++i) {
+      for (line of lines) {
+        if (line[0] == iter[i]) {
+          draw(id(i), line);
+          break;
+        }
+      }
+    }
+  });
+}
+
+function translate(x, y) { return 'translate(' + x + ',' + y + ')'; }
+
+function draw(svgId, line) {
+  let iter = line[0]
+  let time = line[1]
+  let error = line[2]
+  let path = line[3]
+
+  d3.text(path, text => {
+    let data = d3.tsvParseRows(text, d => {
+      r = d[0].split(' ')
+
+      return [+r[0], +r[1]]
+    })
+
+    let svg = d3.select(svgId)
+    
+    svg.attr('width', width).attr('height', height + label)
+
+    svg.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '-0.6em')
+      .attr('transform', translate(width / 2, height + label))
+      .text('Iter #' + iter + ' (' + d3.format('2.1f')(time) +'s)')
+
+    let x = d3.scaleLinear().domain(d3.extent(data, d => d[0])).range([0, width - 2 * margin])
+    let y = d3.scaleLinear().domain(d3.extent(data, d => d[1])).range([0, height - 2 * margin])
+
+    console.log(iter, x.domain(), y.domain())
+
+    let root = svg.append('g').attr('transform', translate(margin, margin))
+    let contours = d3.contourDensity()
+        .x(d => x(d[0]))
+        .y(d => y(d[1]))
+        .size([width - 2 * margin, height - 2 * margin])
+        .bandwidth(4)
+        (data)
+
+    let path = root.append('g').selectAll('path')
+      .data(contours)
+    
+    let color = d3.scaleSequential(d3.interpolateCool).domain(d3.extent(contours, d => d.value))
+
+    let enter = path
+        .enter()
+          .append('path')
+
+    path
+      .merge(enter)
+      .attr('d', d3.geoPath())
+      .attr('fill', d => color(d.value))
+
+    path
+      .exit().remove()
+
+    return; 
+    let circle = root.append('g').selectAll('circle')
+
+    circle
+      .data(data.slice(0, 1000))
+      .enter()
+        .append('circle')
+        .attr('cx', d => x(d[0]))
+        .attr('cy', d => y(d[1]))
+        .attr('r', 1.5)
+        .style('fill', 'white')
+  })
+}
+
+  </script>
+</body>

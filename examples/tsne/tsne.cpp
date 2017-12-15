@@ -36,6 +36,7 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include "config.h"
 #include "vptree.h"
 #include "sptree.h"
 #include "tsne.h"
@@ -45,7 +46,7 @@ using namespace std;
 
 // Perform t-SNE
 void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
-    bool skip_random_init, int max_iter, int mom_switch_iter, int print_every) {
+    bool skip_random_init, int max_iter, int mom_switch_iter, int print_every, int stop_lying_iter) {
 
   // Set random seed
   if (skip_random_init != true) {
@@ -71,14 +72,9 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
   // Logging
   FILE *meta = fopen("result/original.meta.txt", "w");
 
-  // Allocate some memory
   double* dY    = (double*) malloc(N * no_dims * sizeof(double));
-  double* uY    = (double*) malloc(N * no_dims * sizeof(double));
-  double* gains = (double*) malloc(N * no_dims * sizeof(double));
-  if(dY == NULL || uY == NULL || gains == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-  for(int i = 0; i < N * no_dims; i++)    uY[i] =  .0;
-  for(int i = 0; i < N * no_dims; i++) gains[i] = 1.0;
 
+#if USE_ADAM
   // Adam optimzer
   double* m_t    = (double*) malloc(N * no_dims * sizeof(double));
   double* v_t    = (double*) malloc(N * no_dims * sizeof(double));
@@ -92,6 +88,16 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
   double pbeta1 = beta1;
   double pbeta2 = beta2;
   double eps = 1e-8;
+
+#else
+  // Allocate some memory
+  double eta = 200;
+  double* uY    = (double*) malloc(N * no_dims * sizeof(double));
+  double* gains = (double*) malloc(N * no_dims * sizeof(double));
+  if(dY == NULL || uY == NULL || gains == NULL) { printf("Memory allocation failed!\n"); exit(1); }
+  for(int i = 0; i < N * no_dims; i++)    uY[i] =  .0;
+  for(int i = 0; i < N * no_dims; i++) gains[i] = 1.0;
+#endif
 
   // Normalize input data (to prevent numerical problems)
   printf("Computing input similarities...\n");
@@ -147,6 +153,9 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
     //}
   }
   end = clock();
+#if !USE_ADAM
+  for(int i = 0; i < row_P[N]; i++) val_P[i] *= EE_FACTOR;
+#endif
 
   total_time += (float)(end - start) / CLOCKS_PER_SEC;
   fprintf(meta, "embedding %f\n", total_time);
@@ -171,6 +180,7 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
 
     // we use Adam Optimzer
    
+#if USE_ADAM
     for(int i = 0; i < N * no_dims; i++) {
       m_t[i] = beta1 * m_t[i] + (1 - beta1) * dY[i];
       v_t[i] = beta2 * v_t[i] + (1 - beta2) * dY[i] * dY[i];
@@ -178,29 +188,30 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
       Y[i] = Y[i] - d;
     }
 
-//    if(iter == 5) break;
     pbeta1 *= beta1;
     pbeta2 *= beta2;
-
-/*    double grad_sum = 0;
-    for(int i = 0; i < N * no_dims; i++) {
-      grad_sum += dY[i] * dY[i];
-    }
-    printf("grad_sum = %.14lf\n", grad_sum);*/
-
+#else
     
     // Update gains
-/*    for(int i = 0; i < N * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
+    for(int i = 0; i < N * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
     for(int i = 0; i < N * no_dims; i++) if(gains[i] < .01) gains[i] = .01;
 
     // Perform gradient update (with momentum and gains)
     for(int i = 0; i < N * no_dims; i++) uY[i] = momentum * uY[i] - eta * gains[i] * dY[i];
-    for(int i = 0; i < N * no_dims; i++)  Y[i] = Y[i] + uY[i];*/
-
+    for(int i = 0; i < N * no_dims; i++)  Y[i] = Y[i] + uY[i];
+#endif
+    
     // Make solution zero-mean
     zeroMean(Y, N, no_dims);
 
+#if !USE_ADAM
+    if(iter == stop_lying_iter) {
+        if(exact) { for(int i = 0; i < N * N; i++)        P[i] /= EE_FACTOR; }
+        else      { for(int i = 0; i < row_P[N]; i++) val_P[i] /= EE_FACTOR; }
+    }
+
     if(iter == mom_switch_iter) momentum = final_momentum;
+#endif
 
     end = clock();
     total_time += (float) (end - start) / CLOCKS_PER_SEC;
@@ -224,10 +235,15 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
 
   // Clean up memory
   free(dY);
-  free(uY);
-  free(gains);
+
+#if USE_ADAM
   free(m_t);
   free(v_t);
+#else
+  free(uY);
+  free(gains);
+#endif
+
   fclose(meta);
   if(exact) free(P);
   else {
