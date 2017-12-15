@@ -42,7 +42,7 @@ public:
 
   void begin() {
 #ifdef _WIN32
-    std::chrono::steady_clock::time_point begint = std::chrono::steady_clock::now();
+    begint = std::chrono::steady_clock::now();
 #else
     bb = GetTimeMs64();
 #endif
@@ -52,7 +52,7 @@ public:
 #ifdef _WIN32
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-    return std::chrono::duration_cast<std::chrono::milliseconds>(end - begint).count();
+    return (double)std::chrono::duration_cast<std::chrono::microseconds>(end - begint).count() / 1000000;
 #else
     ff = GetTimeMs64();
     

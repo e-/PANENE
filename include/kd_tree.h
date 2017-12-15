@@ -5,13 +5,11 @@ namespace panene {
 
 struct InsertionLog
 {
-  size_t count;
+  size_t freq;
   size_t depth;
 
   InsertionLog() = default;
-  InsertionLog(size_t count_, size_t depth_) : count(count_), depth(depth_) {
-
-  }
+  InsertionLog(size_t freq_, size_t depth_) : freq(freq_), depth(depth_) { }
 };
 
 /***
@@ -24,12 +22,12 @@ struct KDTree
   NodePtr root;
   size_t size;
   size_t capacity;
-  int countSum = 0;
+  int freqSum = 0;
   float cost;
   std::vector<InsertionLog> insertionLog;
 
   KDTree(size_t capacity_) : capacity(capacity_) {
-    size = countSum = 0;
+    size = freqSum = 0;
     cost = 0;
     root = nullptr;
     insertionLog.resize(capacity);
@@ -44,7 +42,7 @@ struct KDTree
     float cost = 0;
 
     for (size_t i = 0; i < capacity; ++i) {
-      cost += (float)insertionLog[i].count / countSum * insertionLog[i].depth;
+      cost += (float)insertionLog[i].freq / freqSum * insertionLog[i].depth;
     }
     return cost;
   }
@@ -63,9 +61,9 @@ struct KDTree
     return maxDepth;
   }
 
-  void setInsertionLog(const size_t id, const size_t count, const size_t depth) {
-    countSum = countSum - insertionLog[id].count + count;
-    insertionLog[id].count = count;
+  void setInsertionLog(const size_t id, const size_t freq, const size_t depth) {
+    freqSum = freqSum - insertionLog[id].freq + freq;
+    insertionLog[id].freq = freq;
     insertionLog[id].depth = depth;
   }
 
@@ -78,38 +76,44 @@ struct KDTree
     return cost / ideal;
   }
 
-  void updateInsertionLog(const size_t id, const size_t count, const size_t depth) {
-    if (count > 0 && countSum > 0) {
+  float incrementFreqAndDepthByOne(const size_t id) {
+    size_t depth = insertionLog[id].depth;
+    size_t freq = insertionLog[id].freq;
+
+    cost = (freqSum * cost + depth + freq + 1) / (freqSum + 1);
+
+    freqSum++;
+    insertionLog[id].freq++;
+    insertionLog[id].depth++;
+
+    return cost;
+  }
+
+  float incrementFreqByOne(const size_t id) {
+    size_t depth = insertionLog[id].depth;
+
+    cost = (freqSum * cost + depth) / (freqSum + 1);
+
+    freqSum++;
+    insertionLog[id].freq++;
+
+    return cost;
+  }
+  
+  /*void updateInsertionLog(const size_t id, const size_t freq, const size_t depth) {
+    if (freq > 0 && freqSum > 0) {
       auto& prevLog = insertionLog[id];
 
       cost = (cost
-        - (float)prevLog.count / countSum * prevLog.depth)
-        * countSum / (countSum - prevLog.count + count)
-        + (float)count / (countSum - prevLog.count + count) * depth;
+        - (float)prevLog.freq / freqSum * prevLog.depth)
+        * freqSum / (freqSum - prevLog.freq + freq)
+        + (float)freq / (freqSum - prevLog.freq + freq) * depth;
     }
 
-    countSum = countSum - insertionLog[id].count + count;
-    insertionLog[id].count = count;
+    freqSum = freqSum - insertionLog[id].freq + freq;
+    insertionLog[id].freq = freq;
     insertionLog[id].depth = depth;
-  }
-
-  void markSplit(const size_t id) {
-    size_t count = insertionLog[id].count;
-    size_t depth = insertionLog[id].depth;
-    updateInsertionLog(id, count + 1, depth + 1);
-  }
-
-  std::map<size_t, size_t> computeCountDistribution() {
-    std::map<size_t, size_t> dict;
-
-    for (const auto& leaf : insertionLog) {
-      if (dict.count(leaf.count) == 0)
-        dict[leaf.count] = 0;
-      dict[leaf.count]++;
-    }
-
-    return dict;
-  }
+  }*/  
 };
 
 }

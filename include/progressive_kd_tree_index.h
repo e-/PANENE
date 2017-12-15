@@ -11,7 +11,7 @@
 #include <cassert>
 #include <map>
 
-#include <base_index.h>
+#include <kd_tree_index.h>
 
 #ifdef BENCHMARK
 #include <util/timer.h>
@@ -74,14 +74,14 @@ struct UpdateResult2 {
 };
 
 template <typename DataSource>
-class ProgressiveKDTreeIndex : public BaseIndex<DataSource>
+class ProgressiveKDTreeIndex : public KDTreeIndex<DataSource>
 {
-  USE_BASECLASS_SYMBOLS
+  USE_KDTREE_INDEX_SYMBOLS
   
   typedef DataSource DataSourceT;
 
 public:
-  ProgressiveKDTreeIndex(DataSource *dataSource_, IndexParams indexParams_, TreeWeight weight_ = TreeWeight(0.3, 0.7), const float reconstructionWeight_ = .25f) : BaseIndex<DataSource>(dataSource_, indexParams_, Distance()), weight(weight_), reconstructionWeight(reconstructionWeight_) {
+  ProgressiveKDTreeIndex(DataSource *dataSource_, IndexParams indexParams_, TreeWeight weight_ = TreeWeight(0.3, 0.7), const float reconstructionWeight_ = .25f) : KDTreeIndex<DataSource>(dataSource_, indexParams_, Distance()), weight(weight_), reconstructionWeight(reconstructionWeight_) {
   }
 
   size_t addPoints(size_t ops) {
@@ -121,7 +121,7 @@ public:
     std::random_shuffle(ids.begin(), ids.end());
 
     ongoingTree = new KDTree<NodePtr>(dataSource->capacity());
-    ongoingTree->root = new(pool) Node();
+    ongoingTree->root = new(pool) Node(ongoingTree);
     std::queue<NodeSplit> empty;
     queue = empty;
     queue.push(NodeSplit(ongoingTree->root, &ids[0], sizeAtUpdate, 1));
@@ -167,13 +167,13 @@ public:
 
         node->divfeat = cutfeat;
         node->divval = cutval;
-        node->child1 = new(pool) Node();
-        node->child2 = new(pool) Node();
+        node->child1 = new(pool) Node(ongoingTree);
+        node->child2 = new(pool) Node(ongoingTree);
         
         queue.push(NodeSplit(node->child1, begin, idx, depth + 1));
         queue.push(NodeSplit(node->child2, begin + idx, count - idx, depth + 1));
       }
-      updatedCount++;
+      updatedCount += 1; // count; // std::min(1, count / 2);
     }
 
     if (updateStatus == UpdateStatus::BuildingTree && queue.empty()) {
@@ -221,7 +221,6 @@ public:
         // reset the sizeAtUpdate
         sizeAtUpdate = 0;
         updateStatus = UpdateStatus::NoUpdate;
-        queryLoss = 0;
       }
     }
 
@@ -272,19 +271,13 @@ public:
         addPointElapsed, updateIndexElapsed);
   }
 
-  void accumulateLoss(size_t n) {
+  void checkBeginUpdate() {
     if (updateStatus == UpdateStatus::NoUpdate) {
-      float lossDelta = 0;
-
-      for (size_t i = 0; i < numTrees; ++i) {
-        lossDelta += (float)(n * (trees[i]->getCachedCost() - std::log2(size)));
-      }
-      queryLoss += lossDelta;
-
       float updateCost = (float)std::log2(size) * size;
 
       if (queryLoss > updateCost * reconstructionWeight) {
         beginUpdate();
+        queryLoss = 0;
       }
     }
   }
@@ -300,7 +293,12 @@ public:
     for (size_t i = 0; i < dim; ++i)
       vector[i] = dataSource->get(qid, i);
 
-    findNeighbors(vector, resultSet, params);
+    float costSum = findNeighbors(vector, resultSet, params);
+
+    size_t ideal = std::log2(size);
+    queryLoss += costSum - numTrees * ideal;
+
+    checkBeginUpdate();
   }
 
   // this needs to be improved
@@ -310,8 +308,6 @@ public:
     size_t knn,
     const SearchParams& params)
   {
-    accumulateLoss(qids.size());
-
     std::vector<std::vector<ElementType>> vectors(qids.size());
 
     for (size_t i = 0; i < qids.size(); ++i) {
@@ -321,15 +317,7 @@ public:
       }
     }
 
-#pragma omp parallel num_threads(params.cores)
-    {
-#pragma omp for schedule(static)
-      for (int i = 0; i < (int)qids.size(); i++) {
-        resultSets[i] = ResultSet<IDType, DistanceType>(knn);
-        findNeighbors(vectors[i], resultSets[i], params);
-        //ids_to_ids(ids[i], ids[i], n);
-      }
-    }
+    knnSearch(vectors, resultSets, knn, params);
   }
 
   void knnSearch(
@@ -338,19 +326,24 @@ public:
       size_t knn,
       const SearchParams& params)
   {
-    accumulateLoss(vectors.size());
-    
     resultSets.resize(vectors.size());
+
+    float costSum = 0;
 
 #pragma omp parallel num_threads(params.cores)
     {
-#pragma omp for schedule(static)
+#pragma omp for schedule(static) reduction(+:costSum)
       for (int i = 0; i < (int)vectors.size(); i++) {
         resultSets[i] = ResultSet<IDType, DistanceType>(knn);
-        findNeighbors(vectors[i], resultSets[i], params);
-        //ids_to_ids(ids[i], ids[i], n);
+        costSum += findNeighbors(vectors[i], resultSets[i], params);
       }
     }
+
+    size_t n = vectors.size();
+    size_t ideal = std::log2(size);
+    queryLoss += costSum - n * numTrees * ideal;
+
+    checkBeginUpdate();
   }  
 
   // alias for knnSearch(points) since Cython does not seem to support method overloading
@@ -386,10 +379,10 @@ protected:
       size_t nodeId = node->id;
       size_t divfeat = dataSource->findDimWithMaxSpan(id, nodeId);
       
-      NodePtr left = new(pool) Node();
+      NodePtr left = new(pool) Node(tree);
       left->child1 = left->child2 = NULL;
 
-      NodePtr right = new(pool) Node();
+      NodePtr right = new(pool) Node(tree);
       right->child1 = right->child2 = NULL;
 
       ElementType pointValue = dataSource -> get(id, divfeat);
@@ -413,7 +406,7 @@ protected:
 
       // incrementally update imbalance      
       tree->setInsertionLog(id, 0, depth + 1);
-      tree->markSplit(nodeId);
+      tree->incrementFreqAndDepthByOne(nodeId);
     }
     else {
       if (dataSource->get(id, node->divfeat) < node->divval) {

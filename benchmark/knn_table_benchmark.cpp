@@ -85,10 +85,9 @@ void run(const char* base_) {
   std::fstream log;
 
 #ifdef _WIN32
-#define BASE "D:\\G\\work\\panene\\panene\\data"
-  log.open(BASE "./knn_table_log.tsv", std::fstream::out);
+  log.open(base + "./log.tsv", std::fstream::out);
 #else
-  log.open("./knn_table_log.tsv", std::fstream::out);
+  log.open("./log.tsv", std::fstream::out);
 #endif
 
   size_t maxOps[] = { 5000 };// , 10000 };
@@ -214,11 +213,15 @@ void run(const char* base_) {
 }
 
 int main(int argc, const char **argv) {
-  if(argc < 2) {
+#ifdef _WIN32
+  run("D:\\G\\work\\panene\\PANENE\\data");
+#else 
+  if (argc < 2) {
     std::cout << argv[0] << " <dataset_base_path>" << std::endl;
     return 1;
   }
 
   run(argv[1]);
+#endif
   return 0;
 }

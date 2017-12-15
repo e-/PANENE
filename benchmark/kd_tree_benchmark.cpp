@@ -71,8 +71,8 @@ void run(const char* base_) {
   const size_t maxIter = 2500; // if all data is read, it stops
   const size_t maxQueryN = 1000;
 
-  SearchParams searchParam(1000); // 4096);
-  searchParam.cores = 4;
+  SearchParams searchParam(4096);
+  searchParam.cores = 8;
 
   std::fstream log;
 
@@ -143,6 +143,9 @@ void run(const char* base_) {
             std::cout << "onlineIndex.addPoints done" << std::endl;
 
             double addNewPointElapsed = timer.end();
+
+            std::cerr << "time : " << addNewPointElapsed << std::endl;
+
             if (addNewPointResult == 0) break;
             numPointsInserted += addNewPointResult;
 
@@ -161,7 +164,7 @@ void run(const char* base_) {
               timer.begin();
               onlineIndex.knnSearch(queryPoints, results, k, searchParam);
               searchElapsed += timer.end();
-              std::cout << "onlineIndex.knnSearch done" << std::endl;
+              std::cout << "onlineIndex.knnSearch done " << searchElapsed << std::endl;
             }
 
             // check the result
