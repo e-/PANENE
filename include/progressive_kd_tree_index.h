@@ -339,9 +339,7 @@ public:
       }
     }
 
-    size_t n = vectors.size();
-    size_t ideal = std::log2(size);
-    queryLoss += costSum - n * numTrees * ideal;
+    queryLoss += costSum;
 
     checkBeginUpdate();
   }  
@@ -403,9 +401,10 @@ protected:
       node->divval = (pointValue + leafValue)/2;
       node->child1 = left;
       node->child2 = right;
-
+      
       // incrementally update imbalance      
-      tree->setInsertionLog(id, 0, depth + 1);
+      tree->setInsertionLog(id, 0, depth + 2);
+      tree->incrementFreqByOne(id);
       tree->incrementFreqAndDepthByOne(nodeId);
     }
     else {

@@ -33,7 +33,6 @@ int main(){
       queries[i][j] = static_cast <ElementType> (rand()) / static_cast <ElementType>(RAND_MAX);
     }
   }
-
   
   for(size_t iter = 0; iter < 10; ++iter) {
     std::cout << "Iteration [" << iter << "]" << std::endl;

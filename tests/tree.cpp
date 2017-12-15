@@ -2,7 +2,9 @@
 #include <progressive_kd_tree_index.h>
 #include <data_source/random_data_source.h>
 #include <data_source/vector_data_source.h>
+#include <data_source/array_data_source.h>
 #include <cstdlib>
+#include <cmath>
 
 using namespace panene;
 
@@ -158,4 +160,131 @@ TEST_CASE("masked points should not appear", "[KNN]") {
   }
 
   delete mask;
+}
+
+using ArraySource = ArrayDataSource<IDType, L2<ElementType>>;
+
+TEST_CASE("incremental imbalance updates", "[KNN]") {
+  srand(42);
+
+  /* what to test?
+   * build 
+   * check insertionLog (freq, depth)
+   * search
+   * check insertionLog
+   * checkCostSum 
+   */
+
+  // prepare data with 5 points
+  float points[14] = {
+    1, 1,
+    2, 3,
+    3, 2,
+    4, 4,
+    4.5, 1.5,
+    1.5, 5,
+    3.6, 4.5
+  };
+
+  const size_t n = 7;
+  const size_t d = 2;
+  const size_t k = 2;
+
+  ArraySource arrayDataSource(n, d, points);
+
+  // create only one tree without random dim selection
+  const IndexParams indexParam(1, 1);
+
+  ProgressiveKDTreeIndex<ArraySource> progressiveIndex(&arrayDataSource, indexParam, TreeWeight(1, 0), 1000); 
+
+  progressiveIndex.run(5); //insert the first five points
+
+  auto& tree = progressiveIndex.trees[0];
+
+  REQUIRE(tree->root->divfeat == 0);
+  REQUIRE(tree->root->divval == 2.9f);
+
+  REQUIRE(tree->root->child1->divfeat == 1);
+  REQUIRE(tree->root->child1->divval == 2.0f);
+
+  REQUIRE(tree->root->child2->divfeat == 1);
+  REQUIRE(tree->root->child2->divval == 2.5f);
+  
+  for(size_t i=0;i<5;++i) {
+    REQUIRE(tree->insertionLog[i].freq == 1);
+  }
+
+  REQUIRE(tree->insertionLog[0].depth == 3);
+  REQUIRE(tree->insertionLog[1].depth == 3);
+  REQUIRE(tree->insertionLog[2].depth == 4);
+  REQUIRE(tree->insertionLog[3].depth == 3);
+  REQUIRE(tree->insertionLog[4].depth == 4);
+
+  float initialCost = (3.0f * 3 + 2.0f * 4) / 5;
+  REQUIRE(tree->getCachedCost() == Approx(initialCost));
+  
+  // when search, is freq updated correctly?
+  
+  std::vector<std::vector<ElementType>> q1;
+  std::vector<ElementType> p1 = {1.4f, 1.9f};
+  q1.push_back(p1);
+  
+  SearchParams searchParam(100); // search for a sufficient number of points
+
+  std::vector<ResultSet<IDType, ElementType>> result(1);
+  result[0] = ResultSet<IDType, ElementType>(k);
+
+  progressiveIndex.knnSearch(q1, result, 1, searchParam);
+  
+  REQUIRE(result[0][0].id == 0);
+
+  // then, are the freq of points updated correctly?
+  REQUIRE(tree->insertionLog[0].freq == 2);
+  REQUIRE(tree->insertionLog[1].freq == 2);
+  REQUIRE(tree->insertionLog[2].freq == 1);
+  REQUIRE(tree->insertionLog[3].freq == 1);
+  REQUIRE(tree->insertionLog[4].freq == 1);
+  
+  REQUIRE(tree->insertionLog[0].depth == 3);
+  REQUIRE(tree->insertionLog[1].depth == 3);
+  REQUIRE(tree->insertionLog[2].depth == 4);
+  REQUIRE(tree->insertionLog[3].depth == 3);
+  REQUIRE(tree->insertionLog[4].depth == 4);
+
+  // is the cost updated correctly?
+  float cost1 = (float)(2 * 3 + 2 * 3 + 1 * 4 + 1 * 3 + 1 * 4) / 7;
+  REQUIRE(tree->getCachedCost() == Approx(cost1));
+  
+  // when insert new points, freq and depth updated correctly?
+  /* new points:
+    1.5, 5,
+    3.6, 4.5 */
+  
+  progressiveIndex.run(2);
+
+  REQUIRE(tree->root->child1->child2->divfeat == 1);
+  REQUIRE(tree->root->child1->child2->divval == Approx(4.0f));
+
+  REQUIRE(tree->root->child2->child2->divfeat == 1);
+  REQUIRE(tree->root->child2->child2->divval == Approx(4.25f));
+  
+  REQUIRE(tree->insertionLog[0].freq == 2);
+  REQUIRE(tree->insertionLog[1].freq == 3);
+  REQUIRE(tree->insertionLog[2].freq == 1);
+  REQUIRE(tree->insertionLog[3].freq == 2);
+  REQUIRE(tree->insertionLog[4].freq == 1);
+  REQUIRE(tree->insertionLog[5].freq == 1);
+  REQUIRE(tree->insertionLog[6].freq == 1);
+  
+  REQUIRE(tree->insertionLog[0].depth == 3);
+  REQUIRE(tree->insertionLog[1].depth == 4);
+  REQUIRE(tree->insertionLog[2].depth == 4);
+  REQUIRE(tree->insertionLog[3].depth == 4);
+  REQUIRE(tree->insertionLog[4].depth == 4);
+  REQUIRE(tree->insertionLog[5].depth == 4);
+  REQUIRE(tree->insertionLog[6].depth == 4);
+
+  // then, is the returned cost correct?
+  float cost2 = (float)(2 * 3 + 3 * 4 + 1 * 4 + 2 * 4 + 1 * 4 + 1 * 4 + 1 * 4) / 11;
+  REQUIRE(tree->getCachedCost() == Approx(cost2));
 }

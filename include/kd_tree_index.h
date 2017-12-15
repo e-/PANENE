@@ -42,8 +42,9 @@ namespace panene
 
 struct IndexParams {
   int trees;
+  size_t randomDimNum;
 
-  IndexParams(int trees_ = 4) : trees(trees_) {}
+  IndexParams(int trees_ = 4, size_t randomDimNum_=5) : trees(trees_), randomDimNum(randomDimNum_) {}
 };
 
 struct SearchParams {
@@ -116,7 +117,7 @@ public:
 
 public:
 
-  KDTreeIndex(DataSource *dataSource_, IndexParams indexParams_, Distance distance_ = Distance()) : dataSource(dataSource_), distance(distance_) {
+  KDTreeIndex(DataSource *dataSource_, IndexParams indexParams_, Distance distance_ = Distance()) : dataSource(dataSource_), indexParams(indexParams_), distance(distance_) {
     numTrees = indexParams_.trees;
     trees.resize(numTrees);
     dim = dataSource->dim();
@@ -196,20 +197,29 @@ public:
     Heap<BranchSt>* heap = new Heap<BranchSt>((int)size);
     DynamicBitset checked(size);
     float costSum = 0;
+    size_t visitedLeaves = 0;
+    float cost;
 
     /* Search once through each tree down to root. */
     for (size_t i = 0; i < numTrees; ++i) {
-      costSum += searchLevel<with_removed>(vec, result, trees[i]->root, 0, checkCount, maxCheck, epsError, heap, checked, mask);
+      cost = searchLevel<with_removed>(vec, result, trees[i]->root, 0, checkCount, maxCheck, epsError, heap, checked, mask);
+      if(cost > 0) {
+        costSum += cost;
+        visitedLeaves++;
+      }
     }
 
     /* Keep searching other branches from heap until finished. */
     while (heap->popMin(branch) && (checkCount < maxCheck || !result.full())) {
-      searchLevel<with_removed>(vec, result, branch.node, branch.mindist, checkCount, maxCheck, epsError, heap, checked, mask);
+      cost = searchLevel<with_removed>(vec, result, branch.node, branch.mindist, checkCount, maxCheck, epsError, heap, checked, mask);
+      if(cost > 0) {
+        costSum += cost;
+        visitedLeaves++;
+      }
     }
 
     delete heap;
-
-    return costSum;
+    return costSum - (float)visitedLeaves * std::log2(size);
   }
 
   /**
@@ -335,13 +345,13 @@ public:
   int selectDivision(const std::vector<DistanceType> &v)
   {
     int num = 0;
-    size_t topind[RAND_DIM];
+    size_t topind[indexParams.randomDimNum];
 
     /* Create a list of the ids of the top RAND_DIM values. */
     for (size_t i = 0; i < dim; ++i) {
-      if ((num < RAND_DIM) || (v[i] > v[topind[num - 1]])) {
+      if ((num < indexParams.randomDimNum) || (v[i] > v[topind[num - 1]])) {
         /* Put this element at end of topind. */
-        if (num < RAND_DIM) {
+        if (num < indexParams.randomDimNum) {
           topind[num++] = i;            /* Add to list. */
         }
         else {
@@ -566,9 +576,9 @@ public:
   enum
   {
     SAMPLE_MEAN = 100,
-    RAND_DIM = 5
   };
 
+  IndexParams indexParams;  
   size_t numTrees;
   DataSource *dataSource;
   Distance distance;
