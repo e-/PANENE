@@ -59,10 +59,10 @@ void run(const char* base_) {
 
   const size_t pointsN = 1000000;
   std::vector<Dataset> datasets = {    
-    Dataset(base, "glove", "shuffled", pointsN, 100),
+    Dataset(base, "glove", "shuffled", pointsN, 100)/*,
     Dataset(base, "glove", "original", pointsN, 100),
     Dataset(base, "sift", "shuffled", pointsN, 128),
-    Dataset(base, "sift", "original", pointsN, 128)    
+    Dataset(base, "sift", "original", pointsN, 128)    */
   };
   
   const int maxRepeat = 1; //5;
@@ -88,7 +88,7 @@ void run(const char* base_) {
   size_t maxOps[] = { 5000 };
   size_t maxOpsN = sizeof(maxOps) / sizeof(size_t);
 
-  float addPointWeights[] = { 0.2f, 0.35f, 0.5f };
+  float addPointWeights[] = { 0.2f }; // , 0.35f, 0.5f};
   size_t weightN = sizeof(addPointWeights) / sizeof(float);
 
   int datasetIndex = -1;
@@ -125,7 +125,7 @@ void run(const char* base_) {
       for(const size_t maxOp: maxOps) {
        
         // online first
-        {
+        if(false){
           KDTreeIndex<Source> onlineIndex(&trainDataSource, indexParam);
           
           size_t numPointsInserted = 0;       
@@ -206,8 +206,8 @@ void run(const char* base_) {
 
             // update the index with the given number operations
             auto updateResult = progressiveIndex.run(maxOp);
-            if(updateResult.addPointResult == 0)
-              break;
+            /*if(updateResult.addPointResult == 0)
+              break;*/
 
             double searchElapsed = 0;
 
