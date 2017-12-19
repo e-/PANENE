@@ -5,6 +5,7 @@
 #include <data_source/array_data_source.h>
 #include <cstdlib>
 #include <cmath>
+#include <algorithm>
 
 using namespace panene;
 
@@ -287,4 +288,66 @@ TEST_CASE("incremental imbalance updates", "[KNN]") {
   // then, is the returned cost correct?
   float cost2 = (float)(2 * 3 + 3 * 4 + 1 * 4 + 2 * 4 + 1 * 4 + 1 * 4 + 1 * 4) / 11;
   REQUIRE(tree->getCachedCost() == Approx(cost2));
+}
+
+TEST_CASE("incremental imbalance updates2", "[KNN]") {
+  srand(42);
+
+  const size_t n = 1000;
+  const size_t d = 10;
+  const size_t k = 10;
+
+  RandomSource randomDataSource(n, d);
+  const IndexParams indexParam(4);
+
+  ProgressiveKDTreeIndex<RandomSource> progressiveIndex(&randomDataSource, indexParam, TreeWeight(1, 0));
+
+  const size_t query_n = 10;
+  std::vector<std::vector<ElementType>> queries(query_n);
+
+  for(size_t i = 0; i < query_n; ++i) {
+    queries[i].resize(d);
+
+    for(size_t j = 0; j < d; ++j) {
+      queries[i][j] = static_cast <ElementType> (rand()) / static_cast <ElementType>(RAND_MAX);
+    }
+  }
+
+  progressiveIndex.run(n); // insert all points
+  SearchParams searchParam(n * 2); // search for a sufficient number of points
+  searchParam.cores = 1;
+
+  for(size_t repeat = 0; repeat < 5000; repeat++) {
+    std::vector<ResultSet<IDType, ElementType>> results(query_n);
+    for (size_t i = 0; i < query_n; ++i)
+      results[i] = ResultSet<IDType, ElementType>(k);
+  
+    progressiveIndex.knnSearch(queries, results, k, searchParam);
+  }
+ 
+  
+  for (size_t i = 0; i < 4; ++i) {
+    auto tree = progressiveIndex.trees[i];
+    
+    REQUIRE(tree->getCachedImbalance() == Approx(tree->computeImbalance()));
+  }
+  
+/*  size_t freq_sum = 0;
+  auto tree = progressiveIndex.trees[0];
+  for(auto log : tree->insertionLog){
+    std::cout << log.freq << " " << log.depth << std::endl;
+    freq_sum += log.freq;
+  }
+
+  std::cout << "real freq_sum: " << freq_sum << ", actual freq_sum: " << tree -> freqSum << std::endl;
+
+  std::cout << "tree.computeCost(): " << tree->computeCost() << ", tree.computeImbalance(): " << tree->computeImbalance() << std::endl;
+
+  std::cout << "tree.getCachedCost(): " << tree->getCachedCost() << ", tree.getCachedImbalance(): " << tree->getCachedImbalance() << std::endl;
+  
+  for (size_t i = 0; i < 4; ++i) {
+    std::cout << "tree" << i << " " << progressiveIndex.trees[i]->getCachedImbalance() << " " << progressiveIndex.trees[i]->size << std::endl;
+  }
+  std::cout << "updateCost: " << progressiveIndex.getSize() * std::log2(progressiveIndex.getSize()) << std::endl;
+  std::cout << "queryLoss: " << progressiveIndex.queryLoss << std::endl;*/
 }

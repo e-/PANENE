@@ -23,7 +23,7 @@ struct KDTree
   size_t size;
   size_t capacity;
   int freqSum = 0;
-  float cost;
+  double cost;
   std::vector<InsertionLog> insertionLog;
 
   KDTree(size_t capacity_) : capacity(capacity_) {
@@ -80,40 +80,25 @@ struct KDTree
     size_t depth = insertionLog[id].depth;
     size_t freq = insertionLog[id].freq;
 
-    cost = (freqSum * cost + depth + freq + 1) / (freqSum + 1);
+    cost = ((double)freqSum * cost + depth + freq + 1) / (freqSum + 1);
 
     freqSum++;
     insertionLog[id].freq++;
     insertionLog[id].depth++;
 
-    return cost;
+    return (float)cost;
   }
 
   float incrementFreqByOne(const size_t id) {
     size_t depth = insertionLog[id].depth;
 
-    cost = (freqSum * cost + depth) / (freqSum + 1);
+    cost = ((double)freqSum * cost + depth) / (freqSum + 1);
 
     freqSum++;
     insertionLog[id].freq++;
 
-    return cost;
+    return (float) cost;
   }
-  
-  /*void updateInsertionLog(const size_t id, const size_t freq, const size_t depth) {
-    if (freq > 0 && freqSum > 0) {
-      auto& prevLog = insertionLog[id];
-
-      cost = (cost
-        - (float)prevLog.freq / freqSum * prevLog.depth)
-        * freqSum / (freqSum - prevLog.freq + freq)
-        + (float)freq / (freqSum - prevLog.freq + freq) * depth;
-    }
-
-    freqSum = freqSum - insertionLog[id].freq + freq;
-    insertionLog[id].freq = freq;
-    insertionLog[id].depth = depth;
-  }*/  
 };
 
 }
