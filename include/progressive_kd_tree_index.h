@@ -464,19 +464,6 @@ protected:
     return maxDepth;
   }
 
-  std::map<size_t, size_t> computeCountDistribution() {
-    std::map<size_t, size_t> dict;
-    for(size_t i = 0 ; i < numTrees; ++i) {
-      const auto& partial = trees[i]->computeCountDistribution();
-      for(const auto& tuple : partial) {
-        if(dict.count(tuple.first) == 0)
-          dict[tuple.first] = 0;
-        dict[tuple.first] += tuple.second;
-      }
-    }
-    return dict;
-  }  
-
   void printBackstage() {
     std::cout << "queue size: " << queue.size() << std::endl;
     std::cout << "ongoingTree size: " << ongoingTree->size << std::endl;

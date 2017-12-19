@@ -219,7 +219,7 @@ public:
     }
 
     delete heap;
-    return costSum - (float)visitedLeaves * std::log2(size);
+    return std::max((float)(costSum - (float)visitedLeaves * std::log2(size)), 0.0f);
   }
 
   /**
@@ -241,6 +241,7 @@ public:
       IDType id = node->id;
       
       float cost = node->tree->incrementFreqByOne(id);
+      // std::cerr << node->tree->insertionLog[node->id].depth << std::endl;
 
       if (with_removed && removedPoints.test(id)) return cost;
 
@@ -345,7 +346,7 @@ public:
   int selectDivision(const std::vector<DistanceType> &v)
   {
     int num = 0;
-    size_t topind[indexParams.randomDimNum];
+    std::vector<size_t> topind(indexParams.randomDimNum);
 
     /* Create a list of the ids of the top RAND_DIM values. */
     for (size_t i = 0; i < dim; ++i) {
