@@ -44,14 +44,20 @@
       <td><svg id="ori1"></svg></td>
       <td><svg id="ori2"></svg></td>
       <td><svg id="ori3"></svg></td>
-      <!--<td><svg id="ori4"></svg></td>
+      <td><svg id="ori4"></svg></td>
       <td><svg id="ori5"></svg></td>
       <td><svg id="ori6"></svg></td>
       <td><svg id="ori7"></svg></td>
       <td><svg id="ori8"></svg></td>
       <td><svg id="ori9"></svg></td>
       <td><svg id="ori10"></svg></td>
-      <td><svg id="ori11"></svg></td>-->
+      <td><svg id="ori11"></svg></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
       <td rowspan="2" class="error-cell"><svg id="error"></svg></td>
     </tr>
     <tr>
@@ -68,13 +74,16 @@
       <td><svg id="pro1"></svg></td>
       <td><svg id="pro2"></svg></td>
       <td><svg id="pro3"></svg></td>
-      <!--<td><svg id="pro4"></svg></td>
+      <td><svg id="pro4"></svg></td>
       <td><svg id="pro5"></svg></td>
       <td><svg id="pro6"></svg></td>
       <td><svg id="pro7"></svg></td>
       <td><svg id="pro8"></svg></td>
       <td><svg id="pro9"></svg></td>
-      <td><svg id="pro10"></svg></td>-->
+      <td><svg id="pro10"></svg></td>
+      <td><svg id="pro11"></svg></td>
+      <td><svg id="pro12"></svg></td>
+      <td><svg id="pro13"></svg></td>
     </tr>
   </table>
   
@@ -96,8 +105,8 @@ d3.text('../mnist/labels.txt', labels => {
     ['Barnes-Hut', 'original.meta.txt'],
     ['Responsive', 'progressive.meta.txt']
   ], [100, 500, 1000])
-  drawAll('original.meta.txt', i => '#ori' + i, [10, 50, 100, 500], '#ori-time', labels)
-  drawAll('progressive.meta.txt', i => '#pro' + i, [10, 50, 100, 500], '#pro-time', labels)
+//  drawAll('original.meta.txt', i => '#ori' + i, [10, 50, 100, 500], '#ori-time', labels)
+  drawAll('progressive.meta.txt', i => '#pro' + i, [10, 20, 30, 40, 50, 60, 100, 110, 120, 130, 140, 150], '#pro-time', labels)
 })
 
 function drawError(meta, iters){

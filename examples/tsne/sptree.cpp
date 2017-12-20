@@ -398,7 +398,7 @@ void SPTree::computeEdgeForces(unsigned int* row_P, unsigned int* col_P, double*
     }
 }
 
-void SPTree::computeEdgeForces(vector<map<size_t, double>> similarities, int N, double* pos_f)
+void SPTree::computeEdgeForces(vector<map<size_t, double>> &similarities, int N, double* pos_f, float ee_factor)
 {
     double sum_P = .0;
     size_t i = 0;
@@ -411,6 +411,8 @@ void SPTree::computeEdgeForces(vector<map<size_t, double>> similarities, int N, 
       }
     }
     
+    sum_P /= ee_factor;
+
     // Loop over all edges in the graph
     unsigned int ind1 = 0;
     unsigned int ind2 = 0;
