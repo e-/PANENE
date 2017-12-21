@@ -13,6 +13,24 @@
 using namespace std;
 using namespace panene;
 
+float getEEFactor(int iter, int stop_lying_factor) {
+#if USE_EE
+
+#if PERIODIC_EE
+  if(iter % 100 < 30) return EE_FACTOR;
+  return 1.0f;
+#else
+
+  if(iter < stop_lying_factor) return EE_FACTOR;
+  return 1.0f;
+#endif
+
+#else
+  return 1.0f;
+#endif
+
+}
+
 // Perform Progressive t-SNE with Progressive KDTree
 void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
     bool skip_random_init, int max_iter, int mom_switch_iter, int print_every) {
@@ -30,7 +48,7 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
 
   // Determine whether we are using an exact algorithm
   if(N - 1 < 3 * perplexity) { printf("Perplexity too large for the number of data points!\n"); exit(1); }
-  printf("Using no_dims = %d, perplexity = %f, theta = %f, and USE_ADAM=%d\n", no_dims, perplexity, theta, USE_ADAM);
+  printf("Using no_dims = %d, perplexity = %f, theta = %f, USE_ADAM=%d, EE_FACTOR=%4f\n", no_dims, perplexity, theta, USE_ADAM, EE_FACTOR);
 
   if(theta == .0) {
     printf("Exact TSNE is not supported!");
@@ -43,6 +61,7 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
   double momentum = .5, final_momentum = .8;
 
   double* dY    = (double*) malloc(N * no_dims * sizeof(double));
+  if(dY == NULL) { printf("Memory allocation failed!\n"); exit(1); }
 
 #if USE_ADAM
   // Adam optimzer
@@ -64,7 +83,7 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
   double eta = 200;
   double* uY    = (double*) malloc(N * no_dims * sizeof(double));
   double* gains = (double*) malloc(N * no_dims * sizeof(double));
-  if(dY == NULL || uY == NULL || gains == NULL) { printf("Memory allocation failed!\n"); exit(1); }
+  if(uY == NULL || gains == NULL) { printf("Memory allocation failed!\n"); exit(1); }
   for(int i = 0; i < N * no_dims; i++)    uY[i] =  .0;
   for(int i = 0; i < N * no_dims; i++) gains[i] = 1.0;
 #endif
@@ -78,7 +97,6 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
   Source source((size_t)N, (size_t)D, X);
 
   // Initialize KNN table
-
   size_t K = (size_t) (perplexity * 3);
   Sink sink(N, K + 1);
 
@@ -109,6 +127,7 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
   end = clock();
 
   total_time += (float)(end - start) / CLOCKS_PER_SEC;
+  printf("took %f for setup\n", total_time);
   fprintf(meta, "embedding %f\n", total_time);
 
   // Perform main training loop
@@ -116,23 +135,37 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
   size_t ops = 300;
 
   vector<map<size_t, double>> neighbors(N); // neighbors[i] has exact K items
-  vector<map<size_t, double>> similarities(N); // may have more 
+  vector<map<size_t, double>> similarities(N); // may have more due to asymmetricity of neighborhoodship 
 
   printf("training start\n");
+  float old_ee_factor = 1.0f;
   for(int iter = 0; iter < max_iter; iter++) {
     start = clock();
 
     float start_perplex = 0, end_perplex = 0;
     float table_time = 0;
+    float ee_factor = getEEFactor(iter, 100);
 
-    // Update similarity if loading is incomplete
-    if(table.getSize() < N) {
-#if USE_ADAM
-      float ee_factor = 1;
-#else
-      float ee_factor = iter <= stop_lying_factor ? EE_FACTOR : 1;
+    if(old_ee_factor != ee_factor) {
+      float ratio = ee_factor / old_ee_factor;
+      printf("EE changed, ratio = %3f\n", ratio);
+      for(auto &sim : similarities) {
+        for(auto &kv : sim ) {
+          kv.second *= ratio;
+        }
+      }
+#if PERIODIC_EE && PERIODIC_RESET
+      if(ee_factor == EE_FACTOR) {      
+        for(int i = 0; i < N * no_dims; i++)    uY[i] =  .0;
+        for(int i = 0; i < N * no_dims; i++) gains[i] = 1.0;
+      }
 #endif
+    }
 
+    old_ee_factor = ee_factor;
+    printf("ee_factor = %.3f\n", ee_factor);
+
+    if(table.getSize() < N) {
       start_perplex = clock();
       updateSimilarity(&table, neighbors, similarities, Y, no_dims, perplexity, K, ops, ee_factor);
       end_perplex = clock();
@@ -141,7 +174,7 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
     int n = table.getSize();
 
     // Compute (approximate) gradient
-    computeGradient(similarities, Y, n, no_dims, dY, theta);
+    computeGradient(similarities, Y, n, no_dims, dY, theta, ee_factor);
 
 #if USE_ADAM
     // we use Adam Optimzer
@@ -171,28 +204,10 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
       grad_sum += dY[i] * dY[i];
     }
 
-#if !USE_ADAM
-    if(iter == stop_lying_iter) {
-      for(auto &nei : neighbors) {
-        for(auto &iter : nei) {
-          iter->second /= EE_FACTOR;
-        }
-      }
-      for(auto &sim : similarities) {
-        for(auto &iter : sim) {
-          iter->second /= EE_FACTOR;
-        }
-      }
-    }
-
-    if(iter == mom_switch_iter) momentum = final_momentum;
-#endif
-
-
     // Make solution zero-mean
     zeroMean(Y, n, no_dims);
 
-    if(iter == mom_switch_iter) momentum = final_momentum;
+    // if(iter == mom_switch_iter) momentum = final_momentum;
 
     end = clock();
     total_time += (float) (end - start) / CLOCKS_PER_SEC;
@@ -202,8 +217,8 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
 
     if(iter < 20 || iter % log_every == 0) {
       double C = .0;
-      C = evaluateError(similarities, Y, N, no_dims, theta);  // doing approximate computation here!
-      printf("Iteration %d: error is %f (total=%4.2f seconds, perplex=%4.2f seconds, tree=%4.2f seconds) grad_sum is %4.6f\n", iter, C, (float) (end - start) / CLOCKS_PER_SEC, (end_perplex - start_perplex) / CLOCKS_PER_SEC, table_time, grad_sum);
+      C = evaluateError(similarities, Y, N, no_dims, theta, ee_factor);  // doing approximate computation here!
+      printf("Iteration %d: error is %f (total=%4.2f seconds, perplex=%4.2f seconds, tree=%4.2f seconds, ee_factor=%2.1f) grad_sum is %4.6f\n", iter, C, (float) (end - start) / CLOCKS_PER_SEC, (end_perplex - start_perplex) / CLOCKS_PER_SEC, table_time, ee_factor, grad_sum);
 
       char path[100];
       sprintf(path,"result/progressive.%d.txt", iter);
@@ -238,6 +253,7 @@ void ProgressiveTSNE::updateSimilarity(Table *table,
     size_t K,
     size_t ops,
     float ee_factor) {
+
   if(perplexity > K) printf("Perplexity should be lower than K!\n");
 
   // Update the KNNTable
@@ -389,7 +405,7 @@ void ProgressiveTSNE::updateSimilarity(Table *table,
 }
 
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
-void ProgressiveTSNE::computeGradient(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double* dC, double theta)
+void ProgressiveTSNE::computeGradient(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double* dC, double theta, float ee_factor)
 {
   // Construct space-partitioning tree on current map
   SPTree* tree = new SPTree(D, Y, N);
@@ -399,7 +415,7 @@ void ProgressiveTSNE::computeGradient(vector<map<size_t, double>>& similarities,
   double* pos_f = (double*) calloc(N * D, sizeof(double));
   double* neg_f = (double*) calloc(N * D, sizeof(double));
   if(pos_f == NULL || neg_f == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-  tree->computeEdgeForces(similarities, N, pos_f);
+  tree->computeEdgeForces(similarities, N, pos_f, ee_factor);
   for(int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, neg_f + n * D, &sum_Q);
 
   // Compute final t-SNE gradient
@@ -413,7 +429,7 @@ void ProgressiveTSNE::computeGradient(vector<map<size_t, double>>& similarities,
 
 // Evaluate t-SNE cost function (approximately)
 double ProgressiveTSNE::evaluateError(vector<map<size_t, double>>& similarities,
-   double *Y, int N, int D, double theta)
+   double *Y, int N, int D, double theta, float ee_factor)
 {
 
   // Get estimate of normalization term
@@ -435,7 +451,9 @@ double ProgressiveTSNE::evaluateError(vector<map<size_t, double>>& similarities,
       sum_P += it.second;
     }
   }
- 
+
+  sum_P /= ee_factor;
+
   j = 0;
   for(auto &p : similarities) {
     if(j >= N) break;

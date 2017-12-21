@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<body>
+  <style>
+    td{padding:2px;}
+    text{font-family: Helvetica; font-size:1.2em;}
+    h1{font-family:Helvetica; text-align:center; padding-top:0;}
+    .header{
+      padding-top:0px;
+      position:relative;
+      text-align:center;
+    }
+    p{
+      font-family:Helvetica;
+      font-size:1.2em; text-align:center; 
+      margin:0;
+      padding:0;
+      width:100%;
+      position:absolute;
+      bottom:2px; 
+      left:-3px;
+    }
+  </style>
+  <table id="table">
+  </table>
+  
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="https://d3js.org/d3-contour.v1.min.js"></script>
+  <script src="//d3js.org/d3-scale-chromatic.v0.3.min.js"></script>
+
+
+  <script>
+
+let width = 200;
+let height = 200
+let margin = 15
+let label = 35;
+
+d3.text('../mnist/labels.txt', labels => { 
+  d3.text('./progressive.meta.txt', text => {
+    lines = text.split('\n').map(line => line.split(' '))
+    byIter = {}
+
+    lines.forEach(function(line) {
+      byIter[line[0]] = line;
+    })
+
+    labels = labels.split('\n');
+
+    let table = d3.select('#table')
+    let rows = 10;
+    let cols = 10;
+    let iter = 10;
+
+    for(let i=0;i<rows;++i){ 
+      let tr = table.append('tr')
+      for(let j=0;j<cols;++j){
+        let td = tr.append('td')
+        let id = 'svg'+i+'-'+j;
+
+        let svg = td.append('svg').attr('id', id)
+        draw('#'+id, byIter[iter], labels);
+        iter += 10;
+      }
+    }
+
+  });
+});
+
+function translate(x, y) { return 'translate(' + x + ',' + y + ')'; }
+
+function draw(svgId, line, labels) {
+  let iter = line[0]
+  let time = line[1]
+  let error = line[2]
+  let path = line[3]
+
+  d3.text(path, text => {
+    let data = d3.tsvParseRows(text, d => {
+      r = d[0].split(' ')
+
+      return [+r[0], +r[1]]
+    })
+
+    let svg = d3.select(svgId)
+    
+    svg.attr('width', width).attr('height', height + label)
+
+    let te = svg.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '-0.6em')
+      .attr('transform', translate(width / 2, height + label - 10))
+      .text('Iteration #' + (+iter))
+      
+    let te2 = svg.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '-0.6em')
+      .style('font-size', '0.9em')
+      .attr('transform', translate(width / 2, height + label + 5))
+      .text('(' + d3.format(',.1f')(time) + 's, error=' + d3.format('.2f')(error) + ')')
+
+    let x = d3.scaleLinear().domain(d3.extent(data, d => d[0])).range([0, width - 2 * margin])
+    let y = d3.scaleLinear().domain(d3.extent(data, d => d[1])).range([0, height - 2 * margin])
+
+    let root = svg.append('g').attr('transform', translate(margin, margin))
+    let contours = d3.contourDensity()
+        .x(d => x(d[0]))
+        .y(d => y(d[1]))
+        .size([width - 2 * margin, height - 2 * margin])
+        .bandwidth(4)
+        (data)
+
+    let path = root.append('g').selectAll('path')
+      .data(contours)
+    
+    let color = d3.scaleSequential(d3.interpolateViridis).domain(d3.extent(contours, d => d.value))
+
+    let enter = path
+        .enter()
+          .append('path')
+
+    path
+      .merge(enter)
+      .attr('d', d3.geoPath())
+      .attr('fill', d => color(d.value))
+
+    path
+      .exit().remove()
+  
+    let circle = root.append('g').selectAll('circle')
+    let categorical = d3.scaleOrdinal(d3.schemeCategory10).domain(d3.range(10));
+
+    circle
+      .data(data.slice(0, 2000))
+      .enter()
+        .append('circle')
+        .attr('cx', d => x(d[0]))
+        .attr('cy', d => y(d[1]))
+        .attr('r', 1.5)
+        .style('fill', (d, i) => categorical(labels[i]))
+  })
+}
+
+  </script>
+</body>
