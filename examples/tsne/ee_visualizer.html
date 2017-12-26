@@ -77,6 +77,24 @@ function load(path) {
   });
 
   function translate(x, y) { return 'translate(' + x + ',' + y + ')'; }
+  function shuffle(array) {
+    let counter = array.length;
+    // While there are elements in the array
+    while (counter > 0) {
+              // Pick a random index
+              let index = Math.floor(Math.random() * counter);
+
+              // Decrease counter by 1
+              counter--;
+
+              // And swap the last element with it
+              let temp = array[counter];
+              array[counter] = array[index];
+              array[index] = temp;
+          
+    }
+    return array;
+  }
 
   function draw(svgId, line, labels) {
     let iter = line[0]
@@ -90,7 +108,8 @@ function load(path) {
 
         return [+r[0], +r[1]]
       })
-
+      let sampleSize = Math.min(2000, data.length);
+      let sampleIndex = shuffle(d3.range(data.length)).slice(0, sampleSize)
       let svg = d3.select(svgId)
       
       svg.attr('width', width).attr('height', height + label)
@@ -140,13 +159,13 @@ function load(path) {
       let categorical = d3.scaleOrdinal(d3.schemeCategory10).domain(d3.range(10));
 
       circle
-        .data(data.slice(0, 2000))
+        .data(sampleIndex)
         .enter()
           .append('circle')
-          .attr('cx', d => x(d[0]))
-          .attr('cy', d => y(d[1]))
+          .attr('cx', d => x(data[d][0]))
+          .attr('cy', d => y(data[d][1]))
           .attr('r', 1.5)
-          .style('fill', (d, i) => categorical(labels[i]))
+          .style('fill', (d, i) => categorical(labels[d]))
     })
   }
 }
