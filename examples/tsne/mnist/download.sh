@@ -7,3 +7,4 @@ gunzip train-labels-idx1-ubyte.gz
 
 python convert.py train-images-idx3-ubyte images.txt
 python convert.py train-labels-idx1-ubyte labels.txt
+python sort.py
