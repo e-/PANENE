@@ -10,9 +10,9 @@ parser = argparse.ArgumentParser(description='Generate input data for the tsne e
 
 parser.add_argument('path', type=str, help='output path')
 parser.add_argument('--sample', type=str, help='sample or random')
-parser.add_argument('--text', dest='text', action='store_true', default=False, help='sample or random')
-parser.add_argument('-n', type=int, default=10000, help='# of rows to write')
-parser.add_argument('-d', type=int, default=100, help='# of dimensions to write')
+parser.add_argument('--binary', dest='binary', action='store_true', default=False, help='binary input')
+parser.add_argument('-n', type=int, default=60000, help='# of rows to write')
+parser.add_argument('-d', type=int, default=784, help='# of dimensions to write')
 parser.add_argument('--theta', '-t', type=float, default=0.5, help='theta')
 parser.add_argument('--perplexity', '-p', type=float, default=10, help='target perplexity')
 parser.add_argument('--output-dims', '-o', type=int, default=2, help='output dimensionality')
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.sample:
-        if args.text:
+        if not args.binary:
             with open(args.sample, 'r') as inf:
                 with open(args.path, 'w') as outf:
                     print(args.n, file=outf)

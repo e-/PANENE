@@ -13,3 +13,10 @@ result/*.txt
 bh_tsne
 result_10K
 early_exaggeration
+
+images.sorted.txt
+images.sorted.txt.progressive/
+images.txt
+images.txt.progressive/
+labels.txt
+labels.progressive.txt

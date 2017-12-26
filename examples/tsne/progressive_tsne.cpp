@@ -5,6 +5,10 @@
 #include <cstring>
 #include <ctime>
 #include <map>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "config.h"
 #include "vptree.h"
 #include "sptree.h"
@@ -17,7 +21,7 @@ float getEEFactor(int iter, int stop_lying_factor) {
 #if USE_EE
 
 #if PERIODIC_EE
-  if(iter % 100 < 30) return EE_FACTOR;
+  if(iter % PERIODIC_EE_CYCLE < PERIODIC_EE_DURATION) return EE_FACTOR;
   return 1.0f;
 #else
 
@@ -32,7 +36,7 @@ float getEEFactor(int iter, int stop_lying_factor) {
 }
 
 // Perform Progressive t-SNE with Progressive KDTree
-void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
+void ProgressiveTSNE::run(char *path, double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
     bool skip_random_init, int max_iter, int mom_switch_iter, int print_every) {
 
   // Set random seed
@@ -88,8 +92,23 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
   for(int i = 0; i < N * no_dims; i++) gains[i] = 1.0;
 #endif
 
+  // Create a result directory
+  char base_path[200];
+  sprintf(base_path, "%s.progressive", path);
+
+  struct stat st = {0};
+  if(stat(base_path, &st) == -1) {
+    mkdir(base_path, 0700);
+  } 
+  
   // Logging
-  FILE *meta = fopen("result/progressive.meta.txt", "w");
+  char meta_path[200];
+  sprintf(meta_path, "%s/metadata.txt", base_path);
+  FILE *meta = fopen(meta_path, "w");
+  
+  // Print parameters
+  fprintf(meta, "path=%s, N=%d, D=%d, no_dims=%d, perplexity=%3f, theta=%3f, max_iter=%d, mom_switch_iter=%d\n", path, N, D, no_dims, perplexity, theta, max_iter, mom_switch_iter);
+  fprintf(meta, "eta=%3lf, USE_EE=%d, EE_FACTOR=%3f, PERIODIC_EE=%d, PERIODIC_EE_CYCLE=%d, PERIODIC_EE_DURATION=%d, PERIODIC_RESET=%d\n", eta, USE_EE, EE_FACTOR, PERIODIC_EE, PERIODIC_EE_CYCLE, PERIODIC_EE_DURATION, PERIODIC_RESET);
 
   start = clock();
 
@@ -220,11 +239,10 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
       C = evaluateError(similarities, Y, N, no_dims, theta, ee_factor);  // doing approximate computation here!
       printf("Iteration %d: error is %f (total=%4.2f seconds, perplex=%4.2f seconds, tree=%4.2f seconds, ee_factor=%2.1f) grad_sum is %4.6f\n", iter, C, (float) (end - start) / CLOCKS_PER_SEC, (end_perplex - start_perplex) / CLOCKS_PER_SEC, table_time, ee_factor, grad_sum);
 
-      char path[100];
-      sprintf(path,"result/progressive.%d.txt", iter);
+      char path[200];
+      sprintf(path, "%s/result.%d.txt", base_path, iter);
       save_data(path, Y, n, no_dims);
-
-      fprintf(meta, "%d %f %f progressive.%d.txt\n", iter, total_time, C, iter);
+      fprintf(meta, "%d %f %lf %s/result.%d.txt\n", iter, total_time, C, base_path, iter);
     }
   }
   // Clean up memory
@@ -242,6 +260,11 @@ void ProgressiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, doubl
   fclose(meta);
 
   printf("Fitting performed in %4.2f seconds.\n", total_time);
+
+  // Save the final embedding
+  char emb_path[200];
+  sprintf(emb_path, "%s/embedding.txt", base_path);
+  save_data(emb_path, Y, N, no_dims);
 }
 
 void ProgressiveTSNE::updateSimilarity(Table *table, 
@@ -539,11 +562,11 @@ double ProgressiveTSNE::randn() {
 
 // Function that loads data from a t-SNE file
 // Note: this function does a malloc that should be freed elsewhere
-bool ProgressiveTSNE::load_data(double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter) {
+bool ProgressiveTSNE::load_data(char *path, double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter) {
 
   // Open file, read first 2 integers, allocate memory, and read the data
   FILE *h;
-  if((h = fopen("data.txt", "r")) == NULL) {
+  if((h = fopen(path, "r")) == NULL) {
     printf("Error: could not open data file.\n");
     return false;
   }

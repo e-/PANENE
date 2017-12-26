@@ -6,16 +6,22 @@
 #include <ctime>
 #include "progressive_tsne.h"
 
-int main() {
+int main(int argv, char *argc[]) {
   // Define some variables
   int origN, N, D, no_dims, max_iter, *landmarks;
   double perc_landmarks;
   double perplexity, theta, *data;
   int rand_seed = -1;
+
+  if(argv <= 1) {
+    printf("%s [path_to_input_file]\n", argc[0]);
+    return -1;
+  }
+  
   ProgressiveTSNE* tsne = new ProgressiveTSNE();
 
   // Read the parameters and the dataset
-  if(tsne->load_data(&data, &origN, &D, &no_dims, &theta, &perplexity, &rand_seed, &max_iter)) {
+  if(tsne->load_data(argc[1], &data, &origN, &D, &no_dims, &theta, &perplexity, &rand_seed, &max_iter)) {
 
     // Make dummy landmarks
     N = origN;
@@ -27,10 +33,7 @@ int main() {
     double* Y = (double*) malloc(N * no_dims * sizeof(double));
     double* costs = (double*) calloc(N, sizeof(double));
     if(Y == NULL || costs == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-    tsne->run(data, N, D, Y, no_dims, perplexity, theta, rand_seed, false, max_iter);
-
-    // Save the results
-    tsne->save_data("result/result.txt", Y, N, no_dims);
+    tsne->run(argc[1], data, N, D, Y, no_dims, perplexity, theta, rand_seed, false, max_iter);
 
     // Clean up the memory
     free(data); data = NULL;
