@@ -18,6 +18,9 @@ void getExactNN(Source &dataset, Matrix<ElementType> &queryset, Matrix<ElementTy
 
 #pragma omp parallel for
   for (int q = 0; q < (int)queryset.rows; q++) {
+    if (q % 100 == 0) {
+      std::cerr << "computed NN for " << q << " points" << std::endl;
+    }
     int* match = new int[n];
     DistanceType* dists = new DistanceType[n];
 
@@ -79,21 +82,21 @@ void run(const char* base_) {
   const size_t maxIter = 1500; // if all data is read, it stops
   const size_t maxQueryN = 1000;
 
-  SearchParams searchParam(1024); // 4096);
+  SearchParams searchParam(2048); // 4096);
   searchParam.cores = 0;
 
   std::fstream log;
 
 #ifdef _WIN32
-  log.open(base + "./log.tsv", std::fstream::out);
+  log.open(base + "./knn_table_log.tsv", std::fstream::out);
 #else
-  log.open("./log.tsv", std::fstream::out);
+  log.open("./knn_table_log.tsv", std::fstream::out);
 #endif
 
   size_t maxOps[] = { 5000 };// , 10000 };
   size_t maxOpsN = sizeof(maxOps) / sizeof(size_t);
 
-  float treeWeights[] = { 0.3, 0.5 };
+  float treeWeights[] = { 0.1, 0.3, 0.5 };
   size_t weightN = sizeof(treeWeights) / sizeof(float);
   size_t k = 20;
 
@@ -118,6 +121,8 @@ void run(const char* base_) {
 
     Matrix<float> samplePoints(new float[sample * trainDataSource.dim()], sample, trainDataSource.dim());
 
+    std::cerr << "sampling points" << std::endl;
+    
     for (size_t i = 0; i < sample; ++i)
       for (size_t j = 0; j < trainDataSource.dim(); ++j)
         samplePoints[i][j] = trainDataSource.get(order[i], j);
@@ -142,7 +147,7 @@ void run(const char* base_) {
               k, 
               IndexParams(4),
               searchParam,
-              TreeWeight(0.3, 0.7),
+              TreeWeight(0.5, 0.5),
               TableWeight(treeWeight, 1 - treeWeight));
 
           for (int r = 0; r < maxIter; ++r) {
