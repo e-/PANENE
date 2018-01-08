@@ -289,9 +289,7 @@ public:
     const SearchParams& params)
   {
     std::vector<ElementType> vector(dim);
-
-    for (size_t i = 0; i < dim; ++i)
-      vector[i] = dataSource->get(qid, i);
+    dataSource->get(qid, vector);
 
     float costSum = findNeighbors(vector, resultSet, params);
 
@@ -312,9 +310,7 @@ public:
 
     for (size_t i = 0; i < qids.size(); ++i) {
       vectors[i].resize(dim);
-      for (size_t j = 0; j < dim; ++j) {
-        vectors[i][j] = dataSource->get(qids[i], j);
-      }
+      dataSource->get(qids[i], vectors[i]);
     }
 
     knnSearch(vectors, resultSets, knn, params);

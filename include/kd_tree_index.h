@@ -435,8 +435,7 @@ public:
     std::vector<std::vector<ElementType>> vectors(1);
 
     vectors[0].resize(dim);
-    for (size_t i = 0; i < dim; ++i)
-      vectors[0][i] = dataSource->get(qid, i);
+    dataSource->get(qid, vectors[0]);
 
     knnSearch(vectors, resultSets, knn, params);
   }
