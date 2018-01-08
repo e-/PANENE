@@ -20,9 +20,9 @@ class PyDataSource
  public:
 
   typedef size_t IDType;
+  typedef L2<float> Distance;
   typedef float ElementType;
   typedef float DistanceType;
-  typedef L2<float> Distance;
 
   PyDataSource(PyObject * o)
     : _d(0), _object(Py_None), _array(nullptr) {
@@ -121,8 +121,15 @@ class PyDataSource
 
   void get(const IDType &id, std::vector<ElementType> &result) const {
     size_t d = dim();
-    for(size_t i=0;i<d;++i) {
-      result[i] = get(id, i);
+    if (_array != nullptr) {
+      for(size_t i=0;i<d;++i) {
+        result[i] = *(float *) PyArray_GETPTR2(_array, id, i);
+      }
+    }
+    else {
+      for(size_t i=0;i<d;++i) {
+        result[i] = get(id, i);
+      }
     }
   }
 
@@ -131,8 +138,13 @@ class PyDataSource
     ElementType maxSpan = 0;
     size_t d = dim();
 
+    std::vector<ElementType> row1(d);
+    get(id1, row1);
+    std::vector<ElementType> row2(d);
+    get(id2, row2);
+
     for(size_t i = 0; i < d; ++i) {
-      ElementType span = std::abs(get(id1, i) - get(id2, i));
+      ElementType span = std::abs(row1[i] - row2[i]);
       if(maxSpan < span) {
         maxSpan = span;
         dimension = i;
@@ -144,15 +156,20 @@ class PyDataSource
 
   void computeMeanAndVar(const IDType *ids, int count, std::vector<DistanceType> &mean, std::vector<DistanceType> &var) {
     size_t d = dim();
+    std::vector<ElementType> row(d);
+
     mean.resize(d);
     var.resize(d);
 
     for (size_t i = 0; i < d; ++i) 
       mean[i] = var[i] = 0;
 
+    
     for (int j = 0; j < count; ++j) {
+      get(ids[j], row);
+
       for (size_t i = 0; i < d; ++i) {
-        mean[i] += get(ids[j], i);
+        mean[i] += row[i];
       }
     }
 
@@ -178,9 +195,14 @@ class PyDataSource
   DistanceType getSquaredDistance(const IDType &id1, const IDType &id2) const {
     DistanceType sum = 0;
     size_t d = dim();
+    std::vector<ElementType> row1(d);
+    get(id1, row1);
+    std::vector<ElementType> row2(d);
+    get(id2, row2);
+
 
     for(size_t i = 0; i < d; ++i) {
-      ElementType v1 = get(id1, i), v2 = get(id2, i);
+      ElementType v1 = row1[i], v2 = row2[i];
       sum += (v1 - v2) * (v1 - v2);
     }
     
@@ -190,9 +212,11 @@ class PyDataSource
   DistanceType getSquaredDistance(const IDType &id1, const std::vector<ElementType> &vec2) const {
     DistanceType sum = 0;
     size_t d = dim();
+    std::vector<ElementType> row1(d);
+    get(id1, row1);
 
     for(size_t i = 0; i < d; ++i) {
-      ElementType v1 = get(id1, i), v2 = vec2[i];
+      ElementType v1 = row1[i], v2 = vec2[i];
       sum += (v1 - v2) * (v1 - v2);
     }
     
@@ -285,7 +309,7 @@ public:
      PyArrayObject * array = (PyArrayObject*)_neighbors;
      if (PyArray_IS_C_CONTIGUOUS(array)
          && (PyArray_TYPE(array) == NPY_LONG)) {
-       DBG(std::cerr << "PyDataSink neigbbors is an acceptable array" << std::endl);
+       DBG(std::cerr << "PyDataSink neighbors is an acceptable array" << std::endl);
        _aneighbors = array;
      }
      if (PyArray_NDIM(array) != 2) {
@@ -410,57 +434,56 @@ public:
   // TODO change getNeighbors and getDistances to return a vector instead of pointers
   
   const std::vector<IDType>& getNeighbors(IDType id) const {
-    return std::vector<IDType>();
+    DBG(std::cerr << "PyDataSink getNeighbors(" << id << ")" << std::endl);
+    if (_aneighbors != nullptr) {
+      IDType * begin = (IDType *)PyArray_GETPTR2(_aneighbors, id, 0);
+      return std::vector<IDType>(begin, begin+_d);
+    }
+    std::vector<IDType> ret(_d);
+    if (_last_neighbor_id != id) {
+      _last_neighbor_id = id;
+      IDType v;
+      PyObject *key1 = PyInt_FromLong(id);
+      PyObject *key2 = PyInt_FromLong(0);
+      PyObject *tuple = PyTuple_Pack(2, key1, key2);
+      PyObject *pf = PyObject_GetItem(_neighbors, tuple);
+      v = 0;
+      if (PyLong_Check(pf)) {
+        v = PyLong_AsLong(pf);
+      }
+      else if (PyInt_Check(pf)) {
+        v = PyInt_AsLong(pf);
+      }
+      if (pf != nullptr) {
+        Py_DECREF(pf);
+      }
+      _neighbor_cache[0] = v;
+      for(npy_intp i = 1; i < _d; ++i) {
+        PyObject *key2 = PyInt_FromLong(i);
+        PyTuple_SET_ITEM(tuple, 1, key2);
+        pf = PyObject_GetItem(_neighbors, tuple);
+        v = 0;
+        if (PyLong_Check(pf)) {
+          v = PyLong_AsLong(pf);
+        }
+        else if (PyInt_Check(pf)) {
+          v = PyInt_AsLong(pf);
+        }
+        if (pf != nullptr) {
+          Py_DECREF(pf);
+        }
+        _neighbor_cache[i] = v;
+      }
+      Py_DECREF(tuple);
+    }
+    return std::vector<IDType>(_neighbor_cache, _neighbor_cache+_d);
   }
 
-  //const IDType * getNeighbors(IDType id) const {
-    //DBG(std::cerr << "PyDataSink getNeighbors(" << id << ")" << std::endl);
-    //if (_aneighbors != nullptr) {
-      //return (IDType *)PyArray_GETPTR2(_aneighbors, id, 0);
-    //}
-    //if (_last_neighbor_id != id) {
-      //_last_neighbor_id = id;
-      //IDType v;
-      //PyObject *key1 = PyInt_FromLong(id);
-      //PyObject *key2 = PyInt_FromLong(0);
-      //PyObject *tuple = PyTuple_Pack(2, key1, key2);
-      //PyObject *pf = PyObject_GetItem(_neighbors, tuple);
-      //v = 0;
-      //if (PyLong_Check(pf)) {
-        //v = PyLong_AsLong(pf);
-      //}
-      //else if (PyInt_Check(pf)) {
-        //v = PyInt_AsLong(pf);
-      //}
-      //if (pf != nullptr) {
-        //Py_DECREF(pf);
-      //}
-      //_neighbor_cache[0] = v;
-      //for(npy_intp i = 1; i < _d; ++i) {
-        //PyObject *key2 = PyInt_FromLong(i);
-        //PyTuple_SET_ITEM(tuple, 1, key2);
-        //pf = PyObject_GetItem(_neighbors, tuple);
-        //v = 0;
-        //if (PyLong_Check(pf)) {
-          //v = PyLong_AsLong(pf);
-        //}
-        //else if (PyInt_Check(pf)) {
-          //v = PyInt_AsLong(pf);
-        //}
-        //if (pf != nullptr) {
-          //Py_DECREF(pf);
-        //}
-        //_neighbor_cache[i] = v;
-      //}
-      //Py_DECREF(tuple);
-    //}
-    //return _neighbor_cache;
-  //}
-
-  const DistanceType * getDistances(IDType id) const {
+  const std::vector<DistanceType>& getDistances(IDType id) const {
     DBG(std::cerr << "PyDataSink getDistances(" << id << ")" << std::endl);
     if (_adistances != nullptr) {
-      return (DistanceType *)PyArray_GETPTR2(_adistances, id, 0);
+      DistanceType * begin = (DistanceType *)PyArray_GETPTR2(_adistances, id, 0);
+      return std::vector<DistanceType>(begin, begin+_d);
     }
     if (_last_distance_id != id) {
       _last_distance_id = id;
@@ -492,7 +515,7 @@ public:
       }
       Py_DECREF(tuple);
     }
-    return _distance_cache;
+    return std::vector<DistanceType>(_distance_cache, _distance_cache+_d);
   }
 
 
