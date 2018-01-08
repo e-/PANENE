@@ -45,7 +45,7 @@
 using namespace std;
 
 // Perform t-SNE
-void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
+void TSNE::run(char *path, double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
     bool skip_random_init, int max_iter, int mom_switch_iter, int print_every, int stop_lying_iter) {
 
   // Set random seed
@@ -719,11 +719,11 @@ double TSNE::randn() {
 
 // Function that loads data from a t-SNE file
 // Note: this function does a malloc that should be freed elsewhere
-bool TSNE::load_data(double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter) {
+bool TSNE::load_data(char *path, double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter) {
 
   // Open file, read first 2 integers, allocate memory, and read the data
   FILE *h;
-  if((h = fopen("data.txt", "r")) == NULL) {
+  if((h = fopen(path, "r")) == NULL) {
     printf("Error: could not open data file.\n");
     return false;
   }

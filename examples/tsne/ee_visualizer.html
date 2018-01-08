@@ -108,7 +108,7 @@ function load(path) {
 
         return [+r[0], +r[1]]
       })
-      let sampleSize = Math.min(2000, data.length);
+      let sampleSize = Math.min(1000, data.length);
       let sampleIndex = shuffle(d3.range(data.length)).slice(0, sampleSize)
       let svg = d3.select(svgId)
       

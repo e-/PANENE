@@ -71,7 +71,7 @@ public:
       float ee_factor);
 
 private:
-    void computeGradient(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double* dC, double theta, float ee_factor);
+    void computeGradient(vector<size_t>& batch, vector<map<size_t, double>>& similarities, double* Y, int N, int D, double* dC, double theta, float ee_factor);
     double evaluateError(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double theta, float ee_factor);
     void zeroMean(double* X, int N, int D);
     float computeGaussianPerplexity(Table *table, size_t ops, double* X, int N, int D, unsigned int* row_P, unsigned int* _col_P, double* _val_P, double* cur_P, double perplexity, int K);

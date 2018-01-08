@@ -8,6 +8,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <algorithm>
+#include <random>
+#include <chrono>
 
 #include "config.h"
 #include "vptree.h"
@@ -33,6 +36,16 @@ float getEEFactor(int iter, int stop_lying_factor) {
   return 1.0f;
 #endif
 
+}
+
+vector<size_t> getRandomBatch(size_t n, size_t m) { // get m from [0, n)
+  vector<size_t> indices(n);
+  for(size_t i=0;i<n;++i) indices[i]=i;
+  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+
+  shuffle(indices.begin(), indices.end(), std::default_random_engine(seed));
+
+  return vector<size_t>(indices.begin(), indices.begin() + std::min(n, m));
 }
 
 // Perform Progressive t-SNE with Progressive KDTree
@@ -108,7 +121,7 @@ void ProgressiveTSNE::run(char *path, double* X, int N, int D, double* Y, int no
   
   // Print parameters
   fprintf(meta, "path=%s, N=%d, D=%d, no_dims=%d, perplexity=%3f, theta=%3f, max_iter=%d, mom_switch_iter=%d\n", path, N, D, no_dims, perplexity, theta, max_iter, mom_switch_iter);
-  fprintf(meta, "eta=%3lf, USE_EE=%d, EE_FACTOR=%3f, PERIODIC_EE=%d, PERIODIC_EE_CYCLE=%d, PERIODIC_EE_DURATION=%d, PERIODIC_RESET=%d\n", eta, USE_EE, EE_FACTOR, PERIODIC_EE, PERIODIC_EE_CYCLE, PERIODIC_EE_DURATION, PERIODIC_RESET);
+  fprintf(meta, "eta=%3lf, USE_EE=%d, EE_FACTOR=%3f, PERIODIC_EE=%d, PERIODIC_EE_CYCLE=%d, PERIODIC_EE_DURATION=%d, PERIODIC_RESET=%d, BATCH_SIZE=%d\n", eta, USE_EE, EE_FACTOR, PERIODIC_EE, PERIODIC_EE_CYCLE, PERIODIC_EE_DURATION, PERIODIC_RESET, BATCH_SIZE);
 
   start = clock();
 
@@ -192,8 +205,11 @@ void ProgressiveTSNE::run(char *path, double* X, int N, int D, double* Y, int no
 
     int n = table.getSize();
 
-    // Compute (approximate) gradient
-    computeGradient(similarities, Y, n, no_dims, dY, theta, ee_factor);
+    // Get a random batch
+    vector<size_t> batch = getRandomBatch(n, BATCH_SIZE);
+    
+    // Compute (approximate) gradient for the batch
+    // computeGradient(batch, similarities, Y, n, no_dims, dY, theta, ee_factor);
 
 #if USE_ADAM
     // we use Adam Optimzer
@@ -280,7 +296,6 @@ void ProgressiveTSNE::updateSimilarity(Table *table,
   if(perplexity > K) printf("Perplexity should be lower than K!\n");
 
   // Update the KNNTable
-
   clock_t start = clock();
   UpdateResult ar = table->run(ops);
   clock_t end = clock();
@@ -288,24 +303,24 @@ void ProgressiveTSNE::updateSimilarity(Table *table,
   float table_time = (end - start) / CLOCKS_PER_SEC;
   /*
      We need to compute val_P for points that are
-     1) newly inserted (ar.addPointResult points)
-     2) updated (ar.updatePointResult points)
+     1) newly inserted (points in ar.addPointResult)
+     2) updated (points in ar.updatePointResult)
 
-     ar.updatedIds has the ids of the updated points and the ids of the newly added points can be computed by comparing table.getSize() and ar.addPointResult
+     ar.updatedIds has the ids of the updated points. 
+     The ids of the newly added points can be computed by comparing table.getSize() and ar.addPointResult
      */
 
   // collect all ids that need to be updated
-
   vector<size_t> updated;
   vector<double> p(K);
   map<size_t, map<size_t, double>> old;
 
   for(size_t i = table->getSize() - ar.addPointResult; i < table->getSize(); ++i) {
+    // point i has been newly inserted. 
     ar.updatedIds.insert(i);
 
+    // for newly added points, we set its initial position to the mean of its neighbors
     const size_t *indices = table->getNeighbors(i);
-
-    // for newly added points, we set the initial pos to the mean
 
     for(size_t j = i * no_dims; j < (i + 1) * no_dims; ++j) {
       Y[j] = 0;
@@ -320,7 +335,6 @@ void ProgressiveTSNE::updateSimilarity(Table *table,
 
   for(size_t uid : ar.updatedIds) { 
     // the neighbors of uid has been updated
-
     const size_t *indices = table->getNeighbors(uid);
     const double *distances = table->getDistances(uid);   
 
@@ -342,6 +356,7 @@ void ProgressiveTSNE::updateSimilarity(Table *table,
       // Compute entropy of current row
       sum_P = DBL_MIN;
       for(int m = 0; m < K; m++) sum_P += p[m];
+      
       double H = .0;
       for(int m = 0; m < K; m++) H += beta * (distances[m + 1] * distances[m + 1] * p[m]);
       H = (H / sum_P) + log(sum_P);
@@ -428,7 +443,7 @@ void ProgressiveTSNE::updateSimilarity(Table *table,
 }
 
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
-void ProgressiveTSNE::computeGradient(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double* dC, double theta, float ee_factor)
+void ProgressiveTSNE::computeGradient(vector<size_t>& batch, vector<map<size_t, double>>& similarities, double* Y, int N, int D, double* dC, double theta, float ee_factor)
 {
   // Construct space-partitioning tree on current map
   SPTree* tree = new SPTree(D, Y, N);

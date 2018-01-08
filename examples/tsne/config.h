@@ -8,9 +8,4 @@
 #define PERIODIC_EE_DURATION 30
 #define PERIODIC_RESET 0 // when applying ee, reset the momentum of the optimizer
 
-
-/*
- *
- * momentum vs adam
- * use EE or not
- */
+#define BATCH_SIZE 100
