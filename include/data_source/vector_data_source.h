@@ -8,7 +8,7 @@ namespace panene
 {
 
 template<typename T, class D>
-class VectorDataSource : public DataSource<T, D>
+class VectorDataSource
 {
   USE_DATA_SOURCE_SYMBOLS
 
@@ -24,7 +24,6 @@ public:
   }
 
   void get(const IDType &id, std::vector<ElementType> &result) const {
-    result.resize(d);
     for(size_t i = 0; i < d; ++i) {
       result[i] = get(id, i);
     }

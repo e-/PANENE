@@ -9,7 +9,7 @@ namespace panene
 {
 
 template<typename T, class D>
-class RandomDataSource : public DataSource<T, D>
+class RandomDataSource
 {
   USE_DATA_SOURCE_SYMBOLS
 

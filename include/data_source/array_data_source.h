@@ -9,7 +9,7 @@ namespace panene
 {
 
 template<typename T, class D>
-class ArrayDataSource : public DataSource<T, D>
+class ArrayDataSource
 {
   USE_DATA_SOURCE_SYMBOLS
 
