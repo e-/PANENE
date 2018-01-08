@@ -119,6 +119,13 @@ class PyDataSource
     return ret;
   }
 
+  void get(const IDType &id, std::vector<ElementType> &result) const {
+    size_t d = dim();
+    for(size_t i=0;i<d;++i) {
+      result[i] = get(id, i);
+    }
+  }
+
   IDType findDimWithMaxSpan(const IDType &id1, const IDType &id2) {
     size_t dimension = 0;
     ElementType maxSpan = 0;
@@ -399,49 +406,56 @@ public:
     }
   }
 
-  const IDType * getNeighbors(IDType id) const {
-    DBG(std::cerr << "PyDataSink getNeighbors(" << id << ")" << std::endl);
-    if (_aneighbors != nullptr) {
-      return (IDType *)PyArray_GETPTR2(_aneighbors, id, 0);
-    }
-    if (_last_neighbor_id != id) {
-      _last_neighbor_id = id;
-      IDType v;
-      PyObject *key1 = PyInt_FromLong(id);
-      PyObject *key2 = PyInt_FromLong(0);
-      PyObject *tuple = PyTuple_Pack(2, key1, key2);
-      PyObject *pf = PyObject_GetItem(_neighbors, tuple);
-      v = 0;
-      if (PyLong_Check(pf)) {
-        v = PyLong_AsLong(pf);
-      }
-      else if (PyInt_Check(pf)) {
-        v = PyInt_AsLong(pf);
-      }
-      if (pf != nullptr) {
-        Py_DECREF(pf);
-      }
-      _neighbor_cache[0] = v;
-      for(npy_intp i = 1; i < _d; ++i) {
-        PyObject *key2 = PyInt_FromLong(i);
-        PyTuple_SET_ITEM(tuple, 1, key2);
-        pf = PyObject_GetItem(_neighbors, tuple);
-        v = 0;
-        if (PyLong_Check(pf)) {
-          v = PyLong_AsLong(pf);
-        }
-        else if (PyInt_Check(pf)) {
-          v = PyInt_AsLong(pf);
-        }
-        if (pf != nullptr) {
-          Py_DECREF(pf);
-        }
-        _neighbor_cache[i] = v;
-      }
-      Py_DECREF(tuple);
-    }
-    return _neighbor_cache;
+  // temporal implementation of getNeighbors to bypass compile errors
+  // TODO change getNeighbors and getDistances to return a vector instead of pointers
+  
+  const std::vector<IDType>& getNeighbors(IDType id) const {
+    return std::vector<IDType>();
   }
+
+  //const IDType * getNeighbors(IDType id) const {
+    //DBG(std::cerr << "PyDataSink getNeighbors(" << id << ")" << std::endl);
+    //if (_aneighbors != nullptr) {
+      //return (IDType *)PyArray_GETPTR2(_aneighbors, id, 0);
+    //}
+    //if (_last_neighbor_id != id) {
+      //_last_neighbor_id = id;
+      //IDType v;
+      //PyObject *key1 = PyInt_FromLong(id);
+      //PyObject *key2 = PyInt_FromLong(0);
+      //PyObject *tuple = PyTuple_Pack(2, key1, key2);
+      //PyObject *pf = PyObject_GetItem(_neighbors, tuple);
+      //v = 0;
+      //if (PyLong_Check(pf)) {
+        //v = PyLong_AsLong(pf);
+      //}
+      //else if (PyInt_Check(pf)) {
+        //v = PyInt_AsLong(pf);
+      //}
+      //if (pf != nullptr) {
+        //Py_DECREF(pf);
+      //}
+      //_neighbor_cache[0] = v;
+      //for(npy_intp i = 1; i < _d; ++i) {
+        //PyObject *key2 = PyInt_FromLong(i);
+        //PyTuple_SET_ITEM(tuple, 1, key2);
+        //pf = PyObject_GetItem(_neighbors, tuple);
+        //v = 0;
+        //if (PyLong_Check(pf)) {
+          //v = PyLong_AsLong(pf);
+        //}
+        //else if (PyInt_Check(pf)) {
+          //v = PyInt_AsLong(pf);
+        //}
+        //if (pf != nullptr) {
+          //Py_DECREF(pf);
+        //}
+        //_neighbor_cache[i] = v;
+      //}
+      //Py_DECREF(tuple);
+    //}
+    //return _neighbor_cache;
+  //}
 
   const DistanceType * getDistances(IDType id) const {
     DBG(std::cerr << "PyDataSink getDistances(" << id << ")" << std::endl);

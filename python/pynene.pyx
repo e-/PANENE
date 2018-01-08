@@ -1,6 +1,7 @@
 from cpython cimport PyObject, Py_INCREF
 from cython.operator import dereference
 
+import sys
 import numpy as np
 cimport numpy as np
 
@@ -107,7 +108,6 @@ cdef class Index:
         cdef PyResultSets ress = PyResultSets(n)
 
         self.c_index.knnSearchVec(cpoints, ress, k, params)
-
         ids = np.ndarray((n, k), dtype=np.int)
         dists = np.ndarray((n, k), dtype=np.float32)
         cdef PyResultSet res

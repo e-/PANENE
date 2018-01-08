@@ -336,7 +336,6 @@ public:
     }
 
     queryLoss += costSum;
-
     checkBeginUpdate();
   }  
 
