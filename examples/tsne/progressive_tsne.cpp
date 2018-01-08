@@ -320,7 +320,7 @@ void ProgressiveTSNE::updateSimilarity(Table *table,
     ar.updatedIds.insert(i);
 
     // for newly added points, we set its initial position to the mean of its neighbors
-    const size_t *indices = table->getNeighbors(i);
+    const std::vector<size_t>& indices = table->getNeighbors(i);
 
     for(size_t j = i * no_dims; j < (i + 1) * no_dims; ++j) {
       Y[j] = 0;
@@ -335,8 +335,8 @@ void ProgressiveTSNE::updateSimilarity(Table *table,
 
   for(size_t uid : ar.updatedIds) { 
     // the neighbors of uid has been updated
-    const size_t *indices = table->getNeighbors(uid);
-    const double *distances = table->getDistances(uid);   
+    const std::vector<size_t> &indices = table->getNeighbors(uid);
+    const std::vector<double> &distances = table->getDistances(uid);   
 
     bool found = false;
     double beta = 1.0;
