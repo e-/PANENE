@@ -187,7 +187,8 @@ public:
 
       // check if there is a difference between previous NN and newly computed NN.      
       size_t i;
-      const std::vector<IDType>& current = dataSink->getNeighbors(q.id);
+      std::vector<IDType> current(k);
+      dataSink->getNeighbors(q.id, current);
       for(i = 0; i < k; ++i) {
         if(current[i] != result[i].id)
           break;
@@ -223,12 +224,12 @@ public:
                         updatedIds);
   }
 
-  const std::vector<IDType>& getNeighbors(const IDType id) const {
-    return dataSink->getNeighbors(id);
+  const void getNeighbors(const IDType id, std::vector<IDType> &res) const {
+    dataSink->getNeighbors(id, res);
   }
 
-  const std::vector<DistanceType>& getDistances(const IDType id) const {
-    return dataSink->getDistances(id);
+  const void getDistances(const IDType id, std::vector<DistanceType> &res) const {
+    dataSink->getDistances(id, res);
   }
 
 private:

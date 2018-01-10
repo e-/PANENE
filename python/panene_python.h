@@ -430,14 +430,13 @@ public:
     }
   }
 
-  // temporal implementation of getNeighbors to bypass compile errors
-  // TODO change getNeighbors and getDistances to return a vector instead of pointers
-  
-  const std::vector<IDType>& getNeighbors(IDType id) const {
+  // TODO: now we can remove neighbor cache
+  void getNeighbors(const IDType id, std::vector<IDType>& res) const {
     DBG(std::cerr << "PyDataSink getNeighbors(" << id << ")" << std::endl);
     if (_aneighbors != nullptr) {
       IDType * begin = (IDType *)PyArray_GETPTR2(_aneighbors, id, 0);
-      return std::vector<IDType>(begin, begin+_d);
+      res.assign(begin, begin+_d);
+      return;
     }
     std::vector<IDType> ret(_d);
     if (_last_neighbor_id != id) {
@@ -476,14 +475,16 @@ public:
       }
       Py_DECREF(tuple);
     }
-    return std::vector<IDType>(_neighbor_cache, _neighbor_cache+_d);
+    res.assign(_neighbor_cache, _neighbor_cache+_d);
   }
 
-  const std::vector<DistanceType>& getDistances(IDType id) const {
+  // TODO: now we can remove distance cache
+  void getDistances(const IDType id, std::vector<DistanceType>& res) const {
     DBG(std::cerr << "PyDataSink getDistances(" << id << ")" << std::endl);
     if (_adistances != nullptr) {
       DistanceType * begin = (DistanceType *)PyArray_GETPTR2(_adistances, id, 0);
-      return std::vector<DistanceType>(begin, begin+_d);
+      res.assign(begin, begin+_d);
+      return;
     }
     if (_last_distance_id != id) {
       _last_distance_id = id;
@@ -515,7 +516,7 @@ public:
       }
       Py_DECREF(tuple);
     }
-    return std::vector<DistanceType>(_distance_cache, _distance_cache+_d);
+    res.assign(_distance_cache, _distance_cache+_d);
   }
 
 

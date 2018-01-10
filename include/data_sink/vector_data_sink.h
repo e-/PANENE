@@ -18,12 +18,26 @@ public:
     }
   }
 
+  /*
   const std::vector<IDType>& getNeighbors(IDType id) const {
     return neighbors[id];
   }
 
   const std::vector<DistanceType>& getDistances(IDType id) const {
     return distances[id];
+  }
+  */
+
+  void getNeighbors(const IDType id, std::vector<IDType> &res) const {
+    for(size_t i = 0; i < k; ++i) {
+      res[i] = neighbors[id][i];
+    }
+  }
+
+  void getDistances(const IDType id, std::vector<DistanceType> &res) const {
+    for(size_t i = 0; i < k; ++i) {
+      res[i] = distances[id][i];
+    }
   }
 
   void setNeighbors(IDType id, const IDType * neighbors_, const DistanceType * distances_) {

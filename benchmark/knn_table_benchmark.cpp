@@ -172,7 +172,8 @@ void run(const char* base_) {
                 size_t id = order[i];
 
                 if (id < updateResult.numPointsInserted) { // the sample point is present in the table
-                  auto distances = table.getDistances(id);
+                  std::vector<DistanceType> distances(k);
+                  table.getDistances(id, distances);
 
                   // get the distance to the farthest neighbor
                   float dist = distances[k - 1];
