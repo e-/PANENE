@@ -25,7 +25,9 @@ class PyDataSource
   typedef float DistanceType;
 
   PyDataSource(PyObject * o)
-    : _d(0), _object(Py_None), _array(nullptr) {
+    : _d(0),
+    _object(Py_None),
+    _array(nullptr) {
     Py_INCREF(_object);
     import_array_wrap();
     set_array(o);
@@ -59,29 +61,21 @@ class PyDataSource
     DBG(std::cerr << "set_array(" << o << ")" << std::endl;)
     if (o == _object) return;
     Py_INCREF(o);
+    _array = nullptr;
     Py_DECREF(_object);
     _object = o;
-    _array = nullptr;
     DBG(std::cerr << "set_array _object refcount: " << _object->ob_refcnt << std::endl);
     if (_object != Py_None) {
-      if(PyArray_Check(_object)) {
-        DBG(std::cerr << "Object is an array..." << std::endl;)
-        PyArrayObject * array = (PyArrayObject*)_object;
-        if (PyArray_IS_C_CONTIGUOUS(array)
-            && (PyArray_TYPE(array) == NPY_FLOAT)) {
-          DBG(std::cerr << "acceptable for fast get" << std::endl;)
-          _array = array;
-        }
-        else {
-          DBG(std::cerr << "not acceptable for fast get" << std::endl;)
-        }
+      if(PyArray_Check(_object) && PyArray_ISCARRAY_RO(_object)) {
+        DBG(std::cerr << "Object is a C contiguous array acceptable for fast get"  << std::endl);
+        _array = (PyArrayObject*)_object;
       } 
       else {
-        DBG(std::cerr << "Object is not an array...";)
+        DBG(std::cerr << "Object is not acceptable for fast get...");
       }
     }
     else {
-      DBG(std::cerr << "Object is not an array...";)
+      DBG(std::cerr << "Object is None...");
     }
 
     set_dim();
@@ -95,24 +89,38 @@ class PyDataSource
   ElementType get(const IDType &id, const IDType &dim) const {
     if (_array != nullptr) {
       //DBG(std::cerr << "get from array" << std::endl);
-      return *(float *) PyArray_GETPTR2(_array, id, dim);
+      void * ptr = PyArray_GETPTR2(_array, id, dim);
+      switch (PyArray_TYPE(_array)) {
+      case NPY_FLOAT: return *(npy_float *) ptr;
+      case NPY_DOUBLE: return (ElementType)*(npy_double*)ptr;
+      case NPY_LONGDOUBLE: return (ElementType)*(npy_longdouble*)ptr;
+      case NPY_BYTE: return (ElementType)*(npy_byte *)ptr;
+      case NPY_UBYTE: return (ElementType)*(npy_ubyte *)ptr;
+      case NPY_SHORT: return (ElementType)*(npy_short *)ptr;
+      case NPY_USHORT: return (ElementType)*(npy_ushort *)ptr;
+      case NPY_INT: return (ElementType)*(npy_int *)ptr;
+      case NPY_UINT: return (ElementType)*(npy_uint *)ptr;
+      case NPY_LONG: return (ElementType)*(npy_long *)ptr;
+      case NPY_ULONG: return (ElementType)*(npy_ulong *)ptr;
+      case NPY_LONGLONG: return (ElementType)*(npy_longlong *)ptr;
+      case NPY_ULONGLONG: return (ElementType)*(npy_ulonglong *)ptr;
+      }
+      // Fall through
     }
-    DBG(std::cerr << "Starting get(" << id << "," << dim << ")" << std::endl;)
-    PyObject *key1 = PyInt_FromLong(id);
-    //DBG(std::cerr << "Created key1" << std::endl;)
-    PyObject *key2 = PyInt_FromLong(dim);
-    //DBG(std::cerr << "Created key2" << std::endl;)
-    PyObject *tuple = PyTuple_Pack(2, key1, key2);
-    PyObject *pf = PyObject_GetItem(_object, tuple);
-    ElementType ret = 0;
-    DBG(std::cerr << "Got item " << pf;)
-    if (pf != nullptr) {
-      DBG(std::cerr << " type: " << pf->ob_type->tp_name << std::endl;)
-      ret = (ElementType)PyFloat_AsDouble(pf);
-      Py_DECREF(pf);
+    DBG(std::cerr << "Starting get(" << id << "," << dim << ")" << std::endl);
+    PyObject *tuple = PyTuple_New(2);
+    PyTuple_SetItem(tuple, 0, PyInt_FromLong(id)); // steals reference 
+    PyTuple_SetItem(tuple, 1, PyInt_FromLong(dim));
+    PyObject *item = PyObject_GetItem(_object, tuple);
+    ElementType ret = NPY_NAN;
+    DBG(std::cerr << "Got item " << item);
+    if (item != nullptr) {
+      DBG(std::cerr << " type: " << item->ob_type->tp_name << std::endl);
+      ret = (ElementType)PyFloat_AsDouble(item);
+      Py_DECREF(item);
     }
     else {
-      DBG(std::cerr << " not a number " << std::endl);
+      DBG(std::cerr << " not a valid item " << std::endl);
     }
     DBG(std::cerr << " value is: " << ret << std::endl);
     Py_DECREF(tuple);
@@ -122,14 +130,33 @@ class PyDataSource
   void get(const IDType &id, std::vector<ElementType> &result) const {
     size_t d = dim();
     if (_array != nullptr) {
-      for(size_t i=0;i<d;++i) {
-        result[i] = *(float *) PyArray_GETPTR2(_array, id, i);
+      switch (PyArray_TYPE(_array)) {
+      case NPY_FLOAT: {
+        float * ptr = (float *)PyArray_GETPTR2(_array, id, 0);
+        for(size_t i=0;i<d;++i) result[i] = ptr[i]; 
+        return; }
+#define CASE(TYPE,type)                                         \
+      case TYPE: {                                              \
+        type * ptr = (type *)PyArray_GETPTR2(_array, id, 0);    \
+        for(size_t i=0;i<d;++i) result[i] = (float)ptr[i];      \
+        return; }
+        CASE(NPY_DOUBLE, npy_double);
+        CASE(NPY_LONGDOUBLE, npy_longdouble);
+        CASE(NPY_BYTE, npy_byte);
+        CASE(NPY_UBYTE, npy_ubyte);
+        CASE(NPY_SHORT, npy_short);
+        CASE(NPY_USHORT, npy_ushort);
+        CASE(NPY_INT, npy_int);
+        CASE(NPY_UINT, npy_uint);
+        CASE(NPY_LONG, npy_long);
+        CASE(NPY_ULONG, npy_ulong);
+        CASE(NPY_LONGLONG, npy_longlong);
+        CASE(NPY_ULONGLONG, npy_ulonglong);
+#undef CASE
       }
     }
-    else {
-      for(size_t i=0;i<d;++i) {
-        result[i] = get(id, i);
-      }
+    for(size_t i=0;i<d;++i) {
+      result[i] = get(id, i);
     }
   }
 
@@ -249,6 +276,7 @@ class PyDataSource
   long            _d;
   PyObject      * _object;
   PyArrayObject * _array;
+  bool            _is_float;
 
   void set_dim() {
     _d = 0;
@@ -305,20 +333,17 @@ public:
    Py_INCREF(_neighbors);
    Py_INCREF(_distances);
    import_array_wrap();
-   if(PyArray_Check(_neighbors)) {
-     PyArrayObject * array = (PyArrayObject*)_neighbors;
-     if (PyArray_IS_C_CONTIGUOUS(array)
-         && (PyArray_TYPE(array) == NPY_LONG)) {
-       DBG(std::cerr << "PyDataSink neighbors is an acceptable array" << std::endl);
-       _aneighbors = array;
-     }
-     if (PyArray_NDIM(array) != 2) {
+   if (PyArray_Check(_neighbors)
+       && PyArray_ISCARRAY_RO(_neighbors)
+       && (PyArray_ISINTEGER(_neighbors))) {
+     _aneighbors = (PyArrayObject*)_neighbors;
+     DBG(std::cerr << "PyDataSink neighbors is an acceptable array" << std::endl);
+     if (PyArray_NDIM(_aneighbors) != 2) {
        throw std::invalid_argument("Neighbors should be a 2-dim object"); //generates a ValueError
-
      }
-     _d = PyArray_DIM(array, 1);
+     _d = PyArray_DIM(_aneighbors, 1);
    }
-   if (_aneighbors == nullptr) {
+   else {
      DBG(std::cerr << "PyDataSink neigbbors is NOT an acceptable array" << std::endl);
      PyObject * shape = PyObject_GetAttrString(_neighbors, "shape");
      if (PyTuple_Size(shape) != 2) {
@@ -347,21 +372,19 @@ public:
    }
    DBG(std::cerr << "dim is: " << _d << std::endl);
 
-   if(PyArray_Check(_distances)) {
-     PyArrayObject * array = (PyArrayObject*)_distances;
-     if (PyArray_IS_C_CONTIGUOUS(array)
-         && (PyArray_TYPE(array) == NPY_FLOAT)) {
-       DBG(std::cerr << "PyDataSink distances is an acceptable array" << std::endl);
-       _adistances = array;
-     }
-     if (PyArray_NDIM(array) != 2) {
+   if (PyArray_Check(_distances)
+       && PyArray_ISCARRAY_RO(_distances)
+       && (PyArray_TYPE(_distances)==NPY_FLOAT || PyArray_TYPE(_distances)==NPY_DOUBLE)) {
+     DBG(std::cerr << "PyDataSink distances is an acceptable array" << std::endl);
+     _adistances = (PyArrayObject*)_distances;
+     if (PyArray_NDIM(_distances) != 2) {
        throw std::invalid_argument("Distances should be a 2-dim object");
      }
-     if (_d != PyArray_DIM(array, 1)) {
+     if (_d != PyArray_DIM(_distances, 1)) {
        throw std::invalid_argument("Distances dimension should be the same as Neighbors");
      }
    }
-   if (_adistances == nullptr) {
+   else {
      DBG(std::cerr << "PyDataSink neigbbors is NOT an acceptable array" << std::endl);
      PyObject * shape = PyObject_GetAttrString(_distances, "shape");
      if (PyTuple_Size(shape) != 2) {
@@ -434,9 +457,23 @@ public:
   void getNeighbors(const IDType id, std::vector<IDType>& res) const {
     DBG(std::cerr << "PyDataSink getNeighbors(" << id << ")" << std::endl);
     if (_aneighbors != nullptr) {
-      IDType * begin = (IDType *)PyArray_GETPTR2(_aneighbors, id, 0);
-      res.assign(begin, begin+_d);
-      return;
+      void * ptr = PyArray_GETPTR2(_aneighbors, id, 0);
+      switch (PyArray_TYPE(_aneighbors)) {
+#define CASE(TYPE, type) \
+      case TYPE: { type * begin = (type *)ptr; res.assign(begin, begin+_d); } return
+      CASE(NPY_BYTE, npy_byte);
+      CASE(NPY_UBYTE, npy_ubyte);
+      CASE(NPY_SHORT, npy_short);
+      CASE(NPY_USHORT, npy_ushort);
+      CASE(NPY_INT, npy_int);
+      CASE(NPY_UINT, npy_uint);
+      CASE(NPY_LONG, npy_long);
+      CASE(NPY_ULONG, npy_ulong);
+      CASE(NPY_LONGLONG, npy_longlong);
+      CASE(NPY_ULONGLONG, npy_ulonglong);
+#undef CASE        
+      // Fall through
+      }
     }
     std::vector<IDType> ret(_d);
     if (_last_neighbor_id != id) {
