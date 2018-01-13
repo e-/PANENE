@@ -133,13 +133,13 @@ class PyDataSource
       switch (PyArray_TYPE(_array)) {
       case NPY_FLOAT: {
         float * ptr = (float *)PyArray_GETPTR2(_array, id, 0);
-        for(size_t i=0;i<d;++i) result[i] = ptr[i]; 
-        return; }
+        for(size_t i=0;i<d;++i) result[i] = ptr[i]; }
+        return;
 #define CASE(TYPE,type)                                         \
       case TYPE: {                                              \
         type * ptr = (type *)PyArray_GETPTR2(_array, id, 0);    \
-        for(size_t i=0;i<d;++i) result[i] = (float)ptr[i];      \
-        return; }
+        for(size_t i=0;i<d;++i) result[i] = (float)ptr[i]; }    \
+        return
         CASE(NPY_DOUBLE, npy_double);
         CASE(NPY_LONGDOUBLE, npy_longdouble);
         CASE(NPY_BYTE, npy_byte);
@@ -154,8 +154,9 @@ class PyDataSource
         CASE(NPY_ULONGLONG, npy_ulonglong);
 #undef CASE
       }
+      // Fall through
     }
-    for(size_t i=0;i<d;++i) {
+    for(unsigned int i=0;i < d;++i) {
       result[i] = get(id, i);
     }
   }
@@ -362,11 +363,11 @@ public:
        _d = PyInt_AsLong(dim);
      }
      else {
-       Py_DECREF(dim);
+       //Py_DECREF(dim); PyTuple_GetItem returns a borrowed ref, no decref needed
        Py_DECREF(shape);
        throw std::invalid_argument("Neighbors dimension is not a known number type");
      }
-     Py_DECREF(dim);
+     // Py_DECREF(dim); PyTuple_GetItem returns a borrowed ref, no decref needed
      Py_DECREF(shape);
      _neighbor_cache = new IDType[_d];
    }
@@ -377,10 +378,10 @@ public:
        && (PyArray_TYPE(_distances)==NPY_FLOAT || PyArray_TYPE(_distances)==NPY_DOUBLE)) {
      DBG(std::cerr << "PyDataSink distances is an acceptable array" << std::endl);
      _adistances = (PyArrayObject*)_distances;
-     if (PyArray_NDIM(_distances) != 2) {
+     if (PyArray_NDIM(_adistances) != 2) {
        throw std::invalid_argument("Distances should be a 2-dim object");
      }
-     if (_d != PyArray_DIM(_distances, 1)) {
+     if (_d != PyArray_DIM(_adistances, 1)) {
        throw std::invalid_argument("Distances dimension should be the same as Neighbors");
      }
    }
@@ -404,16 +405,16 @@ public:
        d = PyInt_AsLong(dim);
      }
      else {
-       Py_DECREF(dim);
+       // Py_DECREF(dim); PyTuple_GetItem returns a borrowed ref, no decref needed
        Py_DECREF(shape);
        throw std::invalid_argument("Distances dimension is not a known number type");
      }
-     Py_DECREF(dim);
+     // Py_DECREF(dim); PyTuple_GetItem returns a borrowed ref, no decref needed
      Py_DECREF(shape);
      if (_d != d) {
        throw std::invalid_argument("Distances dimension should be the same as Neighbors");
      }
-     _distance_cache = new float[_d];
+     _distance_cache = new DistanceType[_d];
    }
  }
 
@@ -433,16 +434,16 @@ public:
 
   ~PyDataSink() {
     DBG(std::cerr << "PyDataSink calling destructor" << std::endl);
+    _adistances = nullptr;
     if (_distances != nullptr) {
       Py_DECREF(_distances);
     }
     _distances = nullptr;
-    _adistances = nullptr;
+    _aneighbors = nullptr;
     if (_neighbors != nullptr) {
       Py_DECREF(_neighbors);
     }
     _neighbors = nullptr;
-    _aneighbors = nullptr;
     if (_distance_cache != nullptr) {
       delete _distance_cache;
       _distance_cache = nullptr;
@@ -479,34 +480,33 @@ public:
     if (_last_neighbor_id != id) {
       _last_neighbor_id = id;
       IDType v;
-      PyObject *key1 = PyInt_FromLong(id);
-      PyObject *key2 = PyInt_FromLong(0);
-      PyObject *tuple = PyTuple_Pack(2, key1, key2);
-      PyObject *pf = PyObject_GetItem(_neighbors, tuple);
+      PyObject *tuple = PyTuple_New(2);
+      PyTuple_SetItem(tuple, 0, PyInt_FromLong(id));
+      PyTuple_SetItem(tuple, 0, PyInt_FromLong(0));
+      PyObject *item = PyObject_GetItem(_neighbors, tuple);
       v = 0;
-      if (PyLong_Check(pf)) {
-        v = PyLong_AsLong(pf);
+      if (PyLong_Check(item)) {
+        v = PyLong_AsLong(item);
       }
-      else if (PyInt_Check(pf)) {
-        v = PyInt_AsLong(pf);
+      else if (PyInt_Check(item)) {
+        v = PyInt_AsLong(item);
       }
-      if (pf != nullptr) {
-        Py_DECREF(pf);
+      if (item != nullptr) {
+        Py_DECREF(item);
       }
       _neighbor_cache[0] = v;
-      for(npy_intp i = 1; i < _d; ++i) {
-        PyObject *key2 = PyInt_FromLong(i);
-        PyTuple_SET_ITEM(tuple, 1, key2);
-        pf = PyObject_GetItem(_neighbors, tuple);
+      for(int i = 1; i < _d; ++i) {
+        PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong(i));
+        item = PyObject_GetItem(_neighbors, tuple);
         v = 0;
-        if (PyLong_Check(pf)) {
-          v = PyLong_AsLong(pf);
+        if (PyLong_Check(item)) {
+          v = PyLong_AsLong(item);
         }
-        else if (PyInt_Check(pf)) {
-          v = PyInt_AsLong(pf);
+        else if (PyInt_Check(item)) {
+          v = PyInt_AsLong(item);
         }
-        if (pf != nullptr) {
-          Py_DECREF(pf);
+        if (item != nullptr) {
+          Py_DECREF(item);
         }
         _neighbor_cache[i] = v;
       }
@@ -533,28 +533,27 @@ public:
     }
     _last_distance_id = id;
     DistanceType v;
-    PyObject *key1 = PyInt_FromLong(id);
-    PyObject *key2 = PyInt_FromLong(0);
-    PyObject *tuple = PyTuple_Pack(2, key1, key2);
-    PyObject *pf = PyObject_GetItem(_distances, tuple);
+    PyObject *tuple = PyTuple_New(2);
+    PyTuple_SET_ITEM(tuple, 0, PyInt_FromLong(id));
+    PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong(0));
+    PyObject *item = PyObject_GetItem(_distances, tuple);
     v = 0;
-    if (PyFloat_Check(pf)) {
-      v = (DistanceType)PyFloat_AsDouble(pf);
+    if (PyFloat_Check(item)) {
+      v = (DistanceType)PyFloat_AsDouble(item);
     }
-    if (pf != nullptr) {
-      Py_DECREF(pf);
+    if (item != nullptr) {
+      Py_DECREF(item);
     }
     _distance_cache[0] = v;
-    for(npy_intp i = 1; i < _d; ++i) {
-      PyObject *key2 = PyInt_FromLong(i);
-      PyTuple_SET_ITEM(tuple, 1, key2);
-      pf = PyObject_GetItem(_distances, tuple);
+    for(int i = 1; i < _d; ++i) {
+      PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong(i));
+      item = PyObject_GetItem(_distances, tuple);
       v = 0;
-      if (PyFloat_Check(pf)) {
-        v = (DistanceType)PyFloat_AsDouble(pf);
+      if (PyFloat_Check(item)) {
+        v = (DistanceType)PyFloat_AsDouble(item);
       }
-      if (pf != nullptr) {
-        Py_DECREF(pf);
+      if (item != nullptr) {
+        Py_DECREF(item);
       }
       _distance_cache[i] = v;
     }
@@ -564,14 +563,18 @@ public:
 
 
   void setNeighbors(IDType id, const IDType * neighbors_, const DistanceType * distances_) {
-    bool done = false;
     int i;
+    bool done = false;
     DBG(std::cerr << "PyDataSink setNeighbors(" << id << ")" << std::endl);
 
     if (_aneighbors != nullptr) {
       void * ptr = PyArray_GETPTR2(_aneighbors, id, 0);
       done = true;
-#define CASE(TYPE, type) case TYPE: { type * head = (type *)ptr; for(int i = 0; i < _d; ++i) head[i] = (type)neighbors_[i]; }; break
+#define CASE(TYPE, type)                                                \
+      case TYPE: {                                                      \
+        type * head = (type *)ptr;                                      \
+        for(int i = 0; i < _d; ++i)                                     \
+          head[i] = (type)neighbors_[i]; }; break
       switch (PyArray_TYPE(_aneighbors)) {
         CASE(NPY_BYTE, npy_byte);
         CASE(NPY_UBYTE, npy_ubyte);
@@ -585,26 +588,31 @@ public:
         CASE(NPY_ULONGLONG, npy_ulonglong);
       default: done=false;
       }
-#undef CASE
     }
+#undef CASE
     if (! done) {
       _last_neighbor_id = id;
       for (i = 0; i < _d; i++) {
         _neighbor_cache[i] = neighbors_[i];
       }
+      PyObject *tuple = PyTuple_New(2);
+      PyTuple_SET_ITEM(tuple, 0, PyInt_FromLong(id));
+      PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong(0));
       PyObject *v = PyInt_FromLong(_neighbor_cache[0]);
-      PyObject *key1 = PyInt_FromLong(id);
-      PyObject *key2 = PyInt_FromLong(0);
-      PyObject *tuple = PyTuple_Pack(2, key1, key2);
-      if (PyObject_SetItem(_neighbors, tuple, v)==-1)
-        throw std::invalid_argument("setitem failed on neighbors");
-      for(npy_intp i = 1; i < _d; ++i) {
-        PyObject *key2 = PyInt_FromLong(i);
-        PyTuple_SET_ITEM(tuple, 1, key2);
+      if (PyObject_SetItem(_neighbors, tuple, v)==-1) {
         Py_DECREF(v);
-        PyObject *v = PyInt_FromLong(_neighbor_cache[i]);
-        if (PyObject_SetItem(_neighbors, tuple, v)==-1)
+        Py_DECREF(tuple);
+        throw std::invalid_argument("setitem failed on neighbors");
+      }
+      for(i = 1; i < _d; ++i) { // Reuse the tuple, is it bad?
+        PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong(i));
+        Py_DECREF(v); 
+        v = PyInt_FromLong(_neighbor_cache[i]);
+        if (PyObject_SetItem(_neighbors, tuple, v)==-1) {
+          Py_DECREF(v);
+          Py_DECREF(tuple);
           throw std::invalid_argument("setitem failed on neighbors");
+        }
       }
       Py_DECREF(v);
       Py_DECREF(tuple);
@@ -614,33 +622,44 @@ public:
     if (_adistances != nullptr) {
       void * ptr = PyArray_GETPTR2(_adistances, id, 0);
       done = true;
-#define CASE(TYPE, type) case TYPE: { type * head = (type *)ptr; for(int i = 0; i < _d; ++i) head[i] = (type)distances_[i]; }; break
+#define CASE(TYPE, type)                                                \
+      case TYPE: {                                                      \
+        type * head = (type *)ptr;                                      \
+        for (int i = 0; i < _d; ++i)                                    \
+          head[i] = (type)distances_[i]; };                             \
+        break
       switch (PyArray_TYPE(_adistances)) {
-      CASE(NPY_FLOAT, npy_float);
-      CASE(NPY_DOUBLE, npy_double);
-      CASE(NPY_LONGDOUBLE, npy_longdouble);
-    default: done=false;
+        CASE(NPY_FLOAT, npy_float);
+        CASE(NPY_DOUBLE, npy_double);
+        CASE(NPY_LONGDOUBLE, npy_longdouble);
+      default: done=false;
+      }
     }
 #undef CASE
-    }
     if (! done) {
       _last_distance_id = id;
       for (i = 0; i < _d; i++) {
         _distance_cache[i] = distances_[i];
       }
+      PyObject *tuple = PyTuple_New(2);
+      PyTuple_SET_ITEM(tuple, 0, PyInt_FromLong(id));
+      PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong(0));
       PyObject *v = PyFloat_FromDouble(_distance_cache[0]);
-      PyObject *key1 = PyInt_FromLong(id);
-      PyObject *key2 = PyInt_FromLong(0);
-      PyObject *tuple = PyTuple_Pack(2, key1, key2);
-      if (PyObject_SetItem(_distances, tuple, v)==-1)
+      if (PyObject_SetItem(_distances, tuple, v)==-1) {
+        Py_DECREF(v);
+        Py_DECREF(tuple);
         throw std::invalid_argument("setitem failed on distances");
-      for(npy_intp i = 1; i < _d; ++i) {
+      }
+      for(int i = 1; i < _d; ++i) {
         PyObject *key2 = PyInt_FromLong(i);
         PyTuple_SET_ITEM(tuple, 1, key2);
         Py_DECREF(v);
         PyObject *v = PyFloat_FromDouble(_distance_cache[i]);
-        if (PyObject_SetItem(_distances, tuple, v)==-1)
+        if (PyObject_SetItem(_distances, tuple, v)==-1) {
+          Py_DECREF(v);
+          Py_DECREF(tuple);
           throw std::invalid_argument("setitem failed on distances");
+        }
       }
       Py_DECREF(v);
       Py_DECREF(tuple);
