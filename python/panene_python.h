@@ -519,17 +519,36 @@ public:
   void getDistances(const IDType id, std::vector<DistanceType>& res) const {
     DBG(std::cerr << "PyDataSink getDistances(" << id << ")" << std::endl);
     if (_adistances != nullptr) {
-      DistanceType * begin = (DistanceType *)PyArray_GETPTR2(_adistances, id, 0);
-      res.assign(begin, begin+_d);
-      return;
+      //DistanceType * begin = (DistanceType *)PyArray_GETPTR2(_adistances, id, 0);
+      void * ptr = PyArray_GETPTR2(_adistances, id, 0);
+      switch (PyArray_TYPE(_aneighbors)) {
+#define CASE(TYPE, type)                                                \
+        case TYPE: { type * begin = (type *)ptr; res.assign(begin, begin+_d); } return
+        CASE(NPY_FLOAT, npy_float);
+        CASE(NPY_DOUBLE, npy_double);
+        CASE(NPY_LONGDOUBLE, npy_longdouble);
+#undef CASE        
+        // Fall through
+      }
     }
-    if (_last_distance_id != id) {
-      _last_distance_id = id;
-      DistanceType v;
-      PyObject *key1 = PyInt_FromLong(id);
-      PyObject *key2 = PyInt_FromLong(0);
-      PyObject *tuple = PyTuple_Pack(2, key1, key2);
-      PyObject *pf = PyObject_GetItem(_distances, tuple);
+    _last_distance_id = id;
+    DistanceType v;
+    PyObject *key1 = PyInt_FromLong(id);
+    PyObject *key2 = PyInt_FromLong(0);
+    PyObject *tuple = PyTuple_Pack(2, key1, key2);
+    PyObject *pf = PyObject_GetItem(_distances, tuple);
+    v = 0;
+    if (PyFloat_Check(pf)) {
+      v = (DistanceType)PyFloat_AsDouble(pf);
+    }
+    if (pf != nullptr) {
+      Py_DECREF(pf);
+    }
+    _distance_cache[0] = v;
+    for(npy_intp i = 1; i < _d; ++i) {
+      PyObject *key2 = PyInt_FromLong(i);
+      PyTuple_SET_ITEM(tuple, 1, key2);
+      pf = PyObject_GetItem(_distances, tuple);
       v = 0;
       if (PyFloat_Check(pf)) {
         v = (DistanceType)PyFloat_AsDouble(pf);
@@ -537,36 +556,38 @@ public:
       if (pf != nullptr) {
         Py_DECREF(pf);
       }
-      _distance_cache[0] = v;
-      for(npy_intp i = 1; i < _d; ++i) {
-        PyObject *key2 = PyInt_FromLong(i);
-        PyTuple_SET_ITEM(tuple, 1, key2);
-        pf = PyObject_GetItem(_distances, tuple);
-        v = 0;
-        if (PyFloat_Check(pf)) {
-          v = (DistanceType)PyFloat_AsDouble(pf);
-        }
-        if (pf != nullptr) {
-          Py_DECREF(pf);
-        }
-        _distance_cache[i] = v;
-      }
-      Py_DECREF(tuple);
+      _distance_cache[i] = v;
     }
+    Py_DECREF(tuple);
     res.assign(_distance_cache, _distance_cache+_d);
   }
 
 
   void setNeighbors(IDType id, const IDType * neighbors_, const DistanceType * distances_) {
-    DBG(std::cerr << "PyDataSink setNeighbors(" << id << ")" << std::endl);
+    bool done = false;
     int i;
+    DBG(std::cerr << "PyDataSink setNeighbors(" << id << ")" << std::endl);
+
     if (_aneighbors != nullptr) {
-      IDType * head = (IDType *)PyArray_GETPTR2(_aneighbors, id, 0);
-      for(npy_intp i = 0; i < _d; ++i) {
-        head[i] = neighbors_[i];
+      void * ptr = PyArray_GETPTR2(_aneighbors, id, 0);
+      done = true;
+#define CASE(TYPE, type) case TYPE: { type * head = (type *)ptr; for(int i = 0; i < _d; ++i) head[i] = (type)neighbors_[i]; }; break
+      switch (PyArray_TYPE(_aneighbors)) {
+        CASE(NPY_BYTE, npy_byte);
+        CASE(NPY_UBYTE, npy_ubyte);
+        CASE(NPY_SHORT, npy_short);
+        CASE(NPY_USHORT, npy_ushort);
+        CASE(NPY_INT, npy_int);
+        CASE(NPY_UINT, npy_uint);
+        CASE(NPY_LONG, npy_long);
+        CASE(NPY_ULONG, npy_ulong);
+        CASE(NPY_LONGLONG, npy_longlong);
+        CASE(NPY_ULONGLONG, npy_ulonglong);
+      default: done=false;
       }
+#undef CASE
     }
-    else {
+    if (! done) {
       _last_neighbor_id = id;
       for (i = 0; i < _d; i++) {
         _neighbor_cache[i] = neighbors_[i];
@@ -588,13 +609,21 @@ public:
       Py_DECREF(v);
       Py_DECREF(tuple);
     }
+
+    done = false;
     if (_adistances != nullptr) {
-      DistanceType * head = (DistanceType *)PyArray_GETPTR2(_adistances, id, 0);
-      for(npy_intp i = 0; i < _d; ++i) {
-        head[i] = distances_[i];
-      }
+      void * ptr = PyArray_GETPTR2(_adistances, id, 0);
+      done = true;
+#define CASE(TYPE, type) case TYPE: { type * head = (type *)ptr; for(int i = 0; i < _d; ++i) head[i] = (type)distances_[i]; }; break
+      switch (PyArray_TYPE(_adistances)) {
+      CASE(NPY_FLOAT, npy_float);
+      CASE(NPY_DOUBLE, npy_double);
+      CASE(NPY_LONGDOUBLE, npy_longdouble);
+    default: done=false;
     }
-    else {
+#undef CASE
+    }
+    if (! done) {
       _last_distance_id = id;
       for (i = 0; i < _d; i++) {
         _distance_cache[i] = distances_[i];
