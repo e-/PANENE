@@ -86,6 +86,8 @@ class PyDataSource
     return _object;
   }
 
+  bool is_using_pyarray() const { return _array != nullptr; }
+
   ElementType get(const IDType &id, const IDType &dim) const {
     if (_array != nullptr) {
       //DBG(std::cerr << "get from array" << std::endl);
@@ -453,6 +455,9 @@ public:
       _neighbor_cache = nullptr;
     }
   }
+
+  bool is_using_neighbors_pyarray() const { return _aneighbors != nullptr; }
+  bool is_using_distances_pyarray() const { return _adistances != nullptr; }
 
   // TODO: now we can remove neighbor cache
   void getNeighbors(const IDType id, std::vector<IDType>& res) const {

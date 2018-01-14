@@ -1,4 +1,6 @@
 from cpython cimport PyObject
+from libcpp cimport bool
+
 from numpy cimport int64_t, int32_t, uint32_t, float64_t
 cimport numpy as np
 
@@ -9,6 +11,7 @@ cdef extern from "panene_python.h":
         PyDataSource(object array)
         void set_array(object array)
         object get_array() const
+        bool is_using_pyarray() const
 
     cdef cppclass IndexParams:
         IndexParams()
@@ -102,6 +105,8 @@ cdef extern from "panene_python.h":
 
     cdef cppclass PyDataSink:
         PyDataSink(object neighbors, object distances) except +ValueError
+        bool is_using_neighbors_pyarray() const
+        bool is_using_distances_pyarray() const
 
     cdef cppclass PyKNNTable:
         PyKNNTable(PyDataSource *ds, PyDataSink *sink, size_t knn, IndexParams ip, SearchParams sp, TreeWeight treew, TableWeight tablew)

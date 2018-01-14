@@ -46,6 +46,10 @@ cdef class Index:
         check_array(value)
         self.c_src.set_array(value)
 
+    @property
+    def is_using_pyarray(self):
+        return self.c_src.is_using_pyarray()
+
     def add_points(self, size_t end):
         self.c_index.addPoints(end)
 
@@ -175,6 +179,18 @@ cdef class KNNTable:
                                       TreeWeight(treew[0], treew[1]),
                                       TableWeight(tablew[0], tablew[1])
                                      )
+
+    @property
+    def is_using_pyarray(self):
+        return self.c_src.is_using_pyarray()
+
+    @property
+    def is_using_neighbors_pyarray(self):
+        return self.c_sing.is_using_neighbors_pyarray()
+
+    @property
+    def is_using_distances_pyarray(self):
+        return self.c_sing.is_using_distances_pyarray()
 
     def __dealloc(self):
         del self.c_table

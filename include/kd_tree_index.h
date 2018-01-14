@@ -117,7 +117,8 @@ public:
 
 public:
 
-  KDTreeIndex(DataSource *dataSource_, IndexParams indexParams_, Distance distance_ = Distance()) : dataSource(dataSource_), indexParams(indexParams_), distance(distance_) {
+  KDTreeIndex(DataSource *dataSource_, IndexParams indexParams_, Distance distance_ = Distance())
+    : dataSource(dataSource_), indexParams(indexParams_), distance(distance_) {
     numTrees = indexParams_.trees;
     trees.resize(numTrees);
     dim = dataSource->dim();
@@ -578,10 +579,10 @@ public:
     SAMPLE_MEAN = 100,
   };
 
-  IndexParams indexParams;  
-  size_t numTrees;
   DataSource *dataSource;
+  IndexParams indexParams;  
   Distance distance;
+  size_t numTrees;
   size_t size = 0; // the number of points loaded into trees
   size_t dim;
 
