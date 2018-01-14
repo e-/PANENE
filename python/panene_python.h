@@ -14,6 +14,25 @@
 
 using namespace panene;
 
+inline long getpylong(PyObject * obj)
+{
+  long v = 0;
+  if (obj == nullptr) {
+    DBG(std::cerr << "obj is null" << std::endl);
+  }
+  else if (PyLong_Check(obj)) {
+    v = PyLong_AsLong(obj);
+    DBG(std::cerr << "obj is a long" << std::endl);
+  }
+  else if (PyInt_Check(obj)) {
+    v = PyInt_AsLong(obj);
+    DBG(std::cerr << "obj is an int" << std::endl);
+  }
+  else {
+    DBG(std::cerr << "obj is not a number" << std::endl);
+  }
+  return v;
+}
 
 class PyDataSource
 {
@@ -109,6 +128,9 @@ class PyDataSource
       }
       // Fall through
     }
+    PyGILState_STATE gstate;
+    gstate = PyGILState_Ensure();
+
     DBG(std::cerr << "Starting get(" << id << "," << dim << ")" << std::endl);
     PyObject *tuple = PyTuple_New(2);
     PyTuple_SetItem(tuple, 0, PyInt_FromLong(id)); // steals reference 
@@ -126,6 +148,9 @@ class PyDataSource
     }
     DBG(std::cerr << " value is: " << ret << std::endl);
     Py_DECREF(tuple);
+
+    /* Release the thread. No Python API allowed beyond this point. */
+    PyGILState_Release(gstate);
     return ret;
   }
 
@@ -261,9 +286,16 @@ class PyDataSource
       DBG(std::cerr << "Size return 0" << std::endl);
       return 0;
     }
+    else if (_array != nullptr) {
+      return PyArray_DIM(_array, 0);
+    }
+    PyGILState_STATE gstate;
+    gstate = PyGILState_Ensure();
     size_t s = PyObject_Length(_object);
     DBG(std::cerr << "Size return " << s << std::endl);
     DBG(std::cerr << "size _object refcount: " << _object->ob_refcnt << std::endl);
+    /* Release the thread. No Python API allowed beyond this point. */
+    PyGILState_Release(gstate);
     return s;
   }
 
@@ -290,6 +322,11 @@ class PyDataSource
       DBG(std::cerr << "Fast set_dim is: " << _d << std::endl);
       return;
     }
+    long length = PyObject_Length(_object);
+    DBG(std::cerr << "Getting length: " << length << std::endl);
+    if (length == -1) {
+      throw std::invalid_argument("Array should implement __len__"); //generates a ValueError
+    }
 
     DBG(std::cerr << "Getting shape" << std::endl);
     PyObject * shape = PyObject_GetAttrString(_object, "shape");
@@ -299,23 +336,14 @@ class PyDataSource
     }
     PyObject * dim = PyTuple_GetItem(shape, 1);
     DBG(std::cerr << "Got dim" << std::endl);
-    _d = 0;
-    if (dim == nullptr) {
-      DBG(std::cerr << "dim is null" << std::endl);
-    }
-    else if (PyLong_Check(dim)) {
-      _d = PyLong_AsLong(dim);
-      DBG(std::cerr << "dim is a long" << std::endl);
-    }
-    else if (PyInt_Check(dim)) {
-      _d = PyInt_AsLong(dim);
-      DBG(std::cerr << "dim is an int" << std::endl);
-    }
-    else {
-      DBG(std::cerr << "dim is not a number" << std::endl);
-    }
+    _d = getpylong(dim);
     DBG(std::cerr << "dim is: " << _d << std::endl);
+
+    PyObject * len = PyTuple_GetItem(shape, 0);
     Py_DECREF(shape);
+    if (getpylong(len) != length) {
+      throw std::invalid_argument("Array length is not the same as shape[0]"); 
+    }
     DBG(std::cerr << "set_dim _object refcount: " << _object->ob_refcnt << std::endl);
   }
 };
@@ -483,6 +511,9 @@ public:
     }
     std::vector<IDType> ret(_d);
     if (_last_neighbor_id != id) {
+      PyGILState_STATE gstate;
+      gstate = PyGILState_Ensure();
+
       _last_neighbor_id = id;
       IDType v;
       PyObject *tuple = PyTuple_New(2);
@@ -516,6 +547,8 @@ public:
         _neighbor_cache[i] = v;
       }
       Py_DECREF(tuple);
+      /* Release the thread. No Python API allowed beyond this point. */
+      PyGILState_Release(gstate);
     }
     res.assign(_neighbor_cache, _neighbor_cache+_d);
   }
@@ -526,16 +559,22 @@ public:
     if (_adistances != nullptr) {
       //DistanceType * begin = (DistanceType *)PyArray_GETPTR2(_adistances, id, 0);
       void * ptr = PyArray_GETPTR2(_adistances, id, 0);
-      switch (PyArray_TYPE(_aneighbors)) {
 #define CASE(TYPE, type)                                                \
-        case TYPE: { type * begin = (type *)ptr; res.assign(begin, begin+_d); } return
+      case TYPE: {                                                      \
+        type * begin = (type *)ptr;                                     \
+        res.assign(begin, begin+_d); }                                  \
+        return
+      switch (PyArray_TYPE(_aneighbors)) {
         CASE(NPY_FLOAT, npy_float);
         CASE(NPY_DOUBLE, npy_double);
         CASE(NPY_LONGDOUBLE, npy_longdouble);
-#undef CASE        
         // Fall through
       }
     }
+#undef CASE        
+    PyGILState_STATE gstate;
+    gstate = PyGILState_Ensure();
+
     _last_distance_id = id;
     DistanceType v;
     PyObject *tuple = PyTuple_New(2);
@@ -563,9 +602,10 @@ public:
       _distance_cache[i] = v;
     }
     Py_DECREF(tuple);
+    /* Release the thread. No Python API allowed beyond this point. */
+    PyGILState_Release(gstate);
     res.assign(_distance_cache, _distance_cache+_d);
   }
-
 
   void setNeighbors(IDType id, const IDType * neighbors_, const DistanceType * distances_) {
     int i;
@@ -600,6 +640,9 @@ public:
       for (i = 0; i < _d; i++) {
         _neighbor_cache[i] = neighbors_[i];
       }
+
+      PyGILState_STATE gstate;
+      gstate = PyGILState_Ensure();
       PyObject *tuple = PyTuple_New(2);
       PyTuple_SET_ITEM(tuple, 0, PyInt_FromLong(id));
       PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong(0));
@@ -616,11 +659,15 @@ public:
         if (PyObject_SetItem(_neighbors, tuple, v)==-1) {
           Py_DECREF(v);
           Py_DECREF(tuple);
+          /* Release the thread. No Python API allowed beyond this point. */
+          PyGILState_Release(gstate);
           throw std::invalid_argument("setitem failed on neighbors");
         }
       }
       Py_DECREF(v);
       Py_DECREF(tuple);
+      /* Release the thread. No Python API allowed beyond this point. */
+      PyGILState_Release(gstate);
     }
 
     done = false;
@@ -646,6 +693,8 @@ public:
       for (i = 0; i < _d; i++) {
         _distance_cache[i] = distances_[i];
       }
+      PyGILState_STATE gstate;
+      gstate = PyGILState_Ensure();
       PyObject *tuple = PyTuple_New(2);
       PyTuple_SET_ITEM(tuple, 0, PyInt_FromLong(id));
       PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong(0));
@@ -653,6 +702,8 @@ public:
       if (PyObject_SetItem(_distances, tuple, v)==-1) {
         Py_DECREF(v);
         Py_DECREF(tuple);
+        /* Release the thread. No Python API allowed beyond this point. */
+        PyGILState_Release(gstate);
         throw std::invalid_argument("setitem failed on distances");
       }
       for(int i = 1; i < _d; ++i) {
@@ -663,11 +714,15 @@ public:
         if (PyObject_SetItem(_distances, tuple, v)==-1) {
           Py_DECREF(v);
           Py_DECREF(tuple);
+          /* Release the thread. No Python API allowed beyond this point. */
+          PyGILState_Release(gstate);
           throw std::invalid_argument("setitem failed on distances");
         }
       }
       Py_DECREF(v);
       Py_DECREF(tuple);
+      /* Release the thread. No Python API allowed beyond this point. */
+      PyGILState_Release(gstate);
     }
   }
 

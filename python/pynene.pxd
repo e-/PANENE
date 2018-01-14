@@ -78,12 +78,12 @@ cdef extern from "panene_python.h":
         PyIndexL2(PyDataSource *ds, IndexParams ip, TreeWeight, float)
         size_t addPoints(size_t end)
         void beginUpdate()
-        UpdateResult2 run(size_t ops)
+        UpdateResult2 run(size_t ops) nogil
         void removePoint(size_t id)
         size_t getSize()
         int usedMemory()
-        void knnSearch(size_t id, PyResultSet& results, size_t knn, const SearchParams& params)
-        void knnSearchVec(const Points& vec, PyResultSets& results, size_t knn, const SearchParams& params)
+        void knnSearch(size_t id, PyResultSet& results, size_t knn, const SearchParams& params) nogil
+        void knnSearchVec(const Points& vec, PyResultSets& results, size_t knn, const SearchParams& params) nogil
 
     cdef cppclass TableWeight:
         TableWeight(float treew, float tablew)
@@ -111,5 +111,5 @@ cdef extern from "panene_python.h":
     cdef cppclass PyKNNTable:
         PyKNNTable(PyDataSource *ds, PyDataSink *sink, size_t knn, IndexParams ip, SearchParams sp, TreeWeight treew, TableWeight tablew)
         size_t getSize()
-        UpdateResult run(size_t ops)
+        UpdateResult run(size_t ops) nogil
         PyResultSet& getNeighbors(int id)

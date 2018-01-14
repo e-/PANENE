@@ -1,6 +1,7 @@
 from cpython cimport PyObject, Py_INCREF
 from cython.operator import dereference
 
+import warnings
 import sys
 import numpy as np
 cimport numpy as np
@@ -14,8 +15,11 @@ cdef char* version = '0.0.1'
 cdef object __version__ = version
 
 cdef inline check_array(arr):
-    if len(arr.shape)!=2: # add more tests
+    shape = arr.shape
+    if len(shape)!=2: # add more tests
         raise TypeError('value is %s not an array', arr)
+    if len(arr) != shape[0]:
+        raise TypeError('Inconsistency in array len', arr)
 
 cdef class Index:
     cdef PyDataSource * c_src
@@ -65,6 +69,10 @@ cdef class Index:
             params.eps = eps
         if sorted is not None:
             params.sorted = sorted
+        if not self.is_using_pyarray:
+            if cores is not None and cores != 1:
+                warnings.warn('Ignoring cores for non-numpy arrays')
+            cores = 1
         if cores is not None:
             params.cores = cores
         
@@ -72,7 +80,8 @@ cdef class Index:
             raise ValueError('k is larger than the number of points in the index. Make sure you called add_points()')
 
         cdef PyResultSet res = PyResultSet(k)
-        self.c_index.knnSearch(pid, res, k, params)
+        with nogil:
+            self.c_index.knnSearch(pid, res, k, params)
 
         ids = np.ndarray((1, res.k), dtype=np.int)
         dists = np.ndarray((1, res.k), dtype=np.float)
@@ -92,6 +101,10 @@ cdef class Index:
             params.eps = eps
         if sorted is not None:
             params.sorted = sorted
+        if not self.is_using_pyarray:
+            if cores is not None and cores != 1:
+                warnings.warn('Ignoring cores for non-numpy arrays')
+                cores = 1
         if cores is not None:
             params.cores = cores
 
@@ -111,7 +124,8 @@ cdef class Index:
 
         cdef PyResultSets ress = PyResultSets(n)
 
-        self.c_index.knnSearchVec(cpoints, ress, k, params)
+        with nogil:
+            self.c_index.knnSearchVec(cpoints, ress, k, params)
         ids = np.ndarray((n, k), dtype=np.int)
         dists = np.ndarray((n, k), dtype=np.float32)
         cdef PyResultSet res
@@ -127,7 +141,8 @@ cdef class Index:
 
     def run(self, int ops):
         cdef UpdateResult2 ur
-        ur = self.c_index.run(ops)
+        with nogil:
+            ur = self.c_index.run(ops)
 
         return {
             'numPointsInserted': ur.numPointsInserted,
@@ -166,11 +181,17 @@ cdef class KNNTable:
             self.c_searchParams.eps = eps
         if sorted is not None:
             self.c_searchParams.sorted = sorted
+        self.c_src = new PyDataSource(array)
+        self.c_sink = new PyDataSink(neighbors, distances)
+        if not (self.is_using_pyarray and \
+                self.is_using_neighbors_pyarray and \
+                self.is_using_distances_pyarray):
+            if cores is not None and cores != 1:
+                warnings.warn('Ignoring cores for non-numpy arrays')
+            cores = 1
         if cores is not None:
             self.c_searchParams.cores = cores
 
-        self.c_src = new PyDataSource(array)
-        self.c_sink = new PyDataSink(neighbors, distances)
         self.c_table = new PyKNNTable(self.c_src,
                                       self.c_sink,
                                       k, 
@@ -186,11 +207,11 @@ cdef class KNNTable:
 
     @property
     def is_using_neighbors_pyarray(self):
-        return self.c_sing.is_using_neighbors_pyarray()
+        return self.c_sink.is_using_neighbors_pyarray()
 
     @property
     def is_using_distances_pyarray(self):
-        return self.c_sing.is_using_distances_pyarray()
+        return self.c_sink.is_using_distances_pyarray()
 
     def __dealloc(self):
         del self.c_table
@@ -202,7 +223,8 @@ cdef class KNNTable:
 
     def run(self, size_t ops):
         cdef UpdateResult ur
-        ur = self.c_table.run(ops)
+        with nogil:
+            ur = self.c_table.run(ops)
         return {
             'addPointOps': ur.addPointOps,
             'updateIndexOps': ur.updateIndexOps,
