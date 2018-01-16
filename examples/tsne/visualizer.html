@@ -46,7 +46,7 @@ function load(path) {
   let margin = 15
   let label = 35;
 
-  d3.text(path.replace('images', 'labels').replace('.progressive', ''), labels => { // load labels
+  d3.text("labels" + (path.indexOf('sorted') >= 0 ? '.sorted' : '') + '.txt', labels => { // load labels
     d3.text(path + '/metadata.txt', text => { // load meta
       lines = text.split('\n').map(line => line.split(' '))
       byIter = {}
