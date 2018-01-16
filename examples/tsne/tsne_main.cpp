@@ -37,7 +37,7 @@ int main(int argv, char *argc[]) {
     tsne->run(argc[1], data, N, D, Y, no_dims, perplexity, theta, rand_seed, false, max_iter);
 
     // Save the results
-    tsne->save_data(Y, landmarks, costs, N, no_dims);
+    tsne->run(argc[1], data, N, D, Y, no_dims, perplexity, theta, rand_seed, false, max_iter);
 
     // Clean up the memory
     free(data); data = NULL;

@@ -36,6 +36,14 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <map>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <algorithm>
+#include <random>
+#include <chrono>
+
 #include "config.h"
 #include "vptree.h"
 #include "sptree.h"
@@ -69,9 +77,6 @@ void TSNE::run(char *path, double* X, int N, int D, double* Y, int no_dims, doub
   clock_t start, end;
   double momentum = .5, final_momentum = .8;
 
-  // Logging
-  FILE *meta = fopen("result/original.meta.txt", "w");
-
   double* dY    = (double*) malloc(N * no_dims * sizeof(double));
 
 #if USE_ADAM
@@ -99,6 +104,21 @@ void TSNE::run(char *path, double* X, int N, int D, double* Y, int no_dims, doub
   for(int i = 0; i < N * no_dims; i++) gains[i] = 1.0;
 #endif
 
+  // Create a result directory
+  char base_path[200];
+  sprintf(base_path, "%s.original", path);
+
+  struct stat st = {0};
+  if(stat(base_path, &st) == -1) {
+    mkdir(base_path, 0700);
+  } 
+  
+  // Logging
+  
+  char meta_path[200];
+  sprintf(meta_path, "%s/metadata.txt", base_path);
+  FILE *meta = fopen(meta_path, "w");
+ 
   // Normalize input data (to prevent numerical problems)
   printf("Computing input similarities...\n");
   start = clock();
@@ -226,10 +246,10 @@ void TSNE::run(char *path, double* X, int N, int D, double* Y, int no_dims, doub
       printf("Iteration %d: error is %f (%4.2f seconds)\n", iter, C, (float) (end - start) / CLOCKS_PER_SEC);
 
       char path[100];
-      sprintf(path,"result/original.%d.txt", iter);
-      save(path, Y, N, no_dims);
-      
-      fprintf(meta, "%d %f %f original.%d.txt\n", iter, total_time, C, iter);
+      sprintf(path,"%s/original.%d.txt", base_path, iter);
+
+      save_data(path, Y, N, no_dims);
+      fprintf(meta, "%d %f %f %s/result.%d.txt\n", iter, total_time, C, base_path, iter);
     }
   }
 
@@ -252,6 +272,11 @@ void TSNE::run(char *path, double* X, int N, int D, double* Y, int no_dims, doub
     free(val_P); val_P = NULL;
   }
   printf("Fitting performed in %4.2f seconds.\n", total_time);
+
+  // Save the final embedding
+  char emb_path[200];
+  sprintf(emb_path, "%s/embedding.txt", base_path);
+  save_data(emb_path, Y, N, no_dims);
 }
 
 
@@ -750,10 +775,10 @@ bool TSNE::load_data(char *path, double** data, int* n, int* d, int* no_dims, do
 }
 
 // Function that saves map to a t-SNE file
-void TSNE::save_data(double* data, int* landmarks, double* costs, int n, int d) {
+void TSNE::save_data(char *path, double* data, int n, int d) {
   // Open file, write first 2 integers and then the data
   FILE *h;
-  if((h = fopen("result/result.txt", "w")) == NULL) {
+  if((h = fopen(path, "w")) == NULL) {
     printf("Error: could not open data file.\n");
     return;
   }

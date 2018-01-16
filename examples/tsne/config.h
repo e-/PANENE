@@ -1,6 +1,6 @@
 #define USE_ADAM 0 // ADAM or the original algorithm?
 
-#define USE_EE 1 // use early exaggeration (ee)?
+#define USE_EE 0 //1 // use early exaggeration (ee)?
 #define EE_FACTOR 12.0f 
 
 #define PERIODIC_EE 1 // periodic EE (e.g., 30 iterations for every 100 iterations)
