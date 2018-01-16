@@ -14,6 +14,25 @@
 
 using namespace panene;
 
+inline long getpylong(PyObject * obj)
+{
+  long v = 0;
+  if (obj == nullptr) {
+    DBG(std::cerr << "obj is null" << std::endl);
+  }
+  else if (PyLong_Check(obj)) {
+    v = PyLong_AsLong(obj);
+    DBG(std::cerr << "obj is a long" << std::endl);
+  }
+  else if (PyInt_Check(obj)) {
+    v = PyInt_AsLong(obj);
+    DBG(std::cerr << "obj is an int" << std::endl);
+  }
+  else {
+    DBG(std::cerr << "obj is not a number" << std::endl);
+  }
+  return v;
+}
 
 class PyDataSource
 {
@@ -25,7 +44,9 @@ class PyDataSource
   typedef float DistanceType;
 
   PyDataSource(PyObject * o)
-    : _d(0), _object(Py_None), _array(nullptr) {
+    : _d(0),
+    _object(Py_None),
+    _array(nullptr) {
     Py_INCREF(_object);
     import_array_wrap();
     set_array(o);
@@ -59,29 +80,21 @@ class PyDataSource
     DBG(std::cerr << "set_array(" << o << ")" << std::endl;)
     if (o == _object) return;
     Py_INCREF(o);
+    _array = nullptr;
     Py_DECREF(_object);
     _object = o;
-    _array = nullptr;
     DBG(std::cerr << "set_array _object refcount: " << _object->ob_refcnt << std::endl);
     if (_object != Py_None) {
-      if(PyArray_Check(_object)) {
-        DBG(std::cerr << "Object is an array..." << std::endl;)
-        PyArrayObject * array = (PyArrayObject*)_object;
-        if (PyArray_IS_C_CONTIGUOUS(array)
-            && (PyArray_TYPE(array) == NPY_FLOAT)) {
-          DBG(std::cerr << "acceptable for fast get" << std::endl;)
-          _array = array;
-        }
-        else {
-          DBG(std::cerr << "not acceptable for fast get" << std::endl;)
-        }
+      if(PyArray_Check(_object) && PyArray_ISCARRAY_RO(_object)) {
+        DBG(std::cerr << "Object is a C contiguous array acceptable for fast get"  << std::endl);
+        _array = (PyArrayObject*)_object;
       } 
       else {
-        DBG(std::cerr << "Object is not an array...";)
+        DBG(std::cerr << "Object is not acceptable for fast get...");
       }
     }
     else {
-      DBG(std::cerr << "Object is not an array...";)
+      DBG(std::cerr << "Object is None...");
     }
 
     set_dim();
@@ -92,44 +105,86 @@ class PyDataSource
     return _object;
   }
 
+  bool is_using_pyarray() const { return _array != nullptr; }
+
   ElementType get(const IDType &id, const IDType &dim) const {
     if (_array != nullptr) {
       //DBG(std::cerr << "get from array" << std::endl);
-      return *(float *) PyArray_GETPTR2(_array, id, dim);
+      void * ptr = PyArray_GETPTR2(_array, id, dim);
+      switch (PyArray_TYPE(_array)) {
+      case NPY_FLOAT: return *(npy_float *) ptr;
+      case NPY_DOUBLE: return (ElementType)*(npy_double*)ptr;
+      case NPY_LONGDOUBLE: return (ElementType)*(npy_longdouble*)ptr;
+      case NPY_BYTE: return (ElementType)*(npy_byte *)ptr;
+      case NPY_UBYTE: return (ElementType)*(npy_ubyte *)ptr;
+      case NPY_SHORT: return (ElementType)*(npy_short *)ptr;
+      case NPY_USHORT: return (ElementType)*(npy_ushort *)ptr;
+      case NPY_INT: return (ElementType)*(npy_int *)ptr;
+      case NPY_UINT: return (ElementType)*(npy_uint *)ptr;
+      case NPY_LONG: return (ElementType)*(npy_long *)ptr;
+      case NPY_ULONG: return (ElementType)*(npy_ulong *)ptr;
+      case NPY_LONGLONG: return (ElementType)*(npy_longlong *)ptr;
+      case NPY_ULONGLONG: return (ElementType)*(npy_ulonglong *)ptr;
+      }
+      // Fall through
     }
-    DBG(std::cerr << "Starting get(" << id << "," << dim << ")" << std::endl;)
-    PyObject *key1 = PyInt_FromLong(id);
-    //DBG(std::cerr << "Created key1" << std::endl;)
-    PyObject *key2 = PyInt_FromLong(dim);
-    //DBG(std::cerr << "Created key2" << std::endl;)
-    PyObject *tuple = PyTuple_Pack(2, key1, key2);
-    PyObject *pf = PyObject_GetItem(_object, tuple);
-    ElementType ret = 0;
-    DBG(std::cerr << "Got item " << pf;)
-    if (pf != nullptr) {
-      DBG(std::cerr << " type: " << pf->ob_type->tp_name << std::endl;)
-      ret = (ElementType)PyFloat_AsDouble(pf);
-      Py_DECREF(pf);
+    PyGILState_STATE gstate;
+    gstate = PyGILState_Ensure();
+
+    DBG(std::cerr << "Starting get(" << id << "," << dim << ")" << std::endl);
+    PyObject *tuple = PyTuple_New(2);
+    PyTuple_SetItem(tuple, 0, PyInt_FromLong(id)); // steals reference 
+    PyTuple_SetItem(tuple, 1, PyInt_FromLong(dim));
+    PyObject *item = PyObject_GetItem(_object, tuple);
+    ElementType ret = NPY_NAN;
+    DBG(std::cerr << "Got item " << item);
+    if (item != nullptr) {
+      DBG(std::cerr << " type: " << item->ob_type->tp_name << std::endl);
+      ret = (ElementType)PyFloat_AsDouble(item);
+      Py_DECREF(item);
     }
     else {
-      DBG(std::cerr << " not a number " << std::endl);
+      DBG(std::cerr << " not a valid item " << std::endl);
     }
     DBG(std::cerr << " value is: " << ret << std::endl);
     Py_DECREF(tuple);
+
+    /* Release the thread. No Python API allowed beyond this point. */
+    PyGILState_Release(gstate);
     return ret;
   }
 
   void get(const IDType &id, std::vector<ElementType> &result) const {
     size_t d = dim();
     if (_array != nullptr) {
-      for(size_t i=0;i<d;++i) {
-        result[i] = *(float *) PyArray_GETPTR2(_array, id, i);
+      switch (PyArray_TYPE(_array)) {
+      case NPY_FLOAT: {
+        float * ptr = (float *)PyArray_GETPTR2(_array, id, 0);
+        for(size_t i=0;i<d;++i) result[i] = ptr[i]; }
+        return;
+#define CASE(TYPE,type)                                         \
+      case TYPE: {                                              \
+        type * ptr = (type *)PyArray_GETPTR2(_array, id, 0);    \
+        for(size_t i=0;i<d;++i) result[i] = (float)ptr[i]; }    \
+        return
+        CASE(NPY_DOUBLE, npy_double);
+        CASE(NPY_LONGDOUBLE, npy_longdouble);
+        CASE(NPY_BYTE, npy_byte);
+        CASE(NPY_UBYTE, npy_ubyte);
+        CASE(NPY_SHORT, npy_short);
+        CASE(NPY_USHORT, npy_ushort);
+        CASE(NPY_INT, npy_int);
+        CASE(NPY_UINT, npy_uint);
+        CASE(NPY_LONG, npy_long);
+        CASE(NPY_ULONG, npy_ulong);
+        CASE(NPY_LONGLONG, npy_longlong);
+        CASE(NPY_ULONGLONG, npy_ulonglong);
+#undef CASE
       }
+      // Fall through
     }
-    else {
-      for(size_t i=0;i<d;++i) {
-        result[i] = get(id, i);
-      }
+    for(unsigned int i=0;i < d;++i) {
+      result[i] = get(id, i);
     }
   }
 
@@ -231,9 +286,16 @@ class PyDataSource
       DBG(std::cerr << "Size return 0" << std::endl);
       return 0;
     }
+    else if (_array != nullptr) {
+      return PyArray_DIM(_array, 0);
+    }
+    PyGILState_STATE gstate;
+    gstate = PyGILState_Ensure();
     size_t s = PyObject_Length(_object);
     DBG(std::cerr << "Size return " << s << std::endl);
     DBG(std::cerr << "size _object refcount: " << _object->ob_refcnt << std::endl);
+    /* Release the thread. No Python API allowed beyond this point. */
+    PyGILState_Release(gstate);
     return s;
   }
 
@@ -249,6 +311,7 @@ class PyDataSource
   long            _d;
   PyObject      * _object;
   PyArrayObject * _array;
+  bool            _is_float;
 
   void set_dim() {
     _d = 0;
@@ -259,6 +322,11 @@ class PyDataSource
       DBG(std::cerr << "Fast set_dim is: " << _d << std::endl);
       return;
     }
+    long length = PyObject_Length(_object);
+    DBG(std::cerr << "Getting length: " << length << std::endl);
+    if (length == -1) {
+      throw std::invalid_argument("Array should implement __len__"); //generates a ValueError
+    }
 
     DBG(std::cerr << "Getting shape" << std::endl);
     PyObject * shape = PyObject_GetAttrString(_object, "shape");
@@ -268,23 +336,14 @@ class PyDataSource
     }
     PyObject * dim = PyTuple_GetItem(shape, 1);
     DBG(std::cerr << "Got dim" << std::endl);
-    _d = 0;
-    if (dim == nullptr) {
-      DBG(std::cerr << "dim is null" << std::endl);
-    }
-    else if (PyLong_Check(dim)) {
-      _d = PyLong_AsLong(dim);
-      DBG(std::cerr << "dim is a long" << std::endl);
-    }
-    else if (PyInt_Check(dim)) {
-      _d = PyInt_AsLong(dim);
-      DBG(std::cerr << "dim is an int" << std::endl);
-    }
-    else {
-      DBG(std::cerr << "dim is not a number" << std::endl);
-    }
+    _d = getpylong(dim);
     DBG(std::cerr << "dim is: " << _d << std::endl);
+
+    PyObject * len = PyTuple_GetItem(shape, 0);
     Py_DECREF(shape);
+    if (getpylong(len) != length) {
+      throw std::invalid_argument("Array length is not the same as shape[0]"); 
+    }
     DBG(std::cerr << "set_dim _object refcount: " << _object->ob_refcnt << std::endl);
   }
 };
@@ -305,20 +364,17 @@ public:
    Py_INCREF(_neighbors);
    Py_INCREF(_distances);
    import_array_wrap();
-   if(PyArray_Check(_neighbors)) {
-     PyArrayObject * array = (PyArrayObject*)_neighbors;
-     if (PyArray_IS_C_CONTIGUOUS(array)
-         && (PyArray_TYPE(array) == NPY_LONG)) {
-       DBG(std::cerr << "PyDataSink neighbors is an acceptable array" << std::endl);
-       _aneighbors = array;
-     }
-     if (PyArray_NDIM(array) != 2) {
+   if (PyArray_Check(_neighbors)
+       && PyArray_ISCARRAY_RO(_neighbors)
+       && (PyArray_ISINTEGER(_neighbors))) {
+     _aneighbors = (PyArrayObject*)_neighbors;
+     DBG(std::cerr << "PyDataSink neighbors is an acceptable array" << std::endl);
+     if (PyArray_NDIM(_aneighbors) != 2) {
        throw std::invalid_argument("Neighbors should be a 2-dim object"); //generates a ValueError
-
      }
-     _d = PyArray_DIM(array, 1);
+     _d = PyArray_DIM(_aneighbors, 1);
    }
-   if (_aneighbors == nullptr) {
+   else {
      DBG(std::cerr << "PyDataSink neigbbors is NOT an acceptable array" << std::endl);
      PyObject * shape = PyObject_GetAttrString(_neighbors, "shape");
      if (PyTuple_Size(shape) != 2) {
@@ -337,31 +393,29 @@ public:
        _d = PyInt_AsLong(dim);
      }
      else {
-       Py_DECREF(dim);
+       //Py_DECREF(dim); PyTuple_GetItem returns a borrowed ref, no decref needed
        Py_DECREF(shape);
        throw std::invalid_argument("Neighbors dimension is not a known number type");
      }
-     Py_DECREF(dim);
+     // Py_DECREF(dim); PyTuple_GetItem returns a borrowed ref, no decref needed
      Py_DECREF(shape);
      _neighbor_cache = new IDType[_d];
    }
    DBG(std::cerr << "dim is: " << _d << std::endl);
 
-   if(PyArray_Check(_distances)) {
-     PyArrayObject * array = (PyArrayObject*)_distances;
-     if (PyArray_IS_C_CONTIGUOUS(array)
-         && (PyArray_TYPE(array) == NPY_FLOAT)) {
-       DBG(std::cerr << "PyDataSink distances is an acceptable array" << std::endl);
-       _adistances = array;
-     }
-     if (PyArray_NDIM(array) != 2) {
+   if (PyArray_Check(_distances)
+       && PyArray_ISCARRAY_RO(_distances)
+       && (PyArray_TYPE(_distances)==NPY_FLOAT || PyArray_TYPE(_distances)==NPY_DOUBLE)) {
+     DBG(std::cerr << "PyDataSink distances is an acceptable array" << std::endl);
+     _adistances = (PyArrayObject*)_distances;
+     if (PyArray_NDIM(_adistances) != 2) {
        throw std::invalid_argument("Distances should be a 2-dim object");
      }
-     if (_d != PyArray_DIM(array, 1)) {
+     if (_d != PyArray_DIM(_adistances, 1)) {
        throw std::invalid_argument("Distances dimension should be the same as Neighbors");
      }
    }
-   if (_adistances == nullptr) {
+   else {
      DBG(std::cerr << "PyDataSink neigbbors is NOT an acceptable array" << std::endl);
      PyObject * shape = PyObject_GetAttrString(_distances, "shape");
      if (PyTuple_Size(shape) != 2) {
@@ -381,16 +435,16 @@ public:
        d = PyInt_AsLong(dim);
      }
      else {
-       Py_DECREF(dim);
+       // Py_DECREF(dim); PyTuple_GetItem returns a borrowed ref, no decref needed
        Py_DECREF(shape);
        throw std::invalid_argument("Distances dimension is not a known number type");
      }
-     Py_DECREF(dim);
+     // Py_DECREF(dim); PyTuple_GetItem returns a borrowed ref, no decref needed
      Py_DECREF(shape);
      if (_d != d) {
        throw std::invalid_argument("Distances dimension should be the same as Neighbors");
      }
-     _distance_cache = new float[_d];
+     _distance_cache = new DistanceType[_d];
    }
  }
 
@@ -410,16 +464,16 @@ public:
 
   ~PyDataSink() {
     DBG(std::cerr << "PyDataSink calling destructor" << std::endl);
+    _adistances = nullptr;
     if (_distances != nullptr) {
       Py_DECREF(_distances);
     }
     _distances = nullptr;
-    _adistances = nullptr;
+    _aneighbors = nullptr;
     if (_neighbors != nullptr) {
       Py_DECREF(_neighbors);
     }
     _neighbors = nullptr;
-    _aneighbors = nullptr;
     if (_distance_cache != nullptr) {
       delete _distance_cache;
       _distance_cache = nullptr;
@@ -430,50 +484,71 @@ public:
     }
   }
 
+  bool is_using_neighbors_pyarray() const { return _aneighbors != nullptr; }
+  bool is_using_distances_pyarray() const { return _adistances != nullptr; }
+
   // TODO: now we can remove neighbor cache
   void getNeighbors(const IDType id, std::vector<IDType>& res) const {
     DBG(std::cerr << "PyDataSink getNeighbors(" << id << ")" << std::endl);
     if (_aneighbors != nullptr) {
-      IDType * begin = (IDType *)PyArray_GETPTR2(_aneighbors, id, 0);
-      res.assign(begin, begin+_d);
-      return;
+      void * ptr = PyArray_GETPTR2(_aneighbors, id, 0);
+      switch (PyArray_TYPE(_aneighbors)) {
+#define CASE(TYPE, type) \
+      case TYPE: { type * begin = (type *)ptr; res.assign(begin, begin+_d); } return
+      CASE(NPY_BYTE, npy_byte);
+      CASE(NPY_UBYTE, npy_ubyte);
+      CASE(NPY_SHORT, npy_short);
+      CASE(NPY_USHORT, npy_ushort);
+      CASE(NPY_INT, npy_int);
+      CASE(NPY_UINT, npy_uint);
+      CASE(NPY_LONG, npy_long);
+      CASE(NPY_ULONG, npy_ulong);
+      CASE(NPY_LONGLONG, npy_longlong);
+      CASE(NPY_ULONGLONG, npy_ulonglong);
+#undef CASE        
+      // Fall through
+      }
     }
     std::vector<IDType> ret(_d);
     if (_last_neighbor_id != id) {
+      PyGILState_STATE gstate;
+      gstate = PyGILState_Ensure();
+
       _last_neighbor_id = id;
       IDType v;
-      PyObject *key1 = PyInt_FromLong(id);
-      PyObject *key2 = PyInt_FromLong(0);
-      PyObject *tuple = PyTuple_Pack(2, key1, key2);
-      PyObject *pf = PyObject_GetItem(_neighbors, tuple);
+      PyObject *tuple = PyTuple_New(2);
+      PyTuple_SetItem(tuple, 0, PyInt_FromLong(id));
+      PyTuple_SetItem(tuple, 0, PyInt_FromLong(0));
+      PyObject *item = PyObject_GetItem(_neighbors, tuple);
       v = 0;
-      if (PyLong_Check(pf)) {
-        v = PyLong_AsLong(pf);
+      if (PyLong_Check(item)) {
+        v = PyLong_AsLong(item);
       }
-      else if (PyInt_Check(pf)) {
-        v = PyInt_AsLong(pf);
+      else if (PyInt_Check(item)) {
+        v = PyInt_AsLong(item);
       }
-      if (pf != nullptr) {
-        Py_DECREF(pf);
+      if (item != nullptr) {
+        Py_DECREF(item);
       }
       _neighbor_cache[0] = v;
-      for(npy_intp i = 1; i < _d; ++i) {
-        PyObject *key2 = PyInt_FromLong(i);
-        PyTuple_SET_ITEM(tuple, 1, key2);
-        pf = PyObject_GetItem(_neighbors, tuple);
+      for(int i = 1; i < _d; ++i) {
+        PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong(i));
+        item = PyObject_GetItem(_neighbors, tuple);
         v = 0;
-        if (PyLong_Check(pf)) {
-          v = PyLong_AsLong(pf);
+        if (PyLong_Check(item)) {
+          v = PyLong_AsLong(item);
         }
-        else if (PyInt_Check(pf)) {
-          v = PyInt_AsLong(pf);
+        else if (PyInt_Check(item)) {
+          v = PyInt_AsLong(item);
         }
-        if (pf != nullptr) {
-          Py_DECREF(pf);
+        if (item != nullptr) {
+          Py_DECREF(item);
         }
         _neighbor_cache[i] = v;
       }
       Py_DECREF(tuple);
+      /* Release the thread. No Python API allowed beyond this point. */
+      PyGILState_Release(gstate);
     }
     res.assign(_neighbor_cache, _neighbor_cache+_d);
   }
@@ -482,102 +557,172 @@ public:
   void getDistances(const IDType id, std::vector<DistanceType>& res) const {
     DBG(std::cerr << "PyDataSink getDistances(" << id << ")" << std::endl);
     if (_adistances != nullptr) {
-      DistanceType * begin = (DistanceType *)PyArray_GETPTR2(_adistances, id, 0);
-      res.assign(begin, begin+_d);
-      return;
+      //DistanceType * begin = (DistanceType *)PyArray_GETPTR2(_adistances, id, 0);
+      void * ptr = PyArray_GETPTR2(_adistances, id, 0);
+#define CASE(TYPE, type)                                                \
+      case TYPE: {                                                      \
+        type * begin = (type *)ptr;                                     \
+        res.assign(begin, begin+_d); }                                  \
+        return
+      switch (PyArray_TYPE(_aneighbors)) {
+        CASE(NPY_FLOAT, npy_float);
+        CASE(NPY_DOUBLE, npy_double);
+        CASE(NPY_LONGDOUBLE, npy_longdouble);
+        // Fall through
+      }
     }
-    if (_last_distance_id != id) {
-      _last_distance_id = id;
-      DistanceType v;
-      PyObject *key1 = PyInt_FromLong(id);
-      PyObject *key2 = PyInt_FromLong(0);
-      PyObject *tuple = PyTuple_Pack(2, key1, key2);
-      PyObject *pf = PyObject_GetItem(_distances, tuple);
+#undef CASE        
+    PyGILState_STATE gstate;
+    gstate = PyGILState_Ensure();
+
+    _last_distance_id = id;
+    DistanceType v;
+    PyObject *tuple = PyTuple_New(2);
+    PyTuple_SET_ITEM(tuple, 0, PyInt_FromLong(id));
+    PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong(0));
+    PyObject *item = PyObject_GetItem(_distances, tuple);
+    v = 0;
+    if (PyFloat_Check(item)) {
+      v = (DistanceType)PyFloat_AsDouble(item);
+    }
+    if (item != nullptr) {
+      Py_DECREF(item);
+    }
+    _distance_cache[0] = v;
+    for(int i = 1; i < _d; ++i) {
+      PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong(i));
+      item = PyObject_GetItem(_distances, tuple);
       v = 0;
-      if (PyFloat_Check(pf)) {
-        v = (DistanceType)PyFloat_AsDouble(pf);
+      if (PyFloat_Check(item)) {
+        v = (DistanceType)PyFloat_AsDouble(item);
       }
-      if (pf != nullptr) {
-        Py_DECREF(pf);
+      if (item != nullptr) {
+        Py_DECREF(item);
       }
-      _distance_cache[0] = v;
-      for(npy_intp i = 1; i < _d; ++i) {
-        PyObject *key2 = PyInt_FromLong(i);
-        PyTuple_SET_ITEM(tuple, 1, key2);
-        pf = PyObject_GetItem(_distances, tuple);
-        v = 0;
-        if (PyFloat_Check(pf)) {
-          v = (DistanceType)PyFloat_AsDouble(pf);
-        }
-        if (pf != nullptr) {
-          Py_DECREF(pf);
-        }
-        _distance_cache[i] = v;
-      }
-      Py_DECREF(tuple);
+      _distance_cache[i] = v;
     }
+    Py_DECREF(tuple);
+    /* Release the thread. No Python API allowed beyond this point. */
+    PyGILState_Release(gstate);
     res.assign(_distance_cache, _distance_cache+_d);
   }
 
-
   void setNeighbors(IDType id, const IDType * neighbors_, const DistanceType * distances_) {
-    DBG(std::cerr << "PyDataSink setNeighbors(" << id << ")" << std::endl);
     int i;
+    bool done = false;
+    DBG(std::cerr << "PyDataSink setNeighbors(" << id << ")" << std::endl);
+
     if (_aneighbors != nullptr) {
-      IDType * head = (IDType *)PyArray_GETPTR2(_aneighbors, id, 0);
-      for(npy_intp i = 0; i < _d; ++i) {
-        head[i] = neighbors_[i];
+      void * ptr = PyArray_GETPTR2(_aneighbors, id, 0);
+      done = true;
+#define CASE(TYPE, type)                                                \
+      case TYPE: {                                                      \
+        type * head = (type *)ptr;                                      \
+        for(int i = 0; i < _d; ++i)                                     \
+          head[i] = (type)neighbors_[i]; }; break
+      switch (PyArray_TYPE(_aneighbors)) {
+        CASE(NPY_BYTE, npy_byte);
+        CASE(NPY_UBYTE, npy_ubyte);
+        CASE(NPY_SHORT, npy_short);
+        CASE(NPY_USHORT, npy_ushort);
+        CASE(NPY_INT, npy_int);
+        CASE(NPY_UINT, npy_uint);
+        CASE(NPY_LONG, npy_long);
+        CASE(NPY_ULONG, npy_ulong);
+        CASE(NPY_LONGLONG, npy_longlong);
+        CASE(NPY_ULONGLONG, npy_ulonglong);
+      default: done=false;
       }
     }
-    else {
+#undef CASE
+    if (! done) {
       _last_neighbor_id = id;
       for (i = 0; i < _d; i++) {
         _neighbor_cache[i] = neighbors_[i];
       }
+
+      PyGILState_STATE gstate;
+      gstate = PyGILState_Ensure();
+      PyObject *tuple = PyTuple_New(2);
+      PyTuple_SET_ITEM(tuple, 0, PyInt_FromLong(id));
+      PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong(0));
       PyObject *v = PyInt_FromLong(_neighbor_cache[0]);
-      PyObject *key1 = PyInt_FromLong(id);
-      PyObject *key2 = PyInt_FromLong(0);
-      PyObject *tuple = PyTuple_Pack(2, key1, key2);
-      if (PyObject_SetItem(_neighbors, tuple, v)==-1)
-        throw std::invalid_argument("setitem failed on neighbors");
-      for(npy_intp i = 1; i < _d; ++i) {
-        PyObject *key2 = PyInt_FromLong(i);
-        PyTuple_SET_ITEM(tuple, 1, key2);
+      if (PyObject_SetItem(_neighbors, tuple, v)==-1) {
         Py_DECREF(v);
-        PyObject *v = PyInt_FromLong(_neighbor_cache[i]);
-        if (PyObject_SetItem(_neighbors, tuple, v)==-1)
+        Py_DECREF(tuple);
+        throw std::invalid_argument("setitem failed on neighbors");
+      }
+      for(i = 1; i < _d; ++i) { // Reuse the tuple, is it bad?
+        PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong(i));
+        Py_DECREF(v); 
+        v = PyInt_FromLong(_neighbor_cache[i]);
+        if (PyObject_SetItem(_neighbors, tuple, v)==-1) {
+          Py_DECREF(v);
+          Py_DECREF(tuple);
+          /* Release the thread. No Python API allowed beyond this point. */
+          PyGILState_Release(gstate);
           throw std::invalid_argument("setitem failed on neighbors");
+        }
       }
       Py_DECREF(v);
       Py_DECREF(tuple);
+      /* Release the thread. No Python API allowed beyond this point. */
+      PyGILState_Release(gstate);
     }
+
+    done = false;
     if (_adistances != nullptr) {
-      DistanceType * head = (DistanceType *)PyArray_GETPTR2(_adistances, id, 0);
-      for(npy_intp i = 0; i < _d; ++i) {
-        head[i] = distances_[i];
+      void * ptr = PyArray_GETPTR2(_adistances, id, 0);
+      done = true;
+#define CASE(TYPE, type)                                                \
+      case TYPE: {                                                      \
+        type * head = (type *)ptr;                                      \
+        for (int i = 0; i < _d; ++i)                                    \
+          head[i] = (type)distances_[i]; };                             \
+        break
+      switch (PyArray_TYPE(_adistances)) {
+        CASE(NPY_FLOAT, npy_float);
+        CASE(NPY_DOUBLE, npy_double);
+        CASE(NPY_LONGDOUBLE, npy_longdouble);
+      default: done=false;
       }
     }
-    else {
+#undef CASE
+    if (! done) {
       _last_distance_id = id;
       for (i = 0; i < _d; i++) {
         _distance_cache[i] = distances_[i];
       }
+      PyGILState_STATE gstate;
+      gstate = PyGILState_Ensure();
+      PyObject *tuple = PyTuple_New(2);
+      PyTuple_SET_ITEM(tuple, 0, PyInt_FromLong(id));
+      PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong(0));
       PyObject *v = PyFloat_FromDouble(_distance_cache[0]);
-      PyObject *key1 = PyInt_FromLong(id);
-      PyObject *key2 = PyInt_FromLong(0);
-      PyObject *tuple = PyTuple_Pack(2, key1, key2);
-      if (PyObject_SetItem(_distances, tuple, v)==-1)
+      if (PyObject_SetItem(_distances, tuple, v)==-1) {
+        Py_DECREF(v);
+        Py_DECREF(tuple);
+        /* Release the thread. No Python API allowed beyond this point. */
+        PyGILState_Release(gstate);
         throw std::invalid_argument("setitem failed on distances");
-      for(npy_intp i = 1; i < _d; ++i) {
+      }
+      for(int i = 1; i < _d; ++i) {
         PyObject *key2 = PyInt_FromLong(i);
         PyTuple_SET_ITEM(tuple, 1, key2);
         Py_DECREF(v);
         PyObject *v = PyFloat_FromDouble(_distance_cache[i]);
-        if (PyObject_SetItem(_distances, tuple, v)==-1)
+        if (PyObject_SetItem(_distances, tuple, v)==-1) {
+          Py_DECREF(v);
+          Py_DECREF(tuple);
+          /* Release the thread. No Python API allowed beyond this point. */
+          PyGILState_Release(gstate);
           throw std::invalid_argument("setitem failed on distances");
+        }
       }
       Py_DECREF(v);
       Py_DECREF(tuple);
+      /* Release the thread. No Python API allowed beyond this point. */
+      PyGILState_Release(gstate);
     }
   }
 
