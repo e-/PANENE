@@ -82,22 +82,33 @@
   <script src="https://d3js.org/d3-contour.v1.min.js"></script>
   <script src="//d3js.org/d3-scale-chromatic.v0.3.min.js"></script>
 
-
   <script>
+
+let params = document.location.search.substring(1, document.location.search.length)
+let seq_path = params.split('&').map(d => d.split('=')).filter(s => s[0] === 'seq')
+let pro_path = params.split('&').map(d => d.split('=')).filter(s => s[0] === 'pro')
+
+if(seq_path.length === 0 || pro_path.length === 0) {
+  document.write('path is not given. add "?seq=[path to sequential result]&pro=[path to progressive result]" at the end of url')
+}
+else {
+  seq_path = seq_path[0][1];
+  pro_path = pro_path[0][1];
+}
 
 let width = 200;
 let height = 200
 let margin = 15
 let label = 35;
 
-d3.text('../mnist/labels.txt', labels => { 
+d3.text('labels.txt', labels => { 
   labels = labels.split('\n');
   drawError([
-    ['Barnes-Hut', 'original.meta.txt'],
-    ['Responsive', 'progressive.meta.txt']
+    ['Barnes-Hut', seq_path + '/metadata.txt'],
+    ['Responsive', pro_path + '/metadata.txt']
   ], [100, 500, 1000])
-  drawAll('original.meta.txt', i => '#ori' + i, [10, 50, 100, 500], '#ori-time', labels)
-  drawAll('progressive.meta.txt', i => '#pro' + i, [10, 50, 100, 500], '#pro-time', labels)
+  drawAll(seq_path + '/metadata.txt', i => '#ori' + i, [10, 50, 100, 500], '#ori-time', labels)
+  drawAll(pro_path + '/metadata.txt', i => '#pro' + i, [10, 50, 100, 500], '#pro-time', labels)
 })
 
 function drawError(meta, iters){
