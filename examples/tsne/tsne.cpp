@@ -37,12 +37,16 @@
 #include <cstring>
 #include <ctime>
 #include <map>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <algorithm>
 #include <random>
 #include <chrono>
+
+#if defined _MSC_VER
+#include <direct.h>
+#elif defined __GNUC__
+#include <sys/types.h>
+#include <sys/stat.h>
+#endif
 
 #include "config.h"
 #include "vptree.h"
@@ -53,7 +57,7 @@
 using namespace std;
 
 // Perform t-SNE
-void TSNE::run(char *path, double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
+void TSNE::run(char *path, char *output_dir, double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
     bool skip_random_init, int max_iter, int mom_switch_iter, int print_every, int stop_lying_iter) {
 
   // Set random seed
@@ -106,11 +110,15 @@ void TSNE::run(char *path, double* X, int N, int D, double* Y, int no_dims, doub
 
   // Create a result directory
   char base_path[200];
-  sprintf(base_path, "%s.original", path);
-
+  sprintf(base_path, "%s", output_dir);
+  
   struct stat st = {0};
   if(stat(base_path, &st) == -1) {
+#ifdef _WIN32
+    _mkdir(base_path);
+#else
     mkdir(base_path, 0700);
+#endif
   } 
   
   // Logging
@@ -246,7 +254,7 @@ void TSNE::run(char *path, double* X, int N, int D, double* Y, int no_dims, doub
       printf("Iteration %d: error is %f (%4.2f seconds)\n", iter, C, (float) (end - start) / CLOCKS_PER_SEC);
 
       char path[100];
-      sprintf(path,"%s/original.%d.txt", base_path, iter);
+      sprintf(path,"%s/result.%d.txt", base_path, iter);
 
       save_data(path, Y, N, no_dims);
       fprintf(meta, "%d %f %f %s/result.%d.txt\n", iter, total_time, C, base_path, iter);

@@ -5,12 +5,16 @@
 #include <cstring>
 #include <ctime>
 #include <map>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <algorithm>
 #include <random>
 #include <chrono>
+
+#if defined _MSC_VER
+#include <direct.h>
+#elif defined __GNUC__
+#include <sys/types.h>
+#include <sys/stat.h>
+#endif
 
 #include "config.h"
 #include "vptree.h"
@@ -38,18 +42,8 @@ float getEEFactor(int iter, int stop_lying_factor) {
 
 }
 
-vector<size_t> getRandomBatch(size_t n, size_t m) { // get m from [0, n)
-  vector<size_t> indices(n);
-  for(size_t i=0;i<n;++i) indices[i]=i;
-  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-
-  shuffle(indices.begin(), indices.end(), std::default_random_engine(seed));
-
-  return vector<size_t>(indices.begin(), indices.begin() + std::min(n, m));
-}
-
 // Perform Progressive t-SNE with Progressive KDTree
-void ProgressiveTSNE::run(char *path, double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
+void ProgressiveTSNE::run(char *path, char *output_dir, double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
     bool skip_random_init, int max_iter, int mom_switch_iter, int print_every) {
 
   // Set random seed
@@ -107,11 +101,15 @@ void ProgressiveTSNE::run(char *path, double* X, int N, int D, double* Y, int no
 
   // Create a result directory
   char base_path[200];
-  sprintf(base_path, "%s.progressive", path);
+  sprintf(base_path, "%s", output_dir);
 
   struct stat st = {0};
   if(stat(base_path, &st) == -1) {
+#ifdef _WIN32
+    _mkdir(base_path);
+#else
     mkdir(base_path, 0700);
+#endif
   } 
   
   // Logging
@@ -121,7 +119,7 @@ void ProgressiveTSNE::run(char *path, double* X, int N, int D, double* Y, int no
   
   // Print parameters
   fprintf(meta, "path=%s, N=%d, D=%d, no_dims=%d, perplexity=%3f, theta=%3f, max_iter=%d, mom_switch_iter=%d\n", path, N, D, no_dims, perplexity, theta, max_iter, mom_switch_iter);
-  fprintf(meta, "eta=%3lf, USE_EE=%d, EE_FACTOR=%3f, PERIODIC_EE=%d, PERIODIC_EE_CYCLE=%d, PERIODIC_EE_DURATION=%d, PERIODIC_RESET=%d, BATCH_SIZE=%d\n", eta, USE_EE, EE_FACTOR, PERIODIC_EE, PERIODIC_EE_CYCLE, PERIODIC_EE_DURATION, PERIODIC_RESET, BATCH_SIZE);
+  fprintf(meta, "eta=%3lf, USE_EE=%d, EE_FACTOR=%3f, PERIODIC_EE=%d, PERIODIC_EE_CYCLE=%d, PERIODIC_EE_DURATION=%d, PERIODIC_RESET=%d\n", eta, USE_EE, EE_FACTOR, PERIODIC_EE, PERIODIC_EE_CYCLE, PERIODIC_EE_DURATION, PERIODIC_RESET);
 
   start = clock();
 
@@ -176,7 +174,7 @@ void ProgressiveTSNE::run(char *path, double* X, int N, int D, double* Y, int no
 
     float start_perplex = 0, end_perplex = 0;
     float table_time = 0;
-    float ee_factor = getEEFactor(iter, 100);
+    float ee_factor = getEEFactor(iter, STOP_LYING_ITER);
 
     if(old_ee_factor != ee_factor) {
       float ratio = ee_factor / old_ee_factor;
@@ -205,11 +203,7 @@ void ProgressiveTSNE::run(char *path, double* X, int N, int D, double* Y, int no
 
     int n = table.getSize();
 
-    // Get a random batch
-    vector<size_t> batch = getRandomBatch(n, BATCH_SIZE);
-    
-    // Compute (approximate) gradient for the batch
-    // computeGradient(batch, similarities, Y, n, no_dims, dY, theta, ee_factor);
+    computeGradient(similarities, Y, n, no_dims, dY, theta, ee_factor);
 
 #if USE_ADAM
     // we use Adam Optimzer
@@ -447,7 +441,7 @@ void ProgressiveTSNE::updateSimilarity(Table *table,
 }
 
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
-void ProgressiveTSNE::computeGradient(vector<size_t>& batch, vector<map<size_t, double>>& similarities, double* Y, int N, int D, double* dC, double theta, float ee_factor)
+void ProgressiveTSNE::computeGradient(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double* dC, double theta, float ee_factor)
 {
   // Construct space-partitioning tree on current map
   SPTree* tree = new SPTree(D, Y, N);
