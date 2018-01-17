@@ -107,13 +107,13 @@ d3.text('labels.txt', labels => {
     ['Barnes-Hut', seq_path + '/metadata.txt'],
     ['Responsive', pro_path + '/metadata.txt']
   ], [100, 500, 1000])
-  drawAll(seq_path + '/metadata.txt', i => '#ori' + i, [10, 50, 100, 500], '#ori-time', labels)
-  drawAll(pro_path + '/metadata.txt', i => '#pro' + i, [10, 50, 100, 500], '#pro-time', labels)
+  drawAll(seq_path + '/metadata.txt', i => '#ori' + i, [100, 200, 300, 500], '#ori-time', labels, 12, 250)
+  drawAll(pro_path + '/metadata.txt', i => '#pro' + i, [100, 200, 300, 500], '#pro-time', labels)
 })
 
 function drawError(meta, iters){
   let svg = d3.select('#error'),
-      margin = {top: 60, right: 20, bottom: 140, left: 50},
+      margin = {top: 60, right: 20, bottom: 140, left: 60},
       width = 400,
       height = 280
 
@@ -122,7 +122,7 @@ function drawError(meta, iters){
     .attr('height', height + margin.top + margin.bottom)
 
   svg.append('text')
-    .text('t-SNE Loss by Elapsed Time')
+    .text('t-SNE Loss by Time')
     .attr('text-anchor', 'middle')
     .attr('dy', '0.71em')
     .attr('font-style', 'italic')
@@ -146,9 +146,13 @@ function drawError(meta, iters){
     let data = text.trim().split('\n').map(line => line.split(' '))
     let line0 = data.slice(1, 10000).map((d) => [+d[1], +d[2], +d[0]]).filter(d => d[0] <= iterEnd)
 
+    line0.forEach(line => {
+      if(line[2] < 250)
+        line[1] /= 12; // remove emphasized error due to EE
+    })
     d3.text(meta[1][1], (text) => {
       let data = text.trim().split('\n').map(line => line.split(' '))
-      let line1 = data.slice(1, 10000).map((d) => [+d[1], +d[2], +d[0]]).filter(d => d[0] <= iterEnd)
+      let line1 = data.slice(3, 10000).map((d) => [+d[1], +d[2], +d[0]]).filter(d => d[0] <= iterEnd)
 
       x.domain([0, iterEnd])
       y.domain([0, Math.max(d3.max(line0, d => d[1]), d3.max(line1, d => d[1]))])
@@ -159,7 +163,7 @@ function drawError(meta, iters){
           .append("text")
             .attr("fill", "#000")
             .attr("x", width / 2)
-            .attr('y', '2.6em')
+            .attr('y', '2.8em')
             .attr("text-anchor", "middle")
             .attr('font-style', 'italic')
             .text("Time (seconds)")
@@ -169,7 +173,7 @@ function drawError(meta, iters){
         .append("text")
           .attr("fill", "#000")
           .attr("transform", "rotate(-90)")
-          .attr("y", '-2.5em')
+          .attr("y", '-3em')
           .attr('x', -height / 2)
           .attr("dy", "0.71em")
           .attr("text-anchor", "middle")
@@ -205,7 +209,8 @@ function drawError(meta, iters){
           g.append('text')
             .text('Itertion #' + it)
             .style('font-size', '.8em')
-            .attr('dy', (1.5 + i / 3) - (i == 1 ? 0.3 : 0) + 'em')
+            .attr('dy', '1.5em') // (1.5 + i / 3) - (i == 1 ? 0.3 : 0) + 'em')
+            .attr('dx', '-0.2em')
             .style('text-anchor', 'end')
             .attr('transform', translate(x(time), y(error)))
             
@@ -231,6 +236,7 @@ function drawError(meta, iters){
             .text('Itertion #' + it)
             .style('font-size', '.8em')
             .attr('dy', '-0.7em')
+            .attr('dx', '0.2em')
             .attr('transform', translate(x(time), y(error)))
             
         })
@@ -279,15 +285,19 @@ function drawError(meta, iters){
   //  .attr("stroke", (d, i) => d3.scaleOrdinal(d3.schemeCategory10).domain([0, 1])(i))
 }
 
-function drawAll(metaPath, id, iter, tree, labels) {
+function drawAll(metaPath, id, iter, tree, labels, ee_factor, ee_iter) {
   d3.text(metaPath, text => {
     lines = text.split('\n').map(line => line.split(' '))
 
-    d3.select(tree).text(d3.format(',.1f')(lines[0][1]));
+    let init = lines.filter((d) => d[0] === 'embedding')[0][1]
+    d3.select(tree).text(d3.format(',.1f')(init));
 
     for(let i = 0; i < iter.length; ++i) {
       for (line of lines) {
         if (line[0] == iter[i]) {
+          if(ee_factor && +line[0] < ee_iter) {
+            line[2] = +line[2] / ee_factor;
+          }
           draw(id(i), line, labels);
           break;
         }
