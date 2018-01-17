@@ -107,7 +107,7 @@ d3.text('labels.txt', labels => {
     ['Barnes-Hut', seq_path + '/metadata.txt'],
     ['Responsive', pro_path + '/metadata.txt']
   ], [100, 500, 1000])
-  drawAll(seq_path + '/metadata.txt', i => '#ori' + i, [100, 200, 300, 500], '#ori-time', labels)
+  drawAll(seq_path + '/metadata.txt', i => '#ori' + i, [100, 200, 300, 500], '#ori-time', labels, 12, 250)
   drawAll(pro_path + '/metadata.txt', i => '#pro' + i, [100, 200, 300, 500], '#pro-time', labels)
 })
 
@@ -285,7 +285,7 @@ function drawError(meta, iters){
   //  .attr("stroke", (d, i) => d3.scaleOrdinal(d3.schemeCategory10).domain([0, 1])(i))
 }
 
-function drawAll(metaPath, id, iter, tree, labels) {
+function drawAll(metaPath, id, iter, tree, labels, ee_factor, ee_iter) {
   d3.text(metaPath, text => {
     lines = text.split('\n').map(line => line.split(' '))
 
@@ -295,6 +295,9 @@ function drawAll(metaPath, id, iter, tree, labels) {
     for(let i = 0; i < iter.length; ++i) {
       for (line of lines) {
         if (line[0] == iter[i]) {
+          if(ee_factor && +line[0] < ee_iter) {
+            line[2] = +line[2] / ee_factor;
+          }
           draw(id(i), line, labels);
           break;
         }
