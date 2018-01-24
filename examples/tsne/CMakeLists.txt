@@ -21,15 +21,15 @@ add_custom_command(
 add_custom_command(
   TARGET progressive_tsne POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy
-  ${CMAKE_CURRENT_SOURCE_DIR}/mnist_visualizer.html
-  ${CMAKE_CURRENT_BINARY_DIR}/mnist_visualizer.html
+  ${CMAKE_CURRENT_SOURCE_DIR}/visualizer.html
+  ${CMAKE_CURRENT_BINARY_DIR}/visualizer.html
 )
 
 add_custom_command(
   TARGET progressive_tsne POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy
-  ${CMAKE_CURRENT_SOURCE_DIR}/ee_visualizer.html
-  ${CMAKE_CURRENT_BINARY_DIR}/ee_visualizer.html
+  ${CMAKE_CURRENT_SOURCE_DIR}/compare.html
+  ${CMAKE_CURRENT_BINARY_DIR}/compare.html
 )
 
 add_custom_command(

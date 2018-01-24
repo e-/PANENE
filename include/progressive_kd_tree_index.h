@@ -67,8 +67,8 @@ struct UpdateResult2 {
   }
 
   friend std::ostream& operator<<(std::ostream& os, const UpdateResult2& obj) {
-    os << "UpdateResult2(addPointOps: " << obj.addPointResult << "/" << obj.addPointOps << ", "
-      << "updateIndexOps: " << obj.updateIndexResult << "/" << obj.updateIndexOps << ")";
+    os << "UpdateResult2(addPointOps: " << obj.addPointResult << " / " << obj.addPointOps << ", "
+      << "updateIndexOps: " << obj.updateIndexResult << " / " << obj.updateIndexOps << ", numPointsInserted: " << obj.numPointsInserted << ")";
     return os;
   }
 };
