@@ -191,7 +191,7 @@ void run(const char* base_) {
             }
             double queryElapsed = timer.end();
             
-            float qps = 1.0 / (queryElapsed / sample / queryRepeat);
+            float qps = (sample * queryRepeat - missing) / queryElapsed;
 
             if (missing == sample) {
               std::cerr << "all points are missing" << std::endl;
