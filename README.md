@@ -3,12 +3,11 @@ PANENE
 
 PANENE (Progressive Approximate k-NEarest NEighbors) is a novel algorithm for the k-nearest neighbor (KNN) problem. In contrast to previous algorithms such as [Annoy](https://github.com/spotify/annoy), [FLANN](http://www.cs.ubc.ca/research/flann/), or many others from [this benchmark](https://github.com/erikbern/ann-benchmarks#evaluated), PANENE is *progressive*: it can process multiple mini-batches *online* while keeping each iteration bounded in time.
 
-PANENE is based on [the FLANN library](https://github.com/mariusmuja/flann) and currently under development. We are going to add the following features:
+PANENE consists of two modules:
+- *A progressive k-d tree* that allows you to index a batch of data into multiple k-d trees (i.e., a k-d tree forest) and query the neighbors of an arbitrary point
+- *A KNN table* that allows you to lookup the neighbors of a training point in a constant time
 
-- [x] a progressive k-d tree
-- [x] a KNN table structure that enables constant-time lookup of KNN neighbors
-- [X] Python bindings
-
+The running time of both modules can be controlled by specifiying the allowed number of operations (i.e., *ops*). See the examples below.
 
 # Installation
 
@@ -80,3 +79,20 @@ cd build/benchmark
 ./kd_tree_benchmark
 cat log.tsv
 ```
+
+# Compile on Windows
+
+If you are using Windows, the easiest way to use PANENE is compiling it using Visual Studio, since Visual Studio (>= 15) supports CMakeLists.txt
+
+- Clone the repository
+- Open Visual Studio
+- Click on [File] -> [Open] -> [Folder] and select the directory
+- Find the root CMakeLists.txt in Solution Explorer, right-click it, and select [Cache] -> [Generate Cache]
+- Choose a target executable on the upper toolbar and Run
+
+If you are running benchmarks, you must specify the absolute path of data files. This is because Visual Stduio compiles and runs executables in a temporary folder by default, so you need to specifiy the absolute path to make the executables locate the data.
+
+Please see the main function of benchmark/kd_tree_benchmark.cpp and benchmark/knn_table_benchmark.cpp.
+
+
+
