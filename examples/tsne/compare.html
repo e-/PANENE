@@ -107,8 +107,8 @@ d3.text('labels.txt', labels => {
     ['Barnes-Hut', seq_path + '/metadata.txt'],
     ['Responsive', pro_path + '/metadata.txt']
   ], [100, 500, 1000])
-  drawAll(seq_path + '/metadata.txt', i => '#ori' + i, [100, 200, 300, 500], '#ori-time', labels, 12, 250)
-  drawAll(pro_path + '/metadata.txt', i => '#pro' + i, [100, 200, 300, 500], '#pro-time', labels)
+  drawAll(seq_path + '/metadata.txt', i => '#ori' + i, [100, 200, 300, 1000], '#ori-time', labels, 12, 250)
+  drawAll(pro_path + '/metadata.txt', i => '#pro' + i, [100, 200, 300, 1000], '#pro-time', labels)
 })
 
 function drawError(meta, iters){
