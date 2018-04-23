@@ -1,0 +1,12 @@
+n 1000
+input_dims 784
+output_dims 2
+perplexity 10
+theta 0.5
+max_iter 1010
+eta 200
+use_ee 1
+ee_factor 12
+use_periodic 0
+input_path D:\G\work\panene\PANENE\data\images.txt
+output_path D:\G\work\panene\PANENE\data\bhtsne.txt

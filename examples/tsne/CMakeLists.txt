@@ -4,6 +4,8 @@ target_link_libraries(tsne ${PANENE_LIB_NAME})
 add_executable(progressive_tsne progressive_tsne.cpp sptree.cpp progressive_tsne_main.cpp)
 target_link_libraries(progressive_tsne LINK_PUBLIC ${PANENE_LIB_NAME})
 
+add_subdirectory(bhtsne)
+
 add_custom_command(
   TARGET progressive_tsne POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy

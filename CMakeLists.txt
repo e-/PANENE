@@ -39,7 +39,6 @@ if (COMPILE_FOR_BENCHMARK)
 endif()
 
 add_subdirectory(src)
-add_subdirectory(examples)
 add_subdirectory(benchmark)
 enable_testing ()
 add_subdirectory(tests)
@@ -53,6 +52,8 @@ endif()
 if (BUILD_PYTHON_BINDINGS)
   add_subdirectory(python)
 endif()
+
+add_subdirectory(examples)
 
 message( STATUS "CMAKE_SYSTEM_PROCESSOR: " ${CMAKE_SYSTEM_PROCESSOR})
 message( STATUS "CMAKE_BUILD_TYPE: " ${CMAKE_BUILD_TYPE} )
