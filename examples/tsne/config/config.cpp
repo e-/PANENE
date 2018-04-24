@@ -5,7 +5,7 @@ Config Config::load(const std::string& path) {
     std::ifstream infile(path);
 
     std::string key;
-    Config config = Config();
+    Config config;
 
     while (infile >> key) {
         if (key == "n") {
@@ -59,6 +59,9 @@ Config Config::load(const std::string& path) {
         else if (key == "momentum") {
             infile >> config.momentum;
         }
+        else if (key == "log_per") {
+            infile >> config.log_per;
+        }
         else {
             throw std::runtime_error("unknown key: " + key);
         }
@@ -82,11 +85,13 @@ Config Config::load(const std::string& path) {
 
     datafile.close();
 
+    config.event_file = std::make_shared<std::ofstream>(config.output_path + EVENT_LOG_PATH);
+
     return config;
 }
 
 void Config::save(double *Y) {
-    std::ofstream outfile(output_path);
+    std::ofstream outfile(output_path + RESULT_PATH);
 
     outfile << "n " << n << std::endl;
     outfile << "input_dims " << input_dims << std::endl;
@@ -102,14 +107,16 @@ void Config::save(double *Y) {
     outfile << "ee_iter " << ee_iter << std::endl;
     outfile << "seed " << seed << std::endl;
 
-    outfile << "use_periodic" << use_periodic << std::endl;
-    outfile << "periodic_cycle" << periodic_cycle << std::endl;
-    outfile << "periodic_duration" << periodic_duration << std::endl;
+    outfile << "use_periodic " << use_periodic << std::endl;
+    outfile << "periodic_cycle " << periodic_cycle << std::endl;
+    outfile << "periodic_duration " << periodic_duration << std::endl;
 
-    outfile << "periodic_reset_momentum" << periodic_reset_momentum << std::endl;
+    outfile << "periodic_reset_momentum " << periodic_reset_momentum << std::endl;
 
     outfile << "input_path " << input_path << std::endl;
     outfile << "output_path " << output_path << std::endl;
+
+    outfile << "log_per " << log_per << std::endl;
 
     for (size_t i = 0; i < n; i++) {
         for (size_t j = 0; j < output_dims; j++) {
@@ -118,4 +125,29 @@ void Config::save(double *Y) {
         if(i + 1 < n) outfile << std::endl;
     }
     outfile.close();
+}
+
+void Config::save_embedding(size_t iter, double *Y) {
+    std::ofstream outfile(output_path + EMBEDDING_PATH(iter));
+
+    for (size_t i = 0; i < n; i++) {
+        for (size_t j = 0; j < output_dims; j++) {
+            outfile << Y[i * output_dims + j] << " ";
+        }
+        if (i + 1 < n) outfile << std::endl;
+    }
+
+    outfile.close();
+}
+
+void Config::event_log(const std::string& event_name, double time) {
+    if (event_file && event_file->is_open()) {
+        (*event_file) << event_name << " " << time << std::endl;
+    }
+}
+
+void Config::event_log(const std::string& event_name, size_t iter, double error, double time) {
+    if (event_file && event_file->is_open()) {
+        (*event_file) << event_name << " " << iter << " " << error << " " << time << std::endl;
+    }
 }

@@ -3,13 +3,25 @@
 
 #include <string>
 #include <vector>
+#include <memory>
+#include <fstream>
+
+#define EVENT_LOG_PATH "events.txt"
+#define RESULT_PATH "result.txt"
+#define EMBEDDING_PATH(iter) (std::to_string(iter) + ".txt")
 
 class Config {
-public:
-    static Config load(const std::string& path);
-    void save(double* Y);
-
+private:
     Config() = default;
+    
+public:    
+    static Config load(const std::string& path);      
+    Config(const Config &) = default;
+
+    void save(double* Y);
+    void event_log(const std::string& event_name, double time);
+    void event_log(const std::string& event_name, size_t iter, double error, double time);
+    void save_embedding(size_t, double*);
 
     size_t n = 0;
     size_t input_dims = 0;
@@ -35,6 +47,9 @@ public:
     
     std::string input_path;
     std::string output_path;
+
+    std::shared_ptr<std::ofstream> event_file;
+    size_t log_per = 10;
 };
 
 #endif
