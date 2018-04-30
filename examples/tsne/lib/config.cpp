@@ -68,6 +68,18 @@ Config Config::load(const std::string& path) {
         else if (key == "cores") {
             infile >> config.cores;
         }
+        else if (key == "add_point_weight") {
+            infile >> config.add_point_weight;
+        }
+        else if (key == "update_index_weight") {
+            infile >> config.update_index_weight;
+        }
+        else if (key == "tree_weight") {
+            infile >> config.tree_weight;
+        }
+        else if (key == "table_weight") {
+            infile >> config.table_weight;
+        }
         else {
             throw std::runtime_error("unknown key: " + key);
         }
@@ -126,6 +138,11 @@ void Config::save(double *Y) {
 
     outfile << "ops " << ops << std::endl;
     outfile << "cores " << cores << std::endl;
+
+    outfile << "add_point_weight " << add_point_weight << std::endl;
+    outfile << "update_index_weight " << update_index_weight << std::endl;
+    outfile << "tree_weight " << tree_weight << std::endl;
+    outfile << "table_weight " << table_weight << std::endl;
 
     for (size_t i = 0; i < n; i++) {
         for (size_t j = 0; j < output_dims; j++) {

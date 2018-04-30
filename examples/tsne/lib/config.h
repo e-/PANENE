@@ -53,6 +53,14 @@ public:
 
     size_t ops = 300;
     size_t cores = 4;
+
+    size_t num_trees = 4;
+    size_t num_checks = 1024;
+
+    float add_point_weight = 0.7f;
+    float update_index_weight = 0.3f;
+    float tree_weight = 0.5f;
+    float table_weight = 0.5f;
 };
 
 #endif

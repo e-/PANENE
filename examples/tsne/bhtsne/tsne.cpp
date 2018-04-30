@@ -61,7 +61,7 @@ void TSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dims, double 
 
     // Determine whether we are using an exact algorithm
     if (N - 1 < 3 * perplexity) { printf("Perplexity too large for the number of data points!\n"); exit(1); }
-    printf("Using no_dims = %u, perplexity = %f, and theta = %f\n", no_dims, perplexity, theta);
+    printf("Using no_dims = %zu, perplexity = %f, and theta = %f\n", no_dims, perplexity, theta);
     bool exact = (theta == .0) ? true : false;
 
     // Set learning parameters
@@ -81,7 +81,7 @@ void TSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dims, double 
     // Normalize input data (to prevent numerical problems)
     printf("Computing input similarities...\n");
     start = clock();
-    zeroMean(X, (int)N, (int)D);
+    zeroMean(X, N, D);
     double max_X = .0;
     for (int i = 0; i < N * D; i++) {
         if (fabs(X[i]) > max_X) max_X = fabs(X[i]);
@@ -96,7 +96,7 @@ void TSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dims, double 
         printf("Exact?");
         P = (double*)malloc(N * N * sizeof(double));
         if (P == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-        computeGaussianPerplexity(X, (int)N, (int)D, P, perplexity);
+        computeGaussianPerplexity(X, N, D, P, perplexity);
 
         // Symmetrize input similarities
         printf("Symmetrizing...\n");
@@ -119,10 +119,10 @@ void TSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dims, double 
     else {
 
         // Compute asymmetric pairwise input similarities
-        computeGaussianPerplexity(X, (int)N, (int)D, &row_P, &col_P, &val_P, perplexity, (int)(3 * perplexity));
+        computeGaussianPerplexity(X, N, D, &row_P, &col_P, &val_P, perplexity, (int)(3 * perplexity));
 
         // Symmetrize input similarities
-        symmetrizeMatrix(&row_P, &col_P, &val_P, (int)N);
+        symmetrizeMatrix(&row_P, &col_P, &val_P, N);
         double sum_P = .0;
         for (size_t i = 0; i < row_P[N]; i++) sum_P += val_P[i];
         for (size_t i = 0; i < row_P[N]; i++) val_P[i] /= sum_P;
@@ -149,8 +149,8 @@ void TSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dims, double 
     for (int iter = 0; iter < max_iter; iter++) {
 
         // Compute (approximate) gradient
-        if (exact) computeExactGradient(P, Y, (int)N, (int)no_dims, dY);
-        else computeGradient(row_P, col_P, val_P, Y, (int)N, (int)no_dims, dY, theta);
+        if (exact) computeExactGradient(P, Y, N, no_dims, dY);
+        else computeGradient(row_P, col_P, val_P, Y, N, no_dims, dY, theta);
 
         // Update gains
         for (int i = 0; i < N * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
@@ -161,7 +161,7 @@ void TSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dims, double 
         for (int i = 0; i < N * no_dims; i++)  Y[i] = Y[i] + uY[i];
 
         // Make solution zero-mean
-        zeroMean(Y, (int)N, (int)no_dims);
+        zeroMean(Y, N, no_dims);
 
         // Stop lying about the P-values after a while, and switch momentum
         if (iter == stop_lying_iter) {
@@ -174,14 +174,14 @@ void TSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dims, double 
         if (iter > 0 && (iter % config.log_per == 0 || iter == max_iter - 1)) {
             end = clock();
             double C = .0;
-            if (exact) C = evaluateError(P, Y, (int)N, (int)no_dims);
-            else      C = evaluateError(row_P, col_P, val_P, Y, (int)N, (int)no_dims, theta);  // doing approximate computation here!
+            if (exact) C = evaluateError(P, Y, N, no_dims);
+            else      C = evaluateError(row_P, col_P, val_P, Y, N, no_dims, theta);  // doing approximate computation here!
 
             if (iter == 0)
                 printf("Iteration %d: error is %f\n", iter + 1, C);
             else {
                 total_time += (float)(end - start) / CLOCKS_PER_SEC;
-                printf("Iteration %d: error is %f (%d iterations in %4.2f seconds)\n", iter, C, config.log_per, (float)(end - start) / CLOCKS_PER_SEC);
+                printf("Iteration %d: error is %f (%zu iterations in %4.2f seconds)\n", iter, C, config.log_per, (float)(end - start) / CLOCKS_PER_SEC);
             }
 
             config.event_log("iter", iter, C, total_time);
@@ -207,18 +207,18 @@ void TSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dims, double 
 
 
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
-void TSNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, double* Y, int N, int D, double* dC, double theta)
+void TSNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, double* inp_val_P, double* Y, size_t N, size_t D, double* dC, double theta)
 {
 
     // Construct space-partitioning tree on current map
-    SPTree* tree = new SPTree(D, Y, N);
+    SPTree* tree = new SPTree((unsigned int)D, Y, (unsigned int)N);
 
     // Compute all terms required for t-SNE gradient
     double sum_Q = .0;
     double* pos_f = (double*)calloc(N * D, sizeof(double));
     double* neg_f = (double*)calloc(N * D, sizeof(double));
     if (pos_f == NULL || neg_f == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-    tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, N, pos_f);
+    tree->computeEdgeForces(inp_row_P, inp_col_P, inp_val_P, (int)N, pos_f);
     for (int n = 0; n < N; n++) tree->computeNonEdgeForces(n, theta, neg_f + n * D, &sum_Q);
 
     // Compute final t-SNE gradient
@@ -231,7 +231,7 @@ void TSNE::computeGradient(unsigned int* inp_row_P, unsigned int* inp_col_P, dou
 }
 
 // Compute gradient of the t-SNE cost function (exact)
-void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC) {
+void TSNE::computeExactGradient(double* P, double* Y, size_t N, size_t D, double* dC) {
 
     // Make sure the current gradient contains zeros
     for (int i = 0; i < N * D; i++) dC[i] = 0.0;
@@ -245,9 +245,9 @@ void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC) 
     double* Q = (double*)malloc(N * N * sizeof(double));
     if (Q == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     double sum_Q = .0;
-    int nN = 0;
-    for (int n = 0; n < N; n++) {
-        for (int m = 0; m < N; m++) {
+    size_t nN = 0;
+    for (size_t n = 0; n < N; n++) {
+        for (size_t m = 0; m < N; m++) {
             if (n != m) {
                 Q[nN + m] = 1 / (1 + DD[nN + m]);
                 sum_Q += Q[nN + m];
@@ -258,10 +258,10 @@ void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC) 
 
     // Perform the computation of the gradient
     nN = 0;
-    int nD = 0;
-    for (int n = 0; n < N; n++) {
-        int mD = 0;
-        for (int m = 0; m < N; m++) {
+    size_t nD = 0;
+    for (size_t n = 0; n < N; n++) {
+        size_t mD = 0;
+        for (size_t m = 0; m < N; m++) {
             if (n != m) {
                 double mult = (P[nN + m] - (Q[nN + m] / sum_Q)) * Q[nN + m];
                 for (int d = 0; d < D; d++) {
@@ -281,7 +281,7 @@ void TSNE::computeExactGradient(double* P, double* Y, int N, int D, double* dC) 
 
 
 // Evaluate t-SNE cost function (exactly)
-double TSNE::evaluateError(double* P, double* Y, int N, int D) {
+double TSNE::evaluateError(double* P, double* Y, size_t N, size_t D) {
 
     // Compute the squared Euclidean distance matrix
     double* DD = (double*)malloc(N * N * sizeof(double));
@@ -290,10 +290,10 @@ double TSNE::evaluateError(double* P, double* Y, int N, int D) {
     computeSquaredEuclideanDistance(Y, N, D, DD);
 
     // Compute Q-matrix and normalization sum
-    int nN = 0;
+    size_t nN = 0;
     double sum_Q = DBL_MIN;
-    for (int n = 0; n < N; n++) {
-        for (int m = 0; m < N; m++) {
+    for (size_t n = 0; n < N; n++) {
+        for (size_t m = 0; m < N; m++) {
             if (n != m) {
                 Q[nN + m] = 1 / (1 + DD[nN + m]);
                 sum_Q += Q[nN + m];
@@ -317,7 +317,7 @@ double TSNE::evaluateError(double* P, double* Y, int N, int D) {
 }
 
 // Evaluate t-SNE cost function (approximately)
-double TSNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, double* Y, int N, int D, double theta)
+double TSNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* val_P, double* Y, size_t N, size_t D, double theta)
 {
 
     // Get estimate of normalization term
@@ -350,7 +350,7 @@ double TSNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* val
 
 
 // Compute input similarities with a fixed perplexity
-void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double perplexity) {
+void TSNE::computeGaussianPerplexity(double* X, size_t N, size_t D, double* P, double perplexity) {
 
     // Compute the squared Euclidean distance matrix
     double* DD = (double*)malloc(N * N * sizeof(double));
@@ -421,7 +421,7 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, double* P, double 
 
 
 // Compute input similarities with a fixed perplexity using ball trees (this function allocates memory another function should free)
-void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, int K) {
+void TSNE::computeGaussianPerplexity(double* X, size_t N, size_t D, unsigned int** _row_P, unsigned int** _col_P, double** _val_P, double perplexity, size_t K) {
 
     if (perplexity > K) printf("Perplexity should be lower than K!\n");
 
@@ -520,7 +520,7 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _ro
 
 
 // Symmetrizes a sparse matrix
-void TSNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double** _val_P, int N) {
+void TSNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double** _val_P, size_t N) {
 
     // Get sparse matrix
     unsigned int* row_P = *_row_P;
@@ -608,7 +608,7 @@ void TSNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double
 }
 
 // Compute squared Euclidean distance matrix
-void TSNE::computeSquaredEuclideanDistance(double* X, int N, int D, double* DD) {
+void TSNE::computeSquaredEuclideanDistance(double* X, size_t N, size_t D, double* DD) {
     const double* XnD = X;
     for (int n = 0; n < N; ++n, XnD += D) {
         const double* XmD = XnD + D;
@@ -627,7 +627,7 @@ void TSNE::computeSquaredEuclideanDistance(double* X, int N, int D, double* DD) 
 
 
 // Makes data zero-mean
-void TSNE::zeroMean(double* X, int N, int D) {
+void TSNE::zeroMean(double* X, size_t N, size_t D) {
 
     // Compute data mean
     double* mean = (double*)calloc(D, sizeof(double));

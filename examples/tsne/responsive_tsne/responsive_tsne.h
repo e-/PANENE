@@ -71,9 +71,9 @@ public:
       float ee_factor);
 
 private:
-    void computeGradient(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double* dC, double theta, float ee_factor);
-    double evaluateError(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double theta, float ee_factor);
-    void zeroMean(double* X, int N, int D);
+    void computeGradient(vector<map<size_t, double>>& similarities, double* Y, size_t N, size_t D, double* dC, double theta, float ee_factor);
+    double evaluateError(vector<map<size_t, double>>& similarities, double* Y, size_t N, size_t D, double theta, float ee_factor);
+    void zeroMean(double* X, size_t N, size_t D);
     double randn();
 };
 

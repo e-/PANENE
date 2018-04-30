@@ -24,17 +24,17 @@
 using namespace std;
 using namespace panene;
 
-float getEEFactor(int iter, const Config& config) {
+double getEEFactor(int iter, const Config& config) {
     if (config.use_ee) {
         if (config.use_periodic) {
             if (iter % config.periodic_cycle < config.periodic_duration) return config.ee_factor;
-            return 1.0f;
+            return 1.0;
         }
         
         if (iter < config.ee_iter) return config.ee_factor;
     }
 
-    return 1.0f;
+    return 1.0;
 }
 // Perform Responsive t-SNE with Progressive KDTree
 void ResponsiveTSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dims, double perplexity, double theta, int rand_seed,
@@ -48,7 +48,7 @@ void ResponsiveTSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dim
         }
         else {
             printf("Using current time as random seed...\n");
-            srand(time(NULL));
+            srand((unsigned int)time(NULL));
         }
     }
 
@@ -90,10 +90,10 @@ void ResponsiveTSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dim
         &source,
         &sink,
         K + 1,
-        IndexParams(4),
-        SearchParams(1024, 0, 0, config.cores),
-        TreeWeight(0.7, 0.3),
-        TableWeight(0.5, 0.5));
+        IndexParams(config.num_trees),
+        SearchParams(config.num_checks, 0, 0, config.cores),
+        TreeWeight(config.add_point_weight, config.update_index_weight),
+        TableWeight(config.tree_weight, config.table_weight));
 
     // Normalize input data (to prevent numerical problems)
     zeroMean(X, N, D);
@@ -359,7 +359,7 @@ void ResponsiveTSNE::updateSimilarity(Table *table,
 }
 
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
-void ResponsiveTSNE::computeGradient(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double* dC, double theta, float ee_factor)
+void ResponsiveTSNE::computeGradient(vector<map<size_t, double>>& similarities, double* Y, size_t N, size_t D, double* dC, double theta, float ee_factor)
 {
     // Construct space-partitioning tree on current map
     SPTree* tree = new SPTree(D, Y, N);
@@ -383,7 +383,7 @@ void ResponsiveTSNE::computeGradient(vector<map<size_t, double>>& similarities, 
 
 // Evaluate t-SNE cost function (approximately)
 double ResponsiveTSNE::evaluateError(vector<map<size_t, double>>& similarities,
-    double *Y, int N, int D, double theta, float ee_factor)
+    double *Y, size_t N, size_t D, double theta, float ee_factor)
 {
 
     // Get estimate of normalization term
@@ -431,7 +431,7 @@ double ResponsiveTSNE::evaluateError(vector<map<size_t, double>>& similarities,
 }
 
 // Makes data zero-mean
-void ResponsiveTSNE::zeroMean(double* X, int N, int D) {
+void ResponsiveTSNE::zeroMean(double* X, size_t N, size_t D) {
     // Compute data mean
     double* mean = (double*)calloc(D, sizeof(double));
     if (mean == NULL) { printf("Memory allocation failed!\n"); exit(1); }

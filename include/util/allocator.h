@@ -195,7 +195,7 @@ public:
 
 inline void* operator new (std::size_t size, panene::PooledAllocator& allocator)
 {
-    return allocator.allocateMemory(size) ;
+    return allocator.allocateMemory((int)size) ;
 }
 
 inline void operator delete(void* p, panene::PooledAllocator& allocator)
