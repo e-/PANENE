@@ -91,7 +91,7 @@ void ResponsiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, double
         &sink,
         K + 1,
         IndexParams(4),
-        SearchParams(1024),
+        SearchParams(1024, 0, 0, config.cores),
         TreeWeight(0.7, 0.3),
         TableWeight(0.5, 0.5));
 
@@ -232,7 +232,7 @@ void ResponsiveTSNE::updateSimilarity(Table *table,
         ar.updatedIds.insert(i);
 
         // for newly added points, we set its initial position to the mean of its neighbors
-        std::vector<size_t> indices(K);
+        std::vector<size_t> indices(K + 1);
         table->getNeighbors(i, indices);
 
         for (size_t j = i * no_dims; j < (i + 1) * no_dims; ++j) {
@@ -248,8 +248,8 @@ void ResponsiveTSNE::updateSimilarity(Table *table,
 
     for (size_t uid : ar.updatedIds) {
         // the neighbors of uid has been updated
-        std::vector<size_t> indices(K);
-        std::vector<double> distances(K);
+        std::vector<size_t> indices(K + 1);
+        std::vector<double> distances(K + 1);
 
         table->getNeighbors(uid, indices);
         table->getDistances(uid, distances);

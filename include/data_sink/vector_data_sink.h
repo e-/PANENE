@@ -13,8 +13,8 @@ public:
     distances.resize(size_);
 
     for(size_t i = 0; i < size_; ++i) { 
-      neighbors[i].reserve(k);
-      distances[i].reserve(k);
+      neighbors[i].resize(k);
+      distances[i].resize(k);
     }
   }
 

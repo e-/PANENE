@@ -52,6 +52,7 @@ public:
     size_t log_per = 10;
 
     size_t ops = 300;
+    size_t cores = 4;
 };
 
 #endif
