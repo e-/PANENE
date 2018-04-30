@@ -16,35 +16,29 @@
 #include <sys/stat.h>
 #endif
 
-#include "config.h"
-#include "vptree.h"
-#include "sptree.h"
-#include "progressive_tsne.h"
+#include "../lib/config.h"
+#include "../lib/vptree.h"
+#include "../lib/sptree.h"
+#include "responsive_tsne.h"
 
 using namespace std;
 using namespace panene;
 
-float getEEFactor(int iter, int stop_lying_factor) {
-#if USE_EE
+float getEEFactor(int iter, const Config& config) {
+    if (config.use_ee) {
+        if (config.use_periodic) {
+            if (iter % config.periodic_cycle < config.periodic_duration) return config.ee_factor;
+            return 1.0f;
+        }
+        
+        if (iter < config.ee_iter) return config.ee_factor;
+    }
 
-#if PERIODIC_EE
-    if (iter % PERIODIC_EE_CYCLE < PERIODIC_EE_DURATION) return EE_FACTOR;
     return 1.0f;
-#else
-
-    if (iter < stop_lying_factor) return EE_FACTOR;
-    return 1.0f;
-#endif
-
-#else
-    return 1.0f;
-#endif
-
 }
-
-// Perform Progressive t-SNE with Progressive KDTree
-void ProgressiveTSNE::run(char *path, char *output_dir, double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
-    bool skip_random_init, int max_iter, int mom_switch_iter, int print_every) {
+// Perform Responsive t-SNE with Progressive KDTree
+void ResponsiveTSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
+    bool skip_random_init, int max_iter, int stop_lying_iter, int mom_switch_iter, Config& config) {
 
     // Set random seed
     if (skip_random_init != true) {
@@ -60,7 +54,7 @@ void ProgressiveTSNE::run(char *path, char *output_dir, double* X, int N, int D,
 
     // Determine whether we are using an exact algorithm
     if (N - 1 < 3 * perplexity) { printf("Perplexity too large for the number of data points!\n"); exit(1); }
-    printf("Using no_dims = %d, perplexity = %f, theta = %f, USE_ADAM=%d, EE_FACTOR=%4f\n", no_dims, perplexity, theta, USE_ADAM, EE_FACTOR);
+    printf("Using no_dims = %d, perplexity = %f, and theta = %f\n", no_dims, perplexity, theta);
 
     if (theta == .0) {
         printf("Exact TSNE is not supported!");
@@ -70,57 +64,18 @@ void ProgressiveTSNE::run(char *path, char *output_dir, double* X, int N, int D,
     // Set learning parameters
     float total_time = .0;
     clock_t start, end;
-    double momentum = .5, final_momentum = .8;
+    double momentum = config.momentum, final_momentum = .8;
+    double eta = config.eta;
 
     double* dY = (double*)malloc(N * no_dims * sizeof(double));
     if (dY == NULL) { printf("Memory allocation failed!\n"); exit(1); }
 
-#if USE_ADAM
-    // Adam optimzer
-    double* m_t = (double*)malloc(N * no_dims * sizeof(double));
-    double* v_t = (double*)malloc(N * no_dims * sizeof(double));
-    if (m_t == NULL || v_t == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-
-    for (int i = 0; i < N * no_dims; i++) m_t[i] = v_t[i] = .0;
-
-    double eta = 1;
-    double beta1 = 0.9;
-    double beta2 = 0.999;
-    double pbeta1 = beta1;
-    double pbeta2 = beta2;
-    double eps = 1e-8;
-
-#else
     // Allocate some memory
-    double eta = 200;
     double* uY = (double*)malloc(N * no_dims * sizeof(double));
     double* gains = (double*)malloc(N * no_dims * sizeof(double));
     if (uY == NULL || gains == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     for (int i = 0; i < N * no_dims; i++)    uY[i] = .0;
     for (int i = 0; i < N * no_dims; i++) gains[i] = 1.0;
-#endif
-
-    // Create a result directory
-    char base_path[200];
-    sprintf(base_path, "%s", output_dir);
-
-    struct stat st = { 0 };
-    if (stat(base_path, &st) == -1) {
-#ifdef _WIN32
-        _mkdir(base_path);
-#else
-        mkdir(base_path, 0700);
-#endif
-    }
-
-    // Logging
-    char meta_path[200];
-    sprintf(meta_path, "%s/metadata.txt", base_path);
-    FILE *meta = fopen(meta_path, "w");
-
-    // Print parameters
-    fprintf(meta, "path=%s, N=%d, D=%d, no_dims=%d, perplexity=%3f, theta=%3f, max_iter=%d, mom_switch_iter=%d\n", path, N, D, no_dims, perplexity, theta, max_iter, mom_switch_iter);
-    fprintf(meta, "eta=%3lf, USE_EE=%d, EE_FACTOR=%3f, PERIODIC_EE=%d, PERIODIC_EE_CYCLE=%d, PERIODIC_EE_DURATION=%d, PERIODIC_RESET=%d\n", eta, USE_EE, EE_FACTOR, PERIODIC_EE, PERIODIC_EE_CYCLE, PERIODIC_EE_DURATION, PERIODIC_RESET);
 
     start = clock();
 
@@ -159,11 +114,11 @@ void ProgressiveTSNE::run(char *path, char *output_dir, double* X, int N, int D,
 
     total_time += (float)(end - start) / CLOCKS_PER_SEC;
     printf("took %f for setup\n", total_time);
-    fprintf(meta, "embedding %f\n", total_time);
+    config.event_log("initialization", total_time);
 
     // Perform main training loop
 
-    size_t ops = 300;
+    size_t ops = config.ops;
 
     vector<map<size_t, double>> neighbors(N); // neighbors[i] has exact K items
     vector<map<size_t, double>> similarities(N); // may have more due to asymmetricity of neighborhoodship 
@@ -175,7 +130,7 @@ void ProgressiveTSNE::run(char *path, char *output_dir, double* X, int N, int D,
 
         float start_perplex = 0, end_perplex = 0;
         float table_time = 0;
-        float ee_factor = getEEFactor(iter, STOP_LYING_ITER);
+        float ee_factor = getEEFactor(iter, config);
 
         if (old_ee_factor != ee_factor) {
             float ratio = ee_factor / old_ee_factor;
@@ -185,12 +140,6 @@ void ProgressiveTSNE::run(char *path, char *output_dir, double* X, int N, int D,
                     kv.second *= ratio;
                 }
             }
-#if PERIODIC_EE && PERIODIC_RESET
-            if (ee_factor == EE_FACTOR) {
-                for (int i = 0; i < N * no_dims; i++)    uY[i] = .0;
-                for (int i = 0; i < N * no_dims; i++) gains[i] = 1.0;
-            }
-#endif
         }
 
         old_ee_factor = ee_factor;
@@ -206,19 +155,6 @@ void ProgressiveTSNE::run(char *path, char *output_dir, double* X, int N, int D,
 
         computeGradient(similarities, Y, n, no_dims, dY, theta, ee_factor);
 
-#if USE_ADAM
-        // we use Adam Optimzer
-        for (int i = 0; i < n * no_dims; i++) {
-            m_t[i] = beta1 * m_t[i] + (1 - beta1) * dY[i];
-            v_t[i] = beta2 * v_t[i] + (1 - beta2) * dY[i] * dY[i];
-            double d = eta * sqrt(1 - pbeta2) / (1 - pbeta1) / (sqrt(v_t[i]) + eps) * m_t[i];
-            Y[i] = Y[i] - d;
-        }
-
-        pbeta1 *= beta1;
-        pbeta2 *= beta2;
-#else
-
         // Update gains
         for (int i = 0; i < n * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
         for (int i = 0; i < n * no_dims; i++) if (gains[i] < .01) gains[i] = .01;
@@ -226,8 +162,6 @@ void ProgressiveTSNE::run(char *path, char *output_dir, double* X, int N, int D,
         // Perform gradient update (with momentum and gains)
         for (int i = 0; i < n * no_dims; i++) uY[i] = momentum * uY[i] - eta * gains[i] * dY[i];
         for (int i = 0; i < n * no_dims; i++)  Y[i] = Y[i] + uY[i];
-
-#endif
 
         double grad_sum = 0;
         for (int i = 0; i < n * no_dims; i++) {
@@ -237,48 +171,31 @@ void ProgressiveTSNE::run(char *path, char *output_dir, double* X, int N, int D,
         // Make solution zero-mean
         zeroMean(Y, n, no_dims);
 
-        // if(iter == mom_switch_iter) momentum = final_momentum;
-
-        end = clock();
-        total_time += (float)(end - start) / CLOCKS_PER_SEC;
+        if(iter == mom_switch_iter) momentum = final_momentum;
 
         // Print out progress
-        size_t log_every = 5;
-
-        if (iter < 20 || iter % log_every == 0) {
+        if (iter > 0 && (iter % config.log_per == 0 || iter == max_iter - 1)) {
+            end = clock();            
             double C = .0;
             C = evaluateError(similarities, Y, N, no_dims, theta, ee_factor);  // doing approximate computation here!
+            
             printf("Iteration %d: error is %f (total=%4.2f seconds, perplex=%4.2f seconds, tree=%4.2f seconds, ee_factor=%2.1f) grad_sum is %4.6f\n", iter, C, (float)(end - start) / CLOCKS_PER_SEC, (end_perplex - start_perplex) / CLOCKS_PER_SEC, table_time, ee_factor, grad_sum);
 
-            char path[200];
-            sprintf(path, "%s/result.%d.txt", base_path, iter);
-            save_data(path, Y, n, no_dims);
-            fprintf(meta, "%d %f %lf %s/result.%d.txt\n", iter, total_time, C, base_path, iter);
+            total_time += (float)(end - start) / CLOCKS_PER_SEC;
+
+            config.event_log("iter", iter, C, total_time);
+            config.save_embedding(iter, Y);
         }
     }
     // Clean up memory
     free(dY);
-
-#if USE_ADAM
-    free(m_t);
-    free(v_t);
-#else
     free(uY);
     free(gains);
-#endif
-
-
-    fclose(meta);
 
     printf("Fitting performed in %4.2f seconds.\n", total_time);
-
-    // Save the final embedding
-    char emb_path[200];
-    sprintf(emb_path, "%s/embedding.txt", base_path);
-    save_data(emb_path, Y, N, no_dims);
 }
 
-void ProgressiveTSNE::updateSimilarity(Table *table,
+void ResponsiveTSNE::updateSimilarity(Table *table,
     vector<map<size_t, double>>& neighbors,
     vector<map<size_t, double>>& similarities,
     double* Y,
@@ -442,7 +359,7 @@ void ProgressiveTSNE::updateSimilarity(Table *table,
 }
 
 // Compute gradient of the t-SNE cost function (using Barnes-Hut algorithm)
-void ProgressiveTSNE::computeGradient(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double* dC, double theta, float ee_factor)
+void ResponsiveTSNE::computeGradient(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double* dC, double theta, float ee_factor)
 {
     // Construct space-partitioning tree on current map
     SPTree* tree = new SPTree(D, Y, N);
@@ -465,7 +382,7 @@ void ProgressiveTSNE::computeGradient(vector<map<size_t, double>>& similarities,
 }
 
 // Evaluate t-SNE cost function (approximately)
-double ProgressiveTSNE::evaluateError(vector<map<size_t, double>>& similarities,
+double ResponsiveTSNE::evaluateError(vector<map<size_t, double>>& similarities,
     double *Y, int N, int D, double theta, float ee_factor)
 {
 
@@ -513,27 +430,8 @@ double ProgressiveTSNE::evaluateError(vector<map<size_t, double>>& similarities,
     return C;
 }
 
-// Compute squared Euclidean distance matrix
-void ProgressiveTSNE::computeSquaredEuclideanDistance(double* X, int N, int D, double* DD) {
-    const double* XnD = X;
-    for (int n = 0; n < N; ++n, XnD += D) {
-        const double* XmD = XnD + D;
-        double* curr_elem = &DD[n*N + n];
-        *curr_elem = 0.0;
-        double* curr_elem_sym = curr_elem + N;
-        for (int m = n + 1; m < N; ++m, XmD += D, curr_elem_sym += N) {
-            *(++curr_elem) = 0.0;
-            for (int d = 0; d < D; ++d) {
-                *curr_elem += (XnD[d] - XmD[d]) * (XnD[d] - XmD[d]);
-            }
-            *curr_elem_sym = *curr_elem;
-        }
-    }
-}
-
-
 // Makes data zero-mean
-void ProgressiveTSNE::zeroMean(double* X, int N, int D) {
+void ResponsiveTSNE::zeroMean(double* X, int N, int D) {
     // Compute data mean
     double* mean = (double*)calloc(D, sizeof(double));
     if (mean == NULL) { printf("Memory allocation failed!\n"); exit(1); }
@@ -561,7 +459,7 @@ void ProgressiveTSNE::zeroMean(double* X, int N, int D) {
 
 
 // Generates a Gaussian random number
-double ProgressiveTSNE::randn() {
+double ResponsiveTSNE::randn() {
     double x, y, radius;
     do {
         x = 2 * (rand() / ((double)RAND_MAX + 1)) - 1;
@@ -572,54 +470,4 @@ double ProgressiveTSNE::randn() {
     x *= radius;
     y *= radius;
     return x;
-}
-
-// Function that loads data from a t-SNE file
-// Note: this function does a malloc that should be freed elsewhere
-bool ProgressiveTSNE::load_data(char *path, double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter) {
-
-    // Open file, read first 2 integers, allocate memory, and read the data
-    FILE *h;
-    if ((h = fopen(path, "r")) == NULL) {
-        printf("Error: could not open data file.\n");
-        return false;
-    }
-
-    fscanf(h, "%d", n); // fread(n, sizeof(int), 1, h);											// number of datapoints
-    fscanf(h, "%d", d); // fread(d, sizeof(int), 1, h);											// original dimensionality
-    fscanf(h, "%lf", theta); // fread(theta, sizeof(double), 1, h);										// gradient accuracy
-    fscanf(h, "%lf", perplexity); // fread(perplexity, sizeof(double), 1, h);								// perplexity
-    fscanf(h, "%d", no_dims); //	fread(no_dims, sizeof(int), 1, h);                                      // output dimensionality
-    fscanf(h, "%d", max_iter); // fread(max_iter, sizeof(int),1,h);                                       // maximum number of iterations
-
-    *data = (double*)malloc(*d * *n * sizeof(double));
-    if (*data == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-
-    for (int i = 0; i < *n; ++i)
-        for (int j = 0; j < *d; ++j)
-            fscanf(h, "%lf", (*data + i * (*d) + j));
-    //    fread(*data, sizeof(double), *n * *d, h);                               // the data
-
-    if (!feof(h)) fread(rand_seed, sizeof(int), 1, h);                       // random seed
-    fclose(h);
-    printf("Read the %i x %i data matrix successfully!\n", *n, *d);
-    return true;
-}
-
-// Function that saves map to a t-SNE file
-void ProgressiveTSNE::save_data(char *path, double* data, int n, int d) {
-    FILE *h;
-    if ((h = fopen(path, "w")) == NULL) {
-        printf("Error: could not open data file.\n");
-        return;
-    }
-
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < d; ++j)
-            fprintf(h, "%lf ", data[i*d + j]);
-        fprintf(h, "\n");
-    }
-
-    fclose(h);
-    printf("Wrote the %i x %i data matrix successfully!\n", n, d);
 }

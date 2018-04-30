@@ -8,5 +8,6 @@ eta 200
 use_ee 1
 ee_factor 12
 use_periodic 0
+log_per 100
 input_path D:\G\work\panene\panene\data\images.txt
 output_path D:\G\work\panene\panene\data\bhtsne\

@@ -62,6 +62,9 @@ Config Config::load(const std::string& path) {
         else if (key == "log_per") {
             infile >> config.log_per;
         }
+        else if (key == "ops") {
+            infile >> config.ops;
+        }
         else {
             throw std::runtime_error("unknown key: " + key);
         }
@@ -117,6 +120,8 @@ void Config::save(double *Y) {
     outfile << "output_path " << output_path << std::endl;
 
     outfile << "log_per " << log_per << std::endl;
+
+    outfile << "ops " << ops << std::endl;
 
     for (size_t i = 0; i < n; i++) {
         for (size_t j = 0; j < output_dims; j++) {

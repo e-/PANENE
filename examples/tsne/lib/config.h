@@ -50,6 +50,8 @@ public:
 
     std::shared_ptr<std::ofstream> event_file;
     size_t log_per = 10;
+
+    size_t ops = 300;
 };
 
 #endif

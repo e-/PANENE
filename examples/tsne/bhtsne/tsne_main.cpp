@@ -5,17 +5,18 @@
 #include <cstring>
 #include <ctime>
 #include "tsne.h"
-#include "../config/config.h"
+#include "../lib/config.h"
 
 // Function that runs the Barnes-Hut implementation of t-SNE
-int main() {
+int main(int argv, char *argc[]) {
 
     // Define some variables
-	double perc_landmarks;
-    TSNE* tsne = new TSNE();    
-    Config& config = Config::load("D:\\G\\work\\panene\\panene\\examples\\tsne\\config.txt");
+    TSNE* tsne = new TSNE(); 
+    std::string path = "D:\\G\\work\\panene\\panene\\examples\\tsne\\config.txt";
+    if (argv >= 2)
+        path = argc[1];
 
-    // Read the parameters and the dataset
+    Config& config = Config::load(path);
 
 	// Make dummy landmarks
     int* landmarks = (int*) malloc(config.n * sizeof(int));

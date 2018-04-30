@@ -36,8 +36,8 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
-#include "vptree.h"
-#include "sptree.h"
+#include "../lib/vptree.h"
+#include "../lib/sptree.h"
 #include "tsne.h"
 
 
@@ -177,15 +177,16 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
             if (exact) C = evaluateError(P, Y, N, no_dims);
             else      C = evaluateError(row_P, col_P, val_P, Y, N, no_dims, theta);  // doing approximate computation here!
 
-            config.event_log("iter", iter, C, total_time);
-            config.save_embedding(iter, Y);
-
             if (iter == 0)
                 printf("Iteration %d: error is %f\n", iter + 1, C);
             else {
                 total_time += (float)(end - start) / CLOCKS_PER_SEC;
                 printf("Iteration %d: error is %f (%d iterations in %4.2f seconds)\n", iter, C, config.log_per, (float)(end - start) / CLOCKS_PER_SEC);
             }
+
+            config.event_log("iter", iter, C, total_time);
+            config.save_embedding(iter, Y);
+
             start = clock();
         }
     }
