@@ -44,8 +44,8 @@
 using namespace std;
 
 // Perform t-SNE
-void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
-    bool skip_random_init, int max_iter, int stop_lying_iter, int mom_switch_iter, Config& config) {
+void TSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dims, double perplexity, double theta, int rand_seed,
+    bool skip_random_init, size_t max_iter, size_t stop_lying_iter, size_t mom_switch_iter, Config& config) {
 
     // Set random seed
     if (skip_random_init != true) {
@@ -55,13 +55,13 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
         }
         else {
             printf("Using current time as random seed...\n");
-            srand(time(NULL));
+            srand((unsigned int)time(NULL));
         }
     }
 
     // Determine whether we are using an exact algorithm
     if (N - 1 < 3 * perplexity) { printf("Perplexity too large for the number of data points!\n"); exit(1); }
-    printf("Using no_dims = %d, perplexity = %f, and theta = %f\n", no_dims, perplexity, theta);
+    printf("Using no_dims = %u, perplexity = %f, and theta = %f\n", no_dims, perplexity, theta);
     bool exact = (theta == .0) ? true : false;
 
     // Set learning parameters
@@ -81,7 +81,7 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
     // Normalize input data (to prevent numerical problems)
     printf("Computing input similarities...\n");
     start = clock();
-    zeroMean(X, N, D);
+    zeroMean(X, (int)N, (int)D);
     double max_X = .0;
     for (int i = 0; i < N * D; i++) {
         if (fabs(X[i]) > max_X) max_X = fabs(X[i]);
@@ -96,13 +96,13 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
         printf("Exact?");
         P = (double*)malloc(N * N * sizeof(double));
         if (P == NULL) { printf("Memory allocation failed!\n"); exit(1); }
-        computeGaussianPerplexity(X, N, D, P, perplexity);
+        computeGaussianPerplexity(X, (int)N, (int)D, P, perplexity);
 
         // Symmetrize input similarities
         printf("Symmetrizing...\n");
-        int nN = 0;
+        size_t nN = 0;
         for (int n = 0; n < N; n++) {
-            int mN = (n + 1) * N;
+            size_t mN = (n + 1) * N;
             for (int m = n + 1; m < N; m++) {
                 P[nN + m] += P[mN + n];
                 P[mN + n] = P[nN + m];
@@ -119,19 +119,19 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
     else {
 
         // Compute asymmetric pairwise input similarities
-        computeGaussianPerplexity(X, N, D, &row_P, &col_P, &val_P, perplexity, (int)(3 * perplexity));
+        computeGaussianPerplexity(X, (int)N, (int)D, &row_P, &col_P, &val_P, perplexity, (int)(3 * perplexity));
 
         // Symmetrize input similarities
-        symmetrizeMatrix(&row_P, &col_P, &val_P, N);
+        symmetrizeMatrix(&row_P, &col_P, &val_P, (int)N);
         double sum_P = .0;
-        for (int i = 0; i < row_P[N]; i++) sum_P += val_P[i];
-        for (int i = 0; i < row_P[N]; i++) val_P[i] /= sum_P;
+        for (size_t i = 0; i < row_P[N]; i++) sum_P += val_P[i];
+        for (size_t i = 0; i < row_P[N]; i++) val_P[i] /= sum_P;
     }
     end = clock();
 
     // Lie about the P-values
-    if (exact) { for (int i = 0; i < N * N; i++)        P[i] *= config.ee_factor; }
-    else { for (int i = 0; i < row_P[N]; i++) val_P[i] *= config.ee_factor; }
+    if (exact) { for (size_t i = 0; i < N * N; i++)        P[i] *= config.ee_factor; }
+    else { for (size_t i = 0; i < row_P[N]; i++) val_P[i] *= config.ee_factor; }
 
     // Initialize solution (randomly)
     if (skip_random_init != true) {
@@ -149,8 +149,8 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
     for (int iter = 0; iter < max_iter; iter++) {
 
         // Compute (approximate) gradient
-        if (exact) computeExactGradient(P, Y, N, no_dims, dY);
-        else computeGradient(row_P, col_P, val_P, Y, N, no_dims, dY, theta);
+        if (exact) computeExactGradient(P, Y, (int)N, (int)no_dims, dY);
+        else computeGradient(row_P, col_P, val_P, Y, (int)N, (int)no_dims, dY, theta);
 
         // Update gains
         for (int i = 0; i < N * no_dims; i++) gains[i] = (sign(dY[i]) != sign(uY[i])) ? (gains[i] + .2) : (gains[i] * .8);
@@ -161,12 +161,12 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
         for (int i = 0; i < N * no_dims; i++)  Y[i] = Y[i] + uY[i];
 
         // Make solution zero-mean
-        zeroMean(Y, N, no_dims);
+        zeroMean(Y, (int)N, (int)no_dims);
 
         // Stop lying about the P-values after a while, and switch momentum
         if (iter == stop_lying_iter) {
-            if (exact) { for (int i = 0; i < N * N; i++)        P[i] /= config.ee_factor; }
-            else { for (int i = 0; i < row_P[N]; i++) val_P[i] /= config.ee_factor; }
+            if (exact) { for (size_t i = 0; i < N * N; i++)        P[i] /= config.ee_factor; }
+            else { for (size_t i = 0; i < row_P[N]; i++) val_P[i] /= config.ee_factor; }
         }
         if (iter == mom_switch_iter) momentum = final_momentum;
 
@@ -174,8 +174,8 @@ void TSNE::run(double* X, int N, int D, double* Y, int no_dims, double perplexit
         if (iter > 0 && (iter % config.log_per == 0 || iter == max_iter - 1)) {
             end = clock();
             double C = .0;
-            if (exact) C = evaluateError(P, Y, N, no_dims);
-            else      C = evaluateError(row_P, col_P, val_P, Y, N, no_dims, theta);  // doing approximate computation here!
+            if (exact) C = evaluateError(P, Y, (int)N, (int)no_dims);
+            else      C = evaluateError(row_P, col_P, val_P, Y, (int)N, (int)no_dims, theta);  // doing approximate computation here!
 
             if (iter == 0)
                 printf("Iteration %d: error is %f\n", iter + 1, C);
@@ -331,7 +331,7 @@ double TSNE::evaluateError(unsigned int* row_P, unsigned int* col_P, double* val
     double C = .0, Q;
     for (int n = 0; n < N; n++) {
         ind1 = n * D;
-        for (int i = row_P[n]; i < row_P[n + 1]; i++) {
+        for (size_t i = row_P[n]; i < row_P[n + 1]; i++) {
             Q = .0;
             ind2 = col_P[i] * D;
             for (int d = 0; d < D; d++) buff[d] = Y[ind1 + d];
@@ -505,8 +505,8 @@ void TSNE::computeGaussianPerplexity(double* X, int N, int D, unsigned int** _ro
         }
 
         // Row-normalize current row of P and store in matrix
-        for (unsigned int m = 0; m < K; m++) cur_P[m] /= sum_P;
-        for (unsigned int m = 0; m < K; m++) {
+        for (size_t m = 0; m < K; m++) cur_P[m] /= sum_P;
+        for (size_t m = 0; m < K; m++) {
             col_P[row_P[n] + m] = (unsigned int)indices[m + 1].index();
             val_P[row_P[n] + m] = cur_P[m];
         }
@@ -531,11 +531,11 @@ void TSNE::symmetrizeMatrix(unsigned int** _row_P, unsigned int** _col_P, double
     int* row_counts = (int*)calloc(N, sizeof(int));
     if (row_counts == NULL) { printf("Memory allocation failed!\n"); exit(1); }
     for (int n = 0; n < N; n++) {
-        for (int i = row_P[n]; i < row_P[n + 1]; i++) {
+        for (size_t i = row_P[n]; i < row_P[n + 1]; i++) {
 
             // Check whether element (col_P[i], n) is present
             bool present = false;
-            for (int m = row_P[col_P[i]]; m < row_P[col_P[i] + 1]; m++) {
+            for (size_t m = row_P[col_P[i]]; m < row_P[col_P[i] + 1]; m++) {
                 if (col_P[m] == n) present = true;
             }
             if (present) row_counts[n]++;
