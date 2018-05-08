@@ -125,8 +125,9 @@ void ResponsiveTSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dim
 
     printf("training start\n");
     float old_ee_factor = 1.0f;
+
+    start = clock();
     for (int iter = 0; iter < max_iter; iter++) {
-        start = clock();
 
         float start_perplex = 0, end_perplex = 0;
         float table_time = 0;
@@ -143,7 +144,6 @@ void ResponsiveTSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dim
         }
 
         old_ee_factor = ee_factor;
-        printf("ee_factor = %.3f\n", ee_factor);
 
         if (table.getSize() < N) {
             start_perplex = clock();
@@ -173,9 +173,11 @@ void ResponsiveTSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dim
 
         if(iter == mom_switch_iter) momentum = final_momentum;
 
+        
         // Print out progress
-        if (iter > 0 && (iter % config.log_per == 0 || iter == max_iter - 1)) {
-            end = clock();            
+        if (iter > 0 && (iter % config.log_per == 0 || iter == max_iter - 1)) {        
+            end = clock();
+
             double C = .0;
             C = evaluateError(similarities, Y, N, no_dims, theta, ee_factor);  // doing approximate computation here!
             
@@ -185,6 +187,8 @@ void ResponsiveTSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dim
 
             config.event_log("iter", iter, C, total_time);
             config.save_embedding(iter, Y);
+
+            start = clock();
         }
     }
     // Clean up memory

@@ -141,6 +141,7 @@ void TSNE::run(double* X, size_t N, size_t D, double* Y, size_t no_dims, double 
     // Perform main training loop
 
     config.event_log("similarity", (double)(end - start) / CLOCKS_PER_SEC);
+    total_time += (double)(end - start) / CLOCKS_PER_SEC;
 
     if (exact) printf("Input similarities computed in %4.2f seconds!\nLearning embedding...\n", (float)(end - start) / CLOCKS_PER_SEC);
     else printf("Input similarities computed in %4.2f seconds (sparsity = %f)!\nLearning embedding...\n", (float)(end - start) / CLOCKS_PER_SEC, (double)row_P[N] / ((double)N * (double)N));

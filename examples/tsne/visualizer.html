@@ -1,15 +1,21 @@
 <!DOCTYPE html>
+<html>
+  <head><title>Visualizing t-SNE result</title></head>
 <body>
   <style>
+    
+    body {
+      font-family:Arial, Helvetica, sans-serif;
+    }
     td{padding:2px;}
     text{font-family: Helvetica; font-size:1.2em;}
-    h1{font-family:Helvetica; text-align:center; padding-top:0;}
+    h1{font-family:Helvetica; padding-top:0;}
     .header{
       padding-top:0px;
       position:relative;
       text-align:center;
     }
-    p{
+    /*p{
       font-family:Helvetica;
       font-size:1.2em; text-align:center; 
       margin:0;
@@ -18,8 +24,17 @@
       position:absolute;
       bottom:2px; 
       left:-3px;
-    }
+    }*/
   </style>
+
+  <div style="display:none" id="no-path">
+    <h1>Path is not given</h1>
+    <p>Add "?q=[path to a result directory]" at the end of url.</p>
+    <p>The result directory must have "result.txt", "events.txt", and incremental t-sne results that are captured during training.</p>
+    <p>example: /visualizer.html?q=./bhtsne</p>
+    <p>example: /visualizer.html?q=./bhtsne&amp;labels=./labels.txt</p>
+  </div>
+
   <table id="table">
   </table>
   
@@ -29,15 +44,41 @@
 
   <script>
 
-let params = document.location.search.substring(1, document.location.search.length)
-let path = params.split('&').map(d => d.split('=')).filter(s => s[0] === 'q')
+let paramText = document.location.search.substring(1, document.location.search.length)
+let params = {};
+paramText.split('&').map(d => d.split('=')).forEach(arr => params[arr[0]] = arr[1]);
+
+let path = params.q;
 
 if(path.length === 0) {
-  document.write('path is not given. add "?q=[path to result]" at the end of url')
+  d3.select('#no-path').style('display', 'block')
 }
 else {
-  path = path[0][1]
   load(path);
+}
+
+function get(url, responseType) {
+  return new Promise(function (resolve, reject) {
+    const request = new XMLHttpRequest();
+    request.onload = function () {
+      if (this.status === 200) {
+        resolve(this.response);
+      } else {
+        reject(new Error(this.statusText));
+      }
+    };
+
+    request.onerror = function () {
+      reject(new Error('XMLHttpRequest Error: ' + this.statusText))
+    };
+
+    request.open('GET', url);
+
+    if (responseType)
+      request.responseType = responseType;
+
+    request.send();  
+  });
 }
 
 function load(path) {
@@ -46,68 +87,87 @@ function load(path) {
   let margin = 15
   let label = 35;
 
-  d3.text("labels" + (path.indexOf('sorted') >= 0 ? '.sorted' : '') + '.txt', labels => { // load labels
-    d3.text(path + '/metadata.txt', text => { // load meta
-      lines = text.split('\n').map(line => line.split(' '))
-      byIter = {}
+  let reqs = [];
 
-      lines.forEach(function(line) {
-        byIter[line[0]] = line;
-      })
+  reqs.push(get(path + "/result.txt"));
+  reqs.push(get(path + "/events.txt"));
+  if(params.labels) reqs.push(get(params.labels));
 
-      labels = labels.split('\n');
+  Promise.all(reqs).then(res => {
+    let result = res[0];
+    let events = res[1];
+    let labels = params.labels ? res[2].split("\n") : null;
 
-      let table = d3.select('#table')
-      let rows = 10;
-      let cols = 10;
-      let iter = 0;
+    let lines = result.split("\n").map(line => line.split(' '))
+    let tsne_args = {};
+    let embedding = [];
 
-      for(let i=0;i<rows;++i){ 
-        let tr = table.append('tr')
-        for(let j=0;j<cols;++j){
-          let td = tr.append('td')
-          let id = 'svg'+i+'-'+j;
-
-          let svg = td.append('svg').attr('id', id)
-          draw('#'+id, byIter[iter], labels);
-          iter += 10;
-        }
+    lines.forEach(arr => {
+      if(isNaN(parseFloat(arr[0]))) { // if it is a t-sne parameter
+        tsne_args[arr[0]] = arr[1];
       }
-    });
-  });
+      else {
+        embedding.push(arr);
+      }
+    })
+
+    let iters = events.split("\n").map(line => line.split(" "))
+      .filter(arr => arr[0] === "iter")
+      .map(arr => {
+        return {
+          iter: +arr[1],
+          error: +arr[2],
+          time: +arr[3]
+        }
+      });
+    
+    let cols = 10; 
+    let rows = Math.ceil(iters.length / cols);
+    let table = d3.select('#table')
+    let tr;
+
+    iters.forEach((iter, i) => {
+      if(i % cols == 0) 
+        tr = table.append('tr')
+      
+      let td = tr.append('td');
+      let id = "svg"+i;
+
+      let svg = td.append("svg").attr("id", id)
+      draw("#"+id, iter, path + "/" + iter.iter + ".txt", labels);
+    })    
+  })
 
   function translate(x, y) { return 'translate(' + x + ',' + y + ')'; }
   function shuffle(array) {
     let counter = array.length;
     // While there are elements in the array
     while (counter > 0) {
-              // Pick a random index
-              let index = Math.floor(Math.random() * counter);
+      // Pick a random index
+      let index = Math.floor(Math.random() * counter);
 
-              // Decrease counter by 1
-              counter--;
+      // Decrease counter by 1
+      counter--;
 
-              // And swap the last element with it
-              let temp = array[counter];
-              array[counter] = array[index];
-              array[index] = temp;
-          
+      // And swap the last element with it
+      let temp = array[counter];
+      array[counter] = array[index];
+      array[index] = temp;     
     }
     return array;
   }
 
-  function draw(svgId, line, labels) {
-    let iter = line[0]
-    let time = line[1]
-    let error = line[2]
-    let path = line[3]
-
+  function draw(svgId, line, path, labels) {
+    let iter = line.iter;
+    let time = line.time;
+    let error = line.error;
     d3.text(path, text => {
       let data = d3.tsvParseRows(text, d => {
         r = d[0].split(' ')
 
         return [+r[0], +r[1]]
       })
+
       let sampleSize = Math.min(1000, data.length);
       let sampleIndex = shuffle(d3.range(data.length)).slice(0, sampleSize)
       let svg = d3.select(svgId)
@@ -165,10 +225,11 @@ function load(path) {
           .attr('cx', d => x(data[d][0]))
           .attr('cy', d => y(data[d][1]))
           .attr('r', 1.5)
-          .style('fill', (d, i) => categorical(labels[d]))
+          .style('fill', (d, i) => labels ? categorical(labels[d]) : '#aaa')
     })
   }
 }
 
   </script>
 </body>
+</html>

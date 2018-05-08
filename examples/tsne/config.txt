@@ -1,4 +1,4 @@
-n 1000
+n 10000
 input_dims 784
 output_dims 2
 perplexity 10
@@ -10,4 +10,4 @@ ee_factor 12
 use_periodic 0
 log_per 100
 input_path D:\G\work\panene\panene\data\images.txt
-output_path D:\G\work\panene\panene\data\bhtsne\
+output_path D:\G\work\panene\panene\data\restsne\
