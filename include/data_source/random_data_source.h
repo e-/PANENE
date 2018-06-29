@@ -7,7 +7,6 @@
 
 namespace panene
 {
-
     template<typename T, class D>
     class RandomDataSource
     {
