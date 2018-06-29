@@ -89,7 +89,7 @@ Config Config::load(const std::string& path) {
     // validate config
     
     if (config.n == 0 || config.input_dims == 0 || config.output_dims == 0 || config.input_path.size() == 0 || config.output_path.size() == 0) {
-        throw std::exception("some of the required fields are missing");
+        throw std::exception("some of the required fields are missing: check n, input_dims, output_dims, input_path, output_path");
     }
    
     std::ifstream datafile(config.input_path);
