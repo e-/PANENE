@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<head>
+<style>
+  body{
+    font-family: Helvetica;
+  }
+  </style>
+</head>
+<body>
+  <h1>Scikit-learn Gaussian Density Estimator</h1>
+  <svg id="ground_truth"></svg>
+  <p id="ground_truth_time"></p>
+  <h1>KNN Density Estimator</h1>
+  <div id="knn"></div>
+  
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="https://d3js.org/d3-contour.v1.min.js"></script>
+
+  <script>
+
+    d3.json('result/X_samples.json', (samples) => {
+      samples.forEach(d => {
+        d[0] = +d[0];
+        d[1] = +d[1];
+      })
+
+      draw(d3.select('#ground_truth'), 'result/ground_truth.json', samples, 200,
+        d3.select('#ground_truth_time')
+      )
+
+      d3.json('result/metadata.json', (metadata) => {
+        metadata.forEach(meta => {
+          let k = meta.k;
+          let bandwidth = meta.bandwidth;
+          let max_iter = meta.max_iter;
+        
+          let div = d3.select('#knn').append('div')
+
+          div.append('h1').text('k = ' + k + ', bandwidth = ' + bandwidth + ', iter = ' + max_iter)
+          
+          for(let i = 0; i < max_iter; i++) {
+            let block = div.append('div')
+            block.style('display', 'inline')
+      
+            let svg = block.append('svg')
+            draw(svg, 'result/knn_' + bandwidth + '_' + k + '_' + i + '.json', samples, 200,
+              block.append('span')
+            );
+          }
+        });
+        console.log(metadata)
+      })
+    })
+/*
+draw('#knn_n', 'result/result_knn_n.json')
+
+for(d of [1, 5, 10, 20, 50, 100]) {
+  draw('#knn_' + d, 'result/result_knn_' + d + '.json')
+}*/
+
+function translate(x, y) { return 'translate(' + x + ',' + y + ')'; }
+
+function draw(svg, path, samples, size, p) {
+  d3.json(path, (data) => {
+    data.samples.forEach(d => {
+      d[0][0] = +d[0][0] // x
+      d[0][1] = +d[0][1] // y
+      d[1] = +d[1] // density
+    })
+
+    svg.attr('width', size).attr('height', size)
+    let width = size - 20, height = size - 20;
+    svg.append('g').attr('transform', translate(10, 10))
+    let bg = svg.append('g')
+    let fg = svg.append('g')
+
+    let x = d3.scaleLinear().domain(d3.extent(data.samples, d => d[0][0])).range([0, width])
+    let y = d3.scaleLinear().domain(d3.extent(data.samples, d => d[0][1])).range([0, height])
+
+    fg
+      .selectAll('circle')
+      .data(samples)
+      .enter()
+      .append('circle')
+        .attr('r', 2)
+        .attr('fill', 'white')
+        .attr('stroke', 'black')
+        .attr('stroke-width', '1px')
+        .attr('cx', d => x(d[0]))
+        .attr('cy', d => y(d[1]))
+        .attr('opacity', 0.7)
+    
+    let bins = +data.bins;
+    let color = d3.scaleSequential(d3.interpolateCool)
+      .domain([0, d3.max(data.samples, d => d[1])])
+    let densityMax = d3.max(data.samples, x => x[1])
+    let step = 10
+
+    // 
+    bg.selectAll('path')
+      .data(d3.contours()
+        .size([bins + 1, bins + 1])
+        .thresholds(d3.range(0, densityMax, densityMax / step))
+        (data.samples.map(d => d[1]))
+      )
+      .enter()
+        .append('path')
+        .attr('d', d3.geoPath(d3.geoTransform({
+          point: function(x, y) {
+            let s = width / bins;
+            this.stream.point(y * s - s * 0.5, x * s - s * 0.5)
+          }
+        }))) 
+        .attr('fill', d => color(d.value))
+
+    p.text(d3.format('.4')(data.time) + ' s')
+  })
+}
+
+  </script>
+</body>

@@ -239,7 +239,7 @@ class Test_Panene(unittest.TestCase):
             ids2, dists2 = index.knn_search_points(test_points, k, checks = 1000)            
             
             """
-            The assertion below always holds since the latter search checks a larger number of nodes and the search process is deterministic
+            The assertion below always holds since later search checks a larger number of nodes and the search process is deterministic
             """
             self.assertEqual(np.sum(dists1 >= dists2), test_n * k)
 
