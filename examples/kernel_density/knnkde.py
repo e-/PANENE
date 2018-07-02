@@ -8,7 +8,7 @@ class KNNKernelDensity():
 
     def __init__(self, X, online=False):
         self.X = X
-        self.index = Index(X)
+        self.index = Index(X, w=(0.8, 0.2), reconstruction_weight=5)
         
         if not online: # if offline
             self.index.add_points(len(X))

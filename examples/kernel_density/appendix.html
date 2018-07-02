@@ -4,13 +4,20 @@
   body{
     font-family: Helvetica;
   }
+
+  h1{
+    margin: 5px;
+    margin-top: 15px;
+  }
+  
   </style>
 </head>
 <body>
-  <h1>Scikit-learn Gaussian Density Estimator</h1>
-  <svg id="ground_truth"></svg>
-  <p id="ground_truth_time"></p>
-  <h1>KNN Density Estimator</h1>
+  <h1>Ground truth</h1>
+  <div style="display:inline-block;text-align:center">
+    <svg id="ground_truth"></svg> <br />
+    <span id="ground_truth_time"></span>
+  </div>
   <div id="knn"></div>
   
   <script src="https://d3js.org/d3.v4.min.js"></script>
@@ -23,32 +30,44 @@
         d[0] = +d[0];
         d[1] = +d[1];
       })
+      d3.json('result/X1_samples.json', (X1_samples) => {
+        X1_samples.forEach(d => {
+          d[0] = +d[0];
+          d[1] = +d[1];
+        })
 
-      draw(d3.select('#ground_truth'), 'result/ground_truth.json', samples, 200,
-        d3.select('#ground_truth_time')
-      )
+        draw(d3.select('#ground_truth'), 'result/ground_truth.json', 
+          X1_samples,
+          samples, 160,
+          d3.select('#ground_truth_time')
+        )
 
-      d3.json('result/metadata.json', (metadata) => {
-        metadata.forEach(meta => {
-          let k = meta.k;
-          let bandwidth = meta.bandwidth;
-          let max_iter = meta.max_iter;
-        
-          let div = d3.select('#knn').append('div')
-
-          div.append('h1').text('k = ' + k + ', bandwidth = ' + bandwidth + ', iter = ' + max_iter)
+        d3.json('result/metadata.json', (metadata) => {
+          metadata.forEach((meta, i) => {
+            let k = meta.k;
+            let bandwidth = meta.bandwidth;
+            let max_iter = meta.max_iter;
           
-          for(let i = 0; i < max_iter; i++) {
-            let block = div.append('div')
-            block.style('display', 'inline')
-      
-            let svg = block.append('svg')
-            draw(svg, 'result/knn_' + bandwidth + '_' + k + '_' + i + '.json', samples, 200,
-              block.append('span')
-            );
-          }
-        });
-        console.log(metadata)
+            let div = d3.select('#knn').append('div')
+
+            div.append('h1').html('Progressive Density Estimation (<em>k</em> = ' + d3.format(',')(k) + ')') //', bandwidth = ' + bandwidth + ', iter = ' + max_iter)
+            
+            for(let i = 0; i < max_iter; i++){
+              let block = div.append('div')
+              block.style('display', 'inline-block')
+                .style('text-align', 'center')
+                .style('margin', '3px')
+        
+              let svg = block.append('svg')
+              block.append('br')
+              draw(svg, 'result/knn_' + bandwidth + '_' + k + '_' + i + '.json', 
+                X1_samples,
+                samples, 160,
+                block.append('span')
+              );
+            }
+          });
+        })
       })
     })
 /*
@@ -60,7 +79,7 @@ for(d of [1, 5, 10, 20, 50, 100]) {
 
 function translate(x, y) { return 'translate(' + x + ',' + y + ')'; }
 
-function draw(svg, path, samples, size, p) {
+function draw(svg, path, X1_samples, samples, size, p) {
   d3.json(path, (data) => {
     data.samples.forEach(d => {
       d[0][0] = +d[0][0] // x
@@ -69,8 +88,8 @@ function draw(svg, path, samples, size, p) {
     })
 
     svg.attr('width', size).attr('height', size)
-    let width = size - 20, height = size - 20;
-    svg.append('g').attr('transform', translate(10, 10))
+    let width = size - 10, height = size - 10;
+    svg = svg.append('g').attr('transform', translate(5, 5))
     let bg = svg.append('g')
     let fg = svg.append('g')
 
@@ -79,7 +98,7 @@ function draw(svg, path, samples, size, p) {
 
     fg
       .selectAll('circle')
-      .data(samples)
+      .data(data.all_sample ? samples : X1_samples)
       .enter()
       .append('circle')
         .attr('r', 2)
@@ -113,7 +132,10 @@ function draw(svg, path, samples, size, p) {
         }))) 
         .attr('fill', d => color(d.value))
 
-    p.text(d3.format('.4')(data.time) + ' s')
+    if(data.iteration >= 0)
+      p.html('Iteration #' + (data.iteration + 1) + ', ' + d3.format(',.2f')(data.time) + ' s')
+    else
+      p.text(d3.format(',.2f')(data.time) + ' s')
   })
 }
 
