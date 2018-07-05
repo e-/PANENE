@@ -50,7 +50,7 @@
           
             let div = d3.select('#knn').append('div')
 
-            div.append('h1').html('Progressive Density Estimation (<em>k</em> = ' + d3.format(',')(k) + ')') //', bandwidth = ' + bandwidth + ', iter = ' + max_iter)
+            div.append('h1').html('Progressive Density Estimation (<em>K</em> = ' + d3.format(',')(k) + ')') //', bandwidth = ' + bandwidth + ', iter = ' + max_iter)
             
             for(let i = 0; i < max_iter; i++){
               let block = div.append('div')
