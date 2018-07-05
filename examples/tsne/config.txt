@@ -1,0 +1,13 @@
+n 10000
+input_dims 784
+output_dims 2
+perplexity 10
+theta 0.5
+max_iter 1010
+eta 200
+use_ee 1
+ee_factor 12
+use_periodic 0
+log_per 100
+input_path D:\G\work\panene\panene\data\images.txt
+output_path D:\G\work\panene\panene\data\restsne\

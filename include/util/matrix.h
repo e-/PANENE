@@ -33,87 +33,87 @@
 
 #include <stdio.h>
 
-// revised: enforce flann_datatype_t to be float
+ // revised: enforce flann_datatype_t to be float
 namespace panene
 {
 
-typedef unsigned char uchar;
+    typedef unsigned char uchar;
 
-class Matrix_
-{
-	typedef float ElementType;
-public:
-
-	Matrix_() : rows(0), cols(0), stride(0), data(NULL)
-	{
-	};
-
-	Matrix_(void* data_, size_t rows_, size_t cols_, size_t stride_ = 0) :
-			rows(rows_), cols(cols_), stride(stride_)
-	{
-		data = static_cast<uchar*>(data_);
-
-//		if (stride==0) stride = sizeof(ElementType) * cols;
-	}
-
-	/**
-	 * Operator that returns a (pointer to a) row of the data.
-	 */
-	inline void* operator[](size_t index) const
-	{
-			return data+index*stride;
-	}
-
-	void* ptr() const
-	{
-			return data;
-	}
-
-	size_t rows;
-	size_t cols;
-	size_t stride;
-protected:
-	uchar* data;
-};
-
-
-/**
- * Class that implements a simple rectangular matrix stored in a memory buffer and
- * provides convenient matrix-like access using the [] operators.
- *
- * This class has the same memory structure as the un-templated class flann::Matrix_ and
- * it's directly convertible from it.
- */
-template <typename T>
-class Matrix : public Matrix_
-{
-public:
-    typedef T type;
-
-    Matrix() : Matrix_()
+    class Matrix_
     {
-    }
+        typedef float ElementType;
+    public:
 
-    Matrix(T* data_, size_t rows_, size_t cols_, size_t stride_ = 0) :
-    	Matrix_(data_, rows_, cols_, stride_)
-    {
-    	if (stride==0) stride = sizeof(T)*cols;
-    }
+        Matrix_() : rows(0), cols(0), stride(0), data(NULL)
+        {
+        };
+
+        Matrix_(void* data_, size_t rows_, size_t cols_, size_t stride_ = 0) :
+            rows(rows_), cols(cols_), stride(stride_)
+        {
+            data = static_cast<uchar*>(data_);
+
+            //		if (stride==0) stride = sizeof(ElementType) * cols;
+        }
+
+        /**
+         * Operator that returns a (pointer to a) row of the data.
+         */
+        inline void* operator[](size_t index) const
+        {
+            return data + index * stride;
+        }
+
+        void* ptr() const
+        {
+            return data;
+        }
+
+        size_t rows;
+        size_t cols;
+        size_t stride;
+    protected:
+        uchar * data;
+    };
+
 
     /**
-     * Operator that returns a (pointer to a) row of the data.
+     * Class that implements a simple rectangular matrix stored in a memory buffer and
+     * provides convenient matrix-like access using the [] operators.
+     *
+     * This class has the same memory structure as the un-templated class flann::Matrix_ and
+     * it's directly convertible from it.
      */
-    inline T* operator[](size_t index) const
+    template <typename T>
+    class Matrix : public Matrix_
     {
-    	return reinterpret_cast<T*>(data+index*stride);
-    }
+    public:
+        typedef T type;
+
+        Matrix() : Matrix_()
+        {
+        }
+
+        Matrix(T* data_, size_t rows_, size_t cols_, size_t stride_ = 0) :
+            Matrix_(data_, rows_, cols_, stride_)
+        {
+            if (stride == 0) stride = sizeof(T)*cols;
+        }
+
+        /**
+         * Operator that returns a (pointer to a) row of the data.
+         */
+        inline T* operator[](size_t index) const
+        {
+            return reinterpret_cast<T*>(data + index * stride);
+        }
 
 
-    T* ptr() const
-    {
-    	return reinterpret_cast<T*>(data);
-    }
-};
+        T* ptr() const
+        {
+            return reinterpret_cast<T*>(data);
+        }
+    };
 
 }
 

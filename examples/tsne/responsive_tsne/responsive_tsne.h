@@ -31,8 +31,8 @@
  */
 
 
-#ifndef PROGRESSIVE_TSNE_H
-#define PROGRESSIVE_TSNE_H
+#ifndef RESPONSIVE_TSNE_H
+#define RESPONSIVE_TSNE_H
 
 #include <progressive_knn_table.h>
 #include <data_source/array_data_source.h>
@@ -40,6 +40,8 @@
 #include <dist.h>
 #include <vector>
 #include <map>
+
+#include "../lib/config.h"
 
 using namespace panene;
 using namespace std;
@@ -53,13 +55,11 @@ using Table = ProgressiveKNNTable<ProgressiveKDTreeIndex<Source>, Sink>;
 
 static inline double sign(double x) { return (x == .0 ? .0 : (x < .0 ? -1.0 : 1.0)); }
 
-class ProgressiveTSNE
+class ResponsiveTSNE
 {
 public:
-    void run(char *path, char *output_dir, double* X, int N, int D, double* Y, int no_dims, double perplexity, double theta, int rand_seed,
-             bool skip_random_init, int max_iter=1000, int mom_switch_iter=250, int print_every=50);
-    bool load_data(char *path, double** data, int* n, int* d, int* no_dims, double* theta, double* perplexity, int* rand_seed, int* max_iter);
-    void save_data(char* path, double* data, int n, int d);
+    void run(double* X, size_t N, size_t D, double* Y, size_t no_dims, double perplexity, double theta, int rand_seed,
+             bool skip_random_init, size_t max_iter, size_t stop_lying_iter, size_t mom_switch_iter, Config& config);
     void updateSimilarity(Table *table, 
       vector<map<size_t, double>>& neighbors,
       vector<map<size_t, double>>& similarties,
@@ -71,11 +71,9 @@ public:
       float ee_factor);
 
 private:
-    void computeGradient(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double* dC, double theta, float ee_factor);
-    double evaluateError(vector<map<size_t, double>>& similarities, double* Y, int N, int D, double theta, float ee_factor);
-    void zeroMean(double* X, int N, int D);
-    float computeGaussianPerplexity(Table *table, size_t ops, double* X, int N, int D, unsigned int* row_P, unsigned int* _col_P, double* _val_P, double* cur_P, double perplexity, int K);
-    void computeSquaredEuclideanDistance(double* X, int N, int D, double* DD);
+    void computeGradient(vector<map<size_t, double>>& similarities, double* Y, size_t N, size_t D, double* dC, double theta, float ee_factor);
+    double evaluateError(vector<map<size_t, double>>& similarities, double* Y, size_t N, size_t D, double theta, float ee_factor);
+    void zeroMean(double* X, size_t N, size_t D);
     double randn();
 };
 
