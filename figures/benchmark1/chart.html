@@ -119,7 +119,7 @@ function renderLine(xattr, yattr, cattr, data, owidth, oheight, og, settings){
         .call(xAxis)
         .append("text")
         .attr('class', 'x-axis-text')
-        .attr("y", 45)
+        .attr("y", 40)
         .attr('x', width / 2)
         .style('text-anchor', 'middle')
         .attr('width', width)
@@ -225,7 +225,7 @@ function renderLine(xattr, yattr, cattr, data, owidth, oheight, og, settings){
         .attr('class', 'y-axis-text')
         .attr("transform", "rotate(-90)")
         .attr("y", -60 + (settings.yAxisTextDelta || 0))
-        .attr('x', -height / 2)
+        .attr('x', -height / 2 + (settings.yAxisTextDeltaX || 0))
         .style('text-anchor', 'middle')
         .attr('width', height)
         .attr("fill", "#000")
@@ -264,7 +264,7 @@ d3.tsv("log.tsv", function(error, data) {
     })
 
     let width = 1280;
-    let height = 900;
+    let height = 820;
     let marginForLegend = 40;
     let svg = d3.select('#svg').attr('width', width).attr('height', height)
     let rowHeight = (height - marginForLegend) / rows.length;
@@ -284,7 +284,8 @@ d3.tsv("log.tsv", function(error, data) {
 
         let title = g.append('text')
             .attr('transform', translate(20, -12))
-            .style('font-size', '1.4em')
+            .style('font-size', '1.2m')
+            .style('font-weight', 'bold')
             .text(row[2]+ ' (' + row[1] + ')')
             
         let chartHeight = rowHeight;
@@ -298,7 +299,8 @@ d3.tsv("log.tsv", function(error, data) {
             yAxisText: 'Insertion Time (seconds)',
             xAxisText: 'Iteration',
             yAxisTextSize: '0.9em',
-            yAxisTextDelta: -5,
+            yAxisTextDelta: 2,
+            yAxisTextDeltaX: -10,
             xMin:1,
             xMax:maxIter
         }) 
