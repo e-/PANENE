@@ -59,9 +59,7 @@ void run(const char* base_) {
 
     const size_t pointsN = 1000000;
     std::vector<Dataset> datasets = {
-        Dataset(base, "blob", "shuffled", pointsN, 100),
-        Dataset(base, "blob", "original", pointsN, 100)
-        /*Dataset(base, "glove", "shuffled", pointsN, 100),
+      Dataset(base, "glove", "shuffled", pointsN, 100)/*,
       Dataset(base, "glove", "original", pointsN, 100),
       Dataset(base, "sift", "shuffled", pointsN, 128),
       Dataset(base, "sift", "original", pointsN, 128)*/
@@ -79,7 +77,7 @@ void run(const char* base_) {
     std::fstream log;
 
 #ifdef _WIN32
-    log.open(base + "./log_blob.tsv", std::fstream::out);
+    log.open(base + "./log_ops.tsv", std::fstream::out);
 #else
     log.open("./log.tsv", std::fstream::out);
 #endif
@@ -87,10 +85,10 @@ void run(const char* base_) {
     log <<
         "method\tdata\tversion\trepeat\tmaxOp\titer\tnumPointsInserted\timbalance1\timbalance2\timbalance3\timbalance4\tmax_depth\tQPS\tAccuracy\tmeanDistError\taddPointElapsed\tupdateIndexElapsed" << std::endl;
 
-    size_t maxOps[] = { 5000 };
+    size_t maxOps[] = { 1000, 3000, 5000, 10000 };
     size_t maxOpsN = sizeof(maxOps) / sizeof(size_t);
 
-    float addPointWeights[] = { 0.2f, 0.35f, 0.5f };
+    float addPointWeights[] = { 0.35f }; // 0.2f, 0.35f, 0.5f };
     size_t weightN = sizeof(addPointWeights) / sizeof(float);
 
     int datasetIndex = -1;
