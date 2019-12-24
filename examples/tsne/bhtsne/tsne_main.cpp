@@ -16,7 +16,7 @@ int main(int argv, char *argc[]) {
     if (argv >= 2)
         path = argc[1];
 
-    Config& config = Config::load(path);
+    Config config = Config::load(path);
 
     // Make dummy landmarks
     int* landmarks = (int*)malloc(config.n * sizeof(int));
