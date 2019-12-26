@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC  -fopenmp -O3 -DNDEBUG  -shared -Wl,-soname,libpanene.so -o ../libpanene.so CMakeFiles/panene.dir/panene.cpp.o CMakeFiles/panene.dir/roaring.c.o 

@@ -1,0 +1,1 @@
+/usr/bin/c++   -fopenmp -O3 -DNDEBUG    -rdynamic CMakeFiles/node_split_n_test.dir/node_split_n_test.cpp.o  -o node_split_n_test -Wl,-rpath,/home/hkko/vbox/PANENE/build ../libpanene.so 
