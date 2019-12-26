@@ -1,1 +1,0 @@
-/usr/bin/c++   -fopenmp -O3 -DNDEBUG    -rdynamic CMakeFiles/knn_table_benchmark.dir/knn_table_benchmark.cpp.o  -o knn_table_benchmark -Wl,-rpath,/home/hkko/vbox/PANENE/build ../libpanene.so 
