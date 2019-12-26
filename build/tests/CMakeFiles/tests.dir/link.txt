@@ -1,0 +1,1 @@
+/usr/bin/c++   -fopenmp -O3 -DNDEBUG    -rdynamic CMakeFiles/tests.dir/main.cpp.o CMakeFiles/tests.dir/table.cpp.o CMakeFiles/tests.dir/tree.cpp.o  -o tests -Wl,-rpath,/home/hkko/vbox/PANENE/build ../libpanene.so 
