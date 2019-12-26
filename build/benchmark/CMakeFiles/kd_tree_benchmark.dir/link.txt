@@ -1,1 +1,0 @@
-/usr/bin/c++   -fopenmp -O3 -DNDEBUG    -rdynamic CMakeFiles/kd_tree_benchmark.dir/kd_tree_benchmark.cpp.o  -o kd_tree_benchmark -Wl,-rpath,/home/hkko/vbox/PANENE/build ../libpanene.so 

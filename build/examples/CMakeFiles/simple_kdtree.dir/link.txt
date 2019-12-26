@@ -1,1 +1,0 @@
-/usr/bin/c++   -fopenmp -O3 -DNDEBUG    -rdynamic CMakeFiles/simple_kdtree.dir/simple_kdtree.cpp.o  -o simple_kdtree -Wl,-rpath,/home/hkko/vbox/PANENE/build ../libpanene.so 

@@ -264,7 +264,7 @@ void run(const char* base_) {
 
 int main(int argc, const char **argv) {
 #ifdef _WIN32
-    run("/home/vbox/PANENE/data");
+    run("D:\\G\\work\\panene\\PANENE\\data");
 #else 
     if (argc < 2) {
         std::cout << argv[0] << " <dataset_base_path>" << std::endl;

@@ -25,8 +25,7 @@ class Test_KNNTable(unittest.TestCase):
         n = 1000
         ops = 100
         k = 20
-        
-        # initialize arrays (neighbors & distances)
+    
         neighbors = np.zeros((n, k), dtype=np.int64)
         distances = np.zeros((n, k), dtype=np.float32)
 
@@ -71,6 +70,4 @@ class Test_KNNTable(unittest.TestCase):
             self.assertTrue(ur['addPointOps'] + ur['updateIndexOps'] <= w[0] * ops)
 
 if __name__ == '__main__':
-    suite = unittest.TestLoader().loadTestsFromTestCase(Test_KNNTable)
-    unittest.TextTestRunner(verbosity=2).run(suite)
-    # unittest.main()
+    unittest.main()
