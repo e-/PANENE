@@ -7,7 +7,7 @@ data/*.csv
 
 *~
 main
-build
+#build
 *.old
 
 # Prerequisites
