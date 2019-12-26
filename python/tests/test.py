@@ -284,4 +284,6 @@ class Test_Panene(unittest.TestCase):
             self.assertEqual(res['updateIndexResult'], ops)
 
 if __name__ == '__main__':
-    unittest.main()
+    suite = unittest.TestLoader().loadTestsFromTestCase(Test_Panene)
+    unittest.TextTestRunner(verbosity=2).run(suite)
+    #unittest.main()

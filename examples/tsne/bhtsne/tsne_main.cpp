@@ -12,7 +12,7 @@ int main(int argv, char *argc[]) {
 
     // Define some variables
     TSNE* tsne = new TSNE();
-    std::string path = "D:\\G\\work\\panene\\panene\\examples\\tsne\\config.txt";
+    std::string path = "/home/hkko/vbox/PANENE/examples/tsne/config.txt";
     if (argv >= 2)
         path = argc[1];
 
