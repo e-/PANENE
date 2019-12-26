@@ -12,11 +12,11 @@ int main(int argv, char *argc[]) {
 
     // Define some variables
     TSNE* tsne = new TSNE();
-    std::string path = "/home/hkko/vbox/PANENE/examples/tsne/config.txt";
+    std::string path = "D:\\G\\work\\panene\\panene\\examples\\tsne\\config.txt";
     if (argv >= 2)
         path = argc[1];
 
-    Config config = Config::load(path);
+    Config& config = Config::load(path);
 
     // Make dummy landmarks
     int* landmarks = (int*)malloc(config.n * sizeof(int));
